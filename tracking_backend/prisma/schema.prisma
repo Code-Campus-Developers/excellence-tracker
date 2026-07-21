@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id          String       @id
+  name        String
+  email       String       @unique
+  track       String
+  avatarColor String       @default("#16a34a") @map("avatar_color")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  evaluations Evaluation[]
+
+  @@map("students")
+}
+
+model Evaluation {
+  id        String   @id
+  studentId String   @map("student_id")
+  week      Int
+  evaluator String   @default("Mentor Sarah")
+  scores    Json
+  total     Int
+  notes     String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, week])
+  @@map("evaluations")
+}
