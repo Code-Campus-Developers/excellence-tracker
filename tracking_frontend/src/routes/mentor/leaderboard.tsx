@@ -4,10 +4,11 @@ import { PerfBadge, Avatar } from "@/components/PerfBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trophy, Medal, Award } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { STUDENTS, studentStats, studentEvals, CURRENT_WEEK } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
 import { GradingScale } from "@/components/GradingScale";
+import { Pagination } from "@/components/Pagination";
 
 export const Route = createFileRoute("/mentor/leaderboard")({
   head: () => ({
@@ -35,7 +36,14 @@ function Board({
   scoreLabel: string;
   getScore: (id: string) => number;
 }) {
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 20;
+  const totalPages = Math.ceil(rows.length / PER_PAGE);
+  const pagedRows = rows.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const offset = (page - 1) * PER_PAGE;
+
   return (
+    <>
     <Card>
       <CardContent className="p-0">
         <div className="grid grid-cols-[60px_1fr_100px_120px] items-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b">
@@ -45,8 +53,9 @@ function Board({
           <div className="text-right">Level</div>
         </div>
         <div className="divide-y">
-          {rows.map((s, i) => {
+          {pagedRows.map((s, i) => {
             const score = getScore(s.id);
+            const globalRank = offset + i;
             return (
               <Link
                 key={s.id}
@@ -55,7 +64,7 @@ function Board({
                 className="grid grid-cols-[60px_1fr_100px_120px] items-center px-5 py-3 hover:bg-muted transition-colors"
               >
                 <div className="flex items-center gap-1.5 font-bold text-muted-foreground">
-                  #{i + 1} {rankIcon(i)}
+                  #{globalRank + 1} {rankIcon(globalRank)}
                 </div>
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar name={s.name} color={s.avatarColor} size={36} />
@@ -74,6 +83,8 @@ function Board({
         </div>
       </CardContent>
     </Card>
+    <Pagination page={page} totalPages={totalPages} onPage={setPage} totalItems={rows.length} perPage={PER_PAGE} />
+    </>
   );
 }
 
