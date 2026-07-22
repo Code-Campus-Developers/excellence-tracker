@@ -1,18 +1,38 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+dotenv.config();
 
 import studentsRouter from "./routes/students";
 import evaluationsRouter from "./routes/evaluations";
-
-dotenv.config();
+import authRouter from "./routes/auth";
+import adminRouter from "./routes/admin";
+import settingsRouter, { adminSettingsRouter } from "./routes/settings";
+import notificationsRouter from "./routes/notifications";
+import prisma from "./lib/prisma";
+import { authenticate } from "./middleware/authenticate";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
 
-// Middleware
+// Security headers
+app.use(helmet());
+
+// CORS
 app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:8080" }));
+
+// Body parser
 app.use(express.json());
+
+// Rate limit auth endpoints (max 20 requests per 15 min per IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: "Too many requests, please try again later." },
+});
+app.use("/auth", authLimiter);
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -20,13 +40,26 @@ app.get("/health", (_req, res) => {
 });
 
 // Routes
+app.use("/auth", authRouter);
+app.use("/admin", adminRouter);
+app.use("/admin/settings", adminSettingsRouter);
 app.use("/api/students", studentsRouter);
 app.use("/api/evaluations", evaluationsRouter);
+app.use("/api/settings", settingsRouter);
+app.use("/api/notifications", notificationsRouter);
 
-// 404 handler
-app.use((_req, res) => {
-  res.status(404).json({ error: "Route not found" });
+// GET /api/mentors — list mentors, accessible to any authenticated user
+app.get("/api/mentors", authenticate, async (_req, res) => {
+  const mentors = await prisma.user.findMany({
+    where: { role: "MENTOR", isActive: true },
+    select: { id: true, name: true, email: true, createdAt: true },
+    orderBy: { name: "asc" },
+  });
+  res.json(mentors);
 });
+
+// 404
+app.use((_req, res) => { res.status(404).json({ error: "Route not found" }); });
 
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

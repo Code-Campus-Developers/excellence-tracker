@@ -7,8 +7,9 @@ import { Trophy, Medal, Award } from "lucide-react";
 import { useMemo } from "react";
 import { STUDENTS, studentStats, studentEvals, CURRENT_WEEK } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
+import { GradingScale } from "@/components/GradingScale";
 
-export const Route = createFileRoute("/leaderboard")({
+export const Route = createFileRoute("/mentor/leaderboard")({
   head: () => ({
     meta: [
       { title: "Leaderboard — CodeCampus Excellence Tracker" },
@@ -49,7 +50,7 @@ function Board({
             return (
               <Link
                 key={s.id}
-                to="/students/$id"
+                to="/mentor/students/$id"
                 params={{ id: s.id }}
                 className="grid grid-cols-[60px_1fr_100px_120px] items-center px-5 py-3 hover:bg-muted transition-colors"
               >
@@ -99,6 +100,10 @@ function Leaderboard() {
         title="Leaderboard"
         subtitle="See who's leading the pack across the bootcamp."
       />
+      <div className="mb-6">
+        <p className="text-sm font-medium mb-3">Grading Scale</p>
+        <GradingScale compact />
+      </div>
 
       <Tabs defaultValue="current">
         <TabsList className="mb-4">

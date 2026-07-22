@@ -1,7 +1,11 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { authenticate } from "../middleware/authenticate";
+import { createNotification, notifyAdmins } from "./notifications";
+import { sendEvaluationEmail } from "../lib/email";
 
 const router = Router();
+router.use(authenticate);
 
 // GET /api/evaluations
 router.get("/", async (_req: Request, res: Response) => {
@@ -40,6 +44,34 @@ router.post("/", async (req: Request, res: Response) => {
     const evaluation = await prisma.evaluation.create({
       data: { id, studentId, week, evaluator: evaluator ?? "Mentor Sarah", scores, total, notes: notes ?? "" },
     });
+    // Notify student + send email
+    try {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: { user: true },
+      });
+      if (student?.user) {
+        await createNotification({
+          userId: student.user.id,
+          message: `Your Week ${week} evaluation is ready — you scored ${total}/100`,
+          link: "/dashboard",
+        });
+        await sendEvaluationEmail({
+          to: student.user.email,
+          name: student.user.name,
+          week,
+          total,
+          evaluator: evaluator ?? "Mentor",
+        });
+      }
+      // Notify all admins about the evaluation
+      await notifyAdmins(
+        `${student?.name ?? "A student"} scored ${total}/100 in Week ${week} evaluation`,
+        "/admin"
+      );
+    } catch (err) {
+      console.error("Notification/email after eval failed:", err);
+    }
     res.status(201).json(evaluation);
   } catch (err: unknown) {
     const e = err as { code?: string };

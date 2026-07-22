@@ -10,53 +10,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  CATEGORIES,
-  CURRENT_WEEK,
-  TOTAL_WEEKS,
-  MAX_TOTAL,
-  TRACKS,
-  emptyScores,
-  sumScores,
-  nextAvatarColor,
-  type CategoryKey,
-  type Scores,
+  CATEGORIES, CURRENT_WEEK, TOTAL_WEEKS, MAX_TOTAL, TRACKS,
+  emptyScores, sumScores, nextAvatarColor, type CategoryKey, type Scores,
 } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/authStore";
 
-export const Route = createFileRoute("/evaluate")({
+export const Route = createFileRoute("/mentor/evaluate")({
   head: () => ({
-    meta: [
-      { title: "New Weekly Evaluation — CodeCampus" },
-      { name: "description", content: "Create a weekly performance evaluation for a student." },
-    ],
+    meta: [{ title: "New Weekly Evaluation — CodeCampus" }],
   }),
   component: Evaluate,
 });
@@ -64,16 +39,16 @@ export const Route = createFileRoute("/evaluate")({
 function Evaluate() {
   const navigate = useNavigate();
   const { addEvaluation, evaluations, students, addStudent } = useStore();
+  const { user } = useAuth();
   const [studentId, setStudentId] = useState<string>("");
   const [week, setWeek] = useState<number>(CURRENT_WEEK);
   const [scores, setScores] = useState<Scores>(emptyScores());
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // Combobox state
   const [comboOpen, setComboOpen] = useState(false);
   const [comboSearch, setComboSearch] = useState("");
 
-  // Create student dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -100,51 +75,61 @@ function Evaluate() {
     setCreateOpen(true);
   };
 
-  const handleCreateStudent = () => {
+  const handleCreateStudent = async () => {
     if (!newName.trim()) { toast.error("Name is required"); return; }
     if (!newTrack) { toast.error("Please select a track"); return; }
-    const id = `s${Date.now()}`;
-    addStudent({
-      id,
-      name: newName.trim(),
-      email: newEmail.trim() || `${newName.trim().toLowerCase().replace(/\s+/g, ".")}@codecampus.ng`,
-      track: newTrack,
-      avatarColor: nextAvatarColor(),
-    });
-    setStudentId(id);
-    setCreateOpen(false);
-    toast.success(`${newName.trim()} added as a new student`);
+    setSaving(true);
+    try {
+      const created = await addStudent({
+        id: `s_${Date.now()}`,
+        name: newName.trim(),
+        email: newEmail.trim() || `${newName.trim().toLowerCase().replace(/\s+/g, ".")}@codecampus.ng`,
+        track: newTrack,
+        avatarColor: nextAvatarColor(),
+        userId: null,
+      });
+      setStudentId(created.id);
+      setCreateOpen(false);
+      toast.success(`${created.name} added as a new student`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create student");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSubmit = () => {
-    if (!studentId) {
-      toast.error("Please select a student");
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!studentId) { toast.error("Please select a student"); return; }
     if (alreadyEvaluated) {
       toast.error(`${student?.name} already has an evaluation for Week ${week}`);
       return;
     }
-    const newEval = {
-      id: `e${Date.now()}`,
-      studentId,
-      week,
-      evaluator: "Mentor Sarah",
-      scores,
-      total,
-      notes,
-      createdAt: new Date().toISOString(),
-    };
-    addEvaluation(newEval);
-    toast.success(`Evaluation saved — ${student?.name} scored ${total}/${MAX_TOTAL} in Week ${week}`);
-    setTimeout(() => navigate({ to: "/students/$id", params: { id: studentId } }), 800);
+    setSaving(true);
+    try {
+      await addEvaluation({
+        id: `e_${Date.now()}`,
+        studentId,
+        week,
+        evaluator: user?.name ?? "Mentor",
+        scores,
+        total,
+        notes,
+        createdAt: new Date().toISOString(),
+      });
+      toast.success(`Evaluation saved — ${student?.name} scored ${total}/${MAX_TOTAL} in Week ${week}`);
+      setTimeout(() => navigate({ to: "/mentor/students/$id", params: { id: studentId } }), 800);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save evaluation");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <AppShell>
       <PageHeader
         title="New Weekly Evaluation"
-        subtitle="Score each category — the total updates automatically."
+        subtitle="Score each category, the total updates automatically."
       />
 
       {/* Create Student Dialog */}
@@ -186,9 +171,10 @@ function Evaluate() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateStudent} className="bg-brand text-brand-foreground hover:bg-brand/90">
+            <Button onClick={handleCreateStudent} disabled={saving}
+              className="bg-brand text-brand-foreground hover:bg-brand/90">
               <UserPlus className="h-4 w-4" />
-              Add Student
+              {saving ? "Adding..." : "Add Student"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -400,12 +386,12 @@ function Evaluate() {
 
                 <Button
                   onClick={handleSubmit}
-                  disabled={alreadyEvaluated}
+                  disabled={alreadyEvaluated || saving}
                   className="w-full mt-5 bg-brand text-brand-foreground hover:bg-brand/90 disabled:opacity-60"
                   size="lg"
                 >
                   <Save className="h-4 w-4" />
-                  {alreadyEvaluated ? "Already Evaluated" : "Save Evaluation"}
+                  {saving ? "Saving..." : alreadyEvaluated ? "Already Evaluated" : "Save Evaluation"}
                 </Button>
                 {alreadyEvaluated && (
                   <div className="flex items-center gap-2 text-xs text-destructive mt-2">

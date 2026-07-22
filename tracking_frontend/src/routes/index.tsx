@@ -1,321 +1,150 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-import {
-  BookOpen,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  ClipboardCheck,
-  ArrowRight,
-  Trophy,
-} from "lucide-react";
-import { AppShell, PageHeader } from "@/components/AppShell";
-import { PerfBadge, Avatar } from "@/components/PerfBadge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { ArrowRight, ClipboardCheck, Trophy, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  CartesianGrid,
-} from "recharts";
-import {
-  STUDENTS,
-  CURRENT_WEEK,
-  CATEGORIES,
-  weekEvals,
-  studentStats,
-  MAX_TOTAL,
-} from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { CURRENT_WEEK, TOTAL_WEEKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — CodeCampus Excellence Tracker" },
-      {
-        name: "description",
-        content: "Weekly performance dashboard for the Code Campus bootcamp.",
-      },
+      { title: "Code Campus Excellence Tracker" },
+      { name: "description", content: "Track weekly student performance across the Code Campus International Software Engineering Bootcamp." },
     ],
   }),
-  component: Dashboard,
+  component: Landing,
 });
 
-function Stat({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  accent,
-  to,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accent?: string;
-  to?: string;
-}) {
-  const inner = (
-    <Card className={to ? "cursor-pointer hover:border-brand transition-colors" : ""}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div
-            className="h-10 w-10 rounded-lg flex items-center justify-center"
-            style={{ background: "var(--brand-soft)" }}
-          >
-            <Icon className="h-5 w-5 text-brand" />
-          </div>
-          {accent && (
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-brand-soft text-brand">
-              {accent}
-            </span>
-          )}
-        </div>
-        <div className="mt-4 text-3xl font-bold">{value}</div>
-        <div className="text-sm text-muted-foreground">{label}</div>
-        {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
-      </CardContent>
-    </Card>
-  );
-  return to ? <Link to={to}>{inner}</Link> : inner;
-}
+function Landing() {
+  const navigate = useNavigate();
 
-function Dashboard() {
-  const { evaluations, students } = useStore();
-  const thisWeek = weekEvals(CURRENT_WEEK, evaluations);
-  const evaluatedCount = thisWeek.length;
-  const avgThisWeek = evaluatedCount
-    ? Math.round(thisWeek.reduce((s, e) => s + e.total, 0) / evaluatedCount)
-    : 0;
-
-  const weeklyTrend = useMemo(() => {
-    const arr: { week: string; avg: number }[] = [];
-    for (let w = 1; w <= CURRENT_WEEK; w++) {
-      const evs = weekEvals(w, evaluations);
-      const avg = evs.length ? Math.round(evs.reduce((s, e) => s + e.total, 0) / evs.length) : 0;
-      arr.push({ week: `W${w}`, avg });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("excellence_auth");
+      if (!raw) return;
+      const { user } = JSON.parse(raw) as { user: { role: string } };
+      if (user.role === "ADMIN") navigate({ to: "/admin" });
+      else if (user.role === "MENTOR") navigate({ to: "/mentor" });
+      else navigate({ to: "/dashboard" });
+    } catch {
+      // not logged in, stay on landing
     }
-    return arr;
-  }, [evaluations]);
-
-  const categoryBreakdown = useMemo(() => {
-    return CATEGORIES.map((c) => {
-      const evs = thisWeek;
-      const avg = evs.length
-        ? Math.round((evs.reduce((s, e) => s + e.scores[c.key], 0) / evs.length / c.max) * 100)
-        : 0;
-      return { name: c.short, value: avg };
-    });
-  }, [thisWeek]);
-
-  const topStudents = useMemo(() => {
-    return students
-      .map((s) => ({ ...s, stats: studentStats(s.id, evaluations) }))
-      .filter((s) => s.stats.count > 0)
-      .sort((a, b) => b.stats.avg - a.stats.avg)
-      .slice(0, 5);
-  }, [evaluations, students]);
-
-  const needsImprovement = useMemo(() => {
-    return students
-      .map((s) => ({ ...s, stats: studentStats(s.id, evaluations) }))
-      .filter((s) => s.stats.count > 0 && s.stats.avg < 65)
-      .sort((a, b) => a.stats.avg - b.stats.avg)
-      .slice(0, 4);
-  }, [evaluations, students]);
+  }, []);
 
   return (
-    <AppShell>
-      <PageHeader
-        title="Welcome back, Sarah 👋"
-        subtitle={`Bootcamp Week ${CURRENT_WEEK} — track weekly excellence across all students.`}
-        actions={
-          <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/evaluate">
-              <ClipboardCheck className="h-4 w-4" />
-              New Evaluation
+    <div className="min-h-screen bg-white">
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur w-full">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between w-full">
+        <img src="/image-1784557444135.png" alt="Code Campus International" className="h-9 w-auto" />
+        <Link to="/login">
+          <Button variant="outline" size="sm">Sign In</Button>
+        </Link>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        {/* Background image */}
+        <img
+          src="/image-1784711136503.png"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          aria-hidden="true"
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/60" />
+
+        {/* Content */}
+        <div className="relative max-w-4xl mx-auto px-4 md:px-8 pt-24 pb-20 text-center">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-6">
+            Track. Evaluate.<br />
+            <span className="text-[color:var(--brand)]">Excel.</span>
+          </h1>
+          <p className="text-lg text-white/80 max-w-2xl mx-auto mb-10">
+            The official performance tracking platform for <strong className="text-white">Code Campus International</strong>.
+            Weekly evaluations, live dashboards, and personalised score reports for every student.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/register">
+              <Button size="lg" className="bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand)]/90 px-8">
+                Register as Student
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </Link>
-          </Button>
-        }
-      />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Stat
-          label="Total Students"
-          value={students.length}
-          icon={Users}
-          accent="Enrolled"
-          to="/students"
-        />
-        <Stat
-          label="Evaluated This Week"
-          value={`${evaluatedCount}/${STUDENTS.length}`}
-          icon={ClipboardCheck}
-          accent={`Week ${CURRENT_WEEK}`}
-          to="/evaluate"
-        />
-        <Stat
-          label="Average Score"
-          value={`${avgThisWeek}/${MAX_TOTAL}`}
-          icon={TrendingUp}
-          accent="This week"
-          to="/leaderboard"
-        />
-        <Stat
-          label="Total Evaluations"
-          value={evaluations.length}
-          icon={BookOpen}
-          accent="All-time"
-          to="/leaderboard"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Weekly Score Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="week" stroke="var(--muted-foreground)" fontSize={12} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={12} domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="avg"
-                    stroke="var(--brand)"
-                    strokeWidth={3}
-                    dot={{ fill: "var(--brand)", r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Category Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryBreakdown} layout="vertical" margin={{ left: 10 }}>
-                  <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    stroke="var(--muted-foreground)"
-                    fontSize={11}
-                    width={90}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                    }}
-                    formatter={(v: number) => `${v}%`}
-                  />
-                  <Bar dataKey="value" fill="var(--brand)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-brand" />
-              Top Performers
-            </CardTitle>
-            <Link
-              to="/leaderboard"
-              className="text-xs text-brand font-medium flex items-center gap-1 hover:underline"
-            >
-              View all <ArrowRight className="h-3 w-3" />
+            <Link to="/login">
+              <Button size="lg" variant="outline" className="px-8 bg-white/10 text-white border-white/30 hover:bg-white/20">
+                Sign In
+              </Button>
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {topStudents.map((s, i) => (
-              <Link
-                key={s.id}
-                to="/students/$id"
-                params={{ id: s.id }}
-                className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted transition-colors"
-              >
-                <div className="w-6 text-center font-bold text-muted-foreground text-sm">
-                  #{i + 1}
-                </div>
-                <Avatar name={s.name} color={s.avatarColor} size={36} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground">{s.track}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold">{s.stats.avg}</div>
-                  <div className="text-xs text-muted-foreground">avg</div>
-                </div>
-                <PerfBadge total={s.stats.avg} />
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-[color:var(--warning)]" />
-              Needs Improvement
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {needsImprovement.length === 0 && (
-              <div className="text-sm text-muted-foreground py-6 text-center">
-                All students are on track. 🎉
+      {/* Features */}
+      <section className="bg-muted/40 py-16">
+        <div className="max-w-5xl mx-auto px-4 md:px-8">
+          <h2 className="text-2xl font-bold text-center mb-12">Everything you need to track excellence</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: ClipboardCheck, title: "Weekly Evaluations", desc: "Mentors score students across 7 categories every week, attendance, projects, coding, and more." },
+              { icon: BarChart3, title: "Live Dashboards", desc: "Real-time charts showing score trends, category breakdowns, and progress over 16 weeks." },
+              { icon: Trophy, title: "Leaderboard", desc: "See where you rank against your peers. Updated after every evaluation." },
+              { icon: Users, title: "Student Portal", desc: "Every student gets a personal dashboard with their scores, mentor feedback, and class comparison." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white rounded-xl p-6 border">
+                <div className="h-10 w-10 rounded-lg bg-[oklch(0.97_0.03_145)] flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5 text-[color:var(--brand)]" />
+                </div>
+                <h3 className="font-semibold mb-2">{title}</h3>
+                <p className="text-sm text-gray-500">{desc}</p>
               </div>
-            )}
-            {needsImprovement.map((s) => (
-              <Link
-                key={s.id}
-                to="/students/$id"
-                params={{ id: s.id }}
-                className="block hover:bg-muted -mx-2 p-2 rounded-lg transition-colors"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <Avatar name={s.name} color={s.avatarColor} size={32} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{s.name}</div>
-                    <div className="text-xs text-muted-foreground">{s.track}</div>
-                  </div>
-                  <div className="font-bold text-sm">{s.stats.avg}/100</div>
-                </div>
-                <Progress value={s.stats.avg} className="h-1.5" />
-              </Link>
             ))}
-          </CardContent>
-        </Card>
-      </div>
-    </AppShell>
+          </div>
+        </div>
+      </section>
+
+      {/* Scoring */}
+      <section className="max-w-4xl mx-auto px-4 md:px-8 py-16">
+        <h2 className="text-2xl font-bold text-center mb-4">How scoring works</h2>
+        <p className="text-center text-gray-500 mb-10">Students are evaluated weekly across 7 categories, 100 points total.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Attendance", pts: 25 },
+            { label: "Project", pts: 20 },
+            { label: "Coding", pts: 20 },
+            { label: "LinkedIn & X", pts: 10 },
+            { label: "Teamwork", pts: 10 },
+            { label: "Learning Logs", pts: 10 },
+            { label: "Housekeeping", pts: 5 },
+          ].map(({ label, pts }) => (
+            <div key={label} className="border rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-[color:var(--brand)]">{pts}</div>
+              <div className="text-xs text-gray-500 mt-1">{label}</div>
+            </div>
+          ))}
+          <div className="border-2 border-[color:var(--brand)] rounded-xl p-4 text-center bg-[oklch(0.97_0.03_145)]">
+            <div className="text-2xl font-bold text-[color:var(--brand)]">100</div>
+            <div className="text-xs text-gray-700 mt-1 font-semibold">Total</div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-[color:var(--brand)] py-16 text-center text-white">
+        <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
+        <p className="text-white/80 mb-8 max-w-md mx-auto">Join the Code Campus bootcamp tracking system and take control of your learning journey.</p>
+        <Link to="/register">
+          <Button size="lg" className="bg-white text-[color:var(--brand)] hover:bg-white/90 px-10 font-semibold">
+            Create Your Account
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t py-6 text-center text-sm text-gray-400">
+        © {new Date().getFullYear()} Code Campus International. All rights reserved.
+      </footer>
+    </div>
   );
 }

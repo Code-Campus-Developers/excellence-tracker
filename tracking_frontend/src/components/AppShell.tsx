@@ -1,37 +1,127 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  ClipboardCheck,
-  Users,
-  Trophy,
-  Search,
-  Bell,
-  Menu,
+  LayoutDashboard, ClipboardCheck, Users, Trophy,
+  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { CURRENT_WEEK, TOTAL_WEEKS } from "@/lib/tracking";
+import { useAuth } from "@/lib/authStore";
+import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/evaluate", label: "New Evaluation", icon: ClipboardCheck },
-  { to: "/students", label: "Students", icon: Users },
-  { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
+interface Notification {
+  id: string;
+  message: string;
+  link: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+const ADMIN_EXTRA_NAV = [
+  { to: "/admin/manage", label: "User Management", icon: Shield },
+  { to: "/admin/settings", label: "Settings", icon: UserCog },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const { user, logout, student } = useAuth();
+  const { students, settings } = useStore();
+
+  const trackWeek = student?.track ? (settings.track_weeks[student.track] ?? settings.total_weeks) : null;
+  const displayWeek = trackWeek ?? Math.max(...Object.values(settings.track_weeks));
+
   const [searchQ, setSearchQ] = useState("");
+  const [showResults, setShowResults] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const data = await api.get<Notification[]>("/api/notifications");
+      setNotifications(data ?? []);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const handleBellClick = async () => {
+    setShowNotifications((p) => !p);
+    if (!showNotifications && unreadCount > 0) {
+      try {
+        await api.put("/api/notifications/read-all", {});
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      } catch { /* silent */ }
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      await api.del(`/api/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch { /* silent */ }
+  };
+
+  const clearAll = async () => {
+    try {
+      await api.del("/api/notifications/clear");
+      setNotifications([]);
+    } catch { /* silent */ }
+  };
+
+  const filteredStudents = searchQ.trim().length > 0
+    ? students.filter((s) =>
+        (s.name + s.track).toLowerCase().includes(searchQ.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowResults(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const primaryDashboard = user?.role === "ADMIN" ? "/admin" : "/mentor";
+
+  const MENTOR_NAV = [
+    { to: primaryDashboard, label: "Dashboard", icon: LayoutDashboard },
+    { to: "/mentor/evaluate", label: "New Evaluation", icon: ClipboardCheck },
+    { to: "/mentor/students", label: "Students", icon: Users },
+    { to: "/mentor/mentors", label: "Mentors", icon: GraduationCap },
+    { to: "/mentor/leaderboard", label: "Leaderboard", icon: Trophy },
+  ];
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQ.trim()) {
-      navigate({ to: "/students" });
+      navigate({ to: "/mentor/students" });
       setSearchQ("");
     }
   };
+
+  const handleLogout = () => {
+    logout();
+    if (user?.role === "MENTOR") navigate({ to: "/mentor-login" });
+    else if (user?.role === "ADMIN") navigate({ to: "/admin-login" });
+    else navigate({ to: "/login" });
+  };
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
 
   return (
     <div className="min-h-screen bg-muted/40 flex">
@@ -51,9 +141,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {NAV.map((item) => {
+          {MENTOR_NAV.map((item) => {
             const active =
-              item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+              item.to === primaryDashboard ? pathname === primaryDashboard : pathname.startsWith(item.to);
             const Icon = item.icon;
             return (
               <Link
@@ -71,12 +161,35 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {user?.role === "ADMIN" && (
+            <>
+              {ADMIN_EXTRA_NAV.map((item) => {
+                const active = pathname.startsWith(item.to);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={[
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      active
+                        ? "bg-brand-soft text-brand"
+                        : "text-sidebar-foreground hover:bg-muted",
+                    ].join(" ")}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t">
           <div className="rounded-lg bg-brand text-brand-foreground p-4">
-            <div className="text-xs font-semibold opacity-90">Bootcamp Week</div>
-            <div className="text-3xl font-bold mt-1">{CURRENT_WEEK} / {TOTAL_WEEKS}</div>
+              <div className="text-xs font-semibold opacity-90">{settings.cohort_name || "Bootcamp"} · Week</div>
+            <div className="text-3xl font-bold mt-1">{displayWeek} / {settings.total_weeks}</div>
           </div>
         </div>
       </aside>
@@ -101,9 +214,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV.map((item) => {
+          {MENTOR_NAV.map((item) => {
             const active =
-              item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+              item.to === primaryDashboard ? pathname === primaryDashboard : pathname.startsWith(item.to);
             const Icon = item.icon;
             return (
               <Link
@@ -122,12 +235,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {user?.role === "ADMIN" && (
+            <>
+              {ADMIN_EXTRA_NAV.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.to} to={item.to} onClick={() => setMobileNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-sidebar-foreground hover:bg-muted">
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t">
           <div className="rounded-lg bg-brand text-brand-foreground p-4">
-            <div className="text-xs font-semibold opacity-90">Bootcamp Week</div>
-            <div className="text-3xl font-bold mt-1">{CURRENT_WEEK} / {TOTAL_WEEKS}</div>
+            <div className="text-xs font-semibold opacity-90">{settings.cohort_name || "Bootcamp"} · Week</div>
+            <div className="text-3xl font-bold mt-1">{displayWeek} / {settings.total_weeks}</div>
           </div>
         </div>
       </aside>
@@ -141,27 +268,119 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex-1 max-w-xl relative">
+          <div className="max-w-xs w-full relative" ref={searchRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search students… (press Enter)"
+              placeholder="Search students or mentors"
               className="pl-9 bg-muted/60 border-transparent focus-visible:bg-background"
               value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
+              onChange={(e) => { setSearchQ(e.target.value); setShowResults(true); }}
+              onFocus={() => setShowResults(true)}
               onKeyDown={handleSearch}
             />
+            {showResults && searchQ.trim().length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                {filteredStudents.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">No results found</div>
+                )}
+                {filteredStudents.map((s) => (
+                  <Link
+                    key={s.id}
+                    to="/mentor/students/$id"
+                    params={{ id: s.id }}
+                    onClick={() => { setSearchQ(""); setShowResults(false); }}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
+                  >
+                    <div className="h-7 w-7 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold shrink-0">
+                      {s.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{s.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{s.track}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
-          <button className="relative h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center">
-            <Bell className="h-4 w-4" />
-            <span className="absolute top-2 right-2 h-2 w-2 bg-brand rounded-full" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold">
-              MS
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={handleBellClick}
+                className="relative h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center"
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-background border rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b flex items-center justify-between">
+                    <span className="font-semibold text-sm">Notifications</span>
+                    {notifications.length > 0 && (
+                      <button onClick={clearAll}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No notifications yet
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto divide-y">
+                      {notifications.map((n) => (
+                        <div key={n.id}
+                          className={`flex items-start gap-3 px-4 py-3 group ${!n.isRead ? "bg-brand-soft" : ""}`}>
+                          <Link
+                            to={n.link as "/dashboard"}
+                            onClick={() => setShowNotifications(false)}
+                            className="flex items-start gap-3 flex-1 min-w-0"
+                          >
+                            <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${!n.isRead ? "bg-brand" : "bg-transparent"}`} />
+                            <div className="min-w-0">
+                              <p className="text-sm leading-snug">{n.message}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {new Date(n.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </Link>
+                          <button
+                            onClick={() => deleteNotification(n.id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity text-base leading-none mt-0.5"
+                            title="Delete"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="hidden sm:block">
-              <div className="text-sm font-medium leading-tight">Mentor Sarah</div>
-              <div className="text-xs text-muted-foreground">Admin</div>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold">
+                {initials}
+              </div>
+              <div className="hidden sm:block">
+                <div className="text-sm font-medium leading-tight">{user?.name ?? "User"}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user?.role?.toLowerCase() ?? ""}</div>
+              </div>
+              <Link to="/change-password" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center" title="Change password">
+                <UserCog className="h-4 w-4 text-muted-foreground" />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4 text-muted-foreground" />
+              </button>
             </div>
           </div>
         </header>

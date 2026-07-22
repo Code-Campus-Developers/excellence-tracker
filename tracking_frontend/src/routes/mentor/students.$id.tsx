@@ -21,7 +21,7 @@ import {
 import { STUDENTS, studentEvals, studentStats, CATEGORIES, MAX_TOTAL } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
 
-export const Route = createFileRoute("/students/$id")({
+export const Route = createFileRoute("/mentor/students/$id")({
   head: ({ params }) => {
     return {
       meta: [
@@ -84,7 +84,7 @@ function StudentDetail() {
   return (
     <AppShell>
       <Link
-        to="/students"
+        to="/mentor/students"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
       >
         <ArrowLeft className="h-4 w-4" /> Back to students
@@ -108,7 +108,7 @@ function StudentDetail() {
             </Link>
           </Button>
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/evaluate">
+            <Link to="/mentor/evaluate">
               <ClipboardCheck className="h-4 w-4" />
               New Evaluation
             </Link>

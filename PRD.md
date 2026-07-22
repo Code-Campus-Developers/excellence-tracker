@@ -1,163 +1,181 @@
 # Product Requirements Document
 ## Code Campus Excellence Tracker
 
-**Version:** 1.0 (frontend)
-**Date:** July 2026
-**Organisation:** Code Campus International
-**Status:** In Development
+**Version:** 2.0 | **Date:** July 2026 | **Organisation:** Code Campus International | **Status:** Production
 
 ---
 
 ## 1. Overview
 
-The **Code Campus Excellence Tracker** is an internal web application for the Code Campus International Software Engineering Bootcamp. It enables mentors to evaluate students weekly across defined performance categories, track progress over time, and share individual score dashboards with each student.
+The **Code Campus Excellence Tracker** is a full-stack web application for the Code Campus International bootcamp. It enables admins to manage users, mentors to evaluate students weekly, and students to view their personalised performance dashboards.
+
+The system is fully connected to a PostgreSQL database via a REST API. All data persists across sessions.
 
 ---
 
-## 2. Problem Statement
+## 2. Tech Stack
 
-The bootcamp currently has no structured way to:
-- Record and track weekly student performance consistently
-- Give students visibility into their own scores and progress
-- Identify students who are excelling or falling behind at a glance
-- Maintain a historical record of evaluations across the 16-week programme
-
----
-
-## 3. Goals
-
-1. Give mentors a fast, structured way to submit weekly evaluations
-2. Provide students with a personal, read-only view of their performance
-3. Surface trends and rankings to motivate healthy competition
-4. Lay the foundation for a data-driven backend system
+| Layer | Technology |
+|---|---|
+| Frontend | React 19 + TypeScript + TanStack Start (SSR) + Vite 8 |
+| Routing | TanStack Router v1 |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Charts | Recharts |
+| Backend | Node.js + Express + TypeScript |
+| ORM | Prisma 5 |
+| Database | PostgreSQL 17 |
+| Auth | JWT (jsonwebtoken) + bcrypt (12 rounds) |
+| Email | Resend |
+| Security | helmet + express-rate-limit + CORS |
 
 ---
 
-## 4. User Personas
+## 3. User Roles
 
-### Mentor / Admin (Sarah)
-- Runs the bootcamp week-to-week
-- Evaluates 8–20 students every week
-- Needs a dashboard to spot struggling students quickly
-- Wants to add new students easily as cohort grows
-
-### Student
-- Wants to know their score and how they compare to peers
-- Should NOT see other students' individual scores (future)
-- Accesses their dashboard via a link shared by the mentor
+| Role | How Created | Login URL |
+|---|---|---|
+| **Admin** | Seeded directly into DB | /admin-login |
+| **Mentor** | Admin creates via User Management | /mentor-login |
+| **Student** | Self-registers OR admin/mentor creates | /login |
 
 ---
 
-## 5. Features & Requirements
+## 4. Authentication
 
-### 5.1 Mentor Dashboard
-- **F01** — Show total students enrolled
-- **F02** — Show how many students have been evaluated in the current week
-- **F03** — Show average score for the current week
-- **F04** — Show total evaluations all-time
-- **F05** — Weekly score trend chart (line chart, all weeks)
-- **F06** — Category performance breakdown (bar chart)
-- **F07** — Top 5 performers list (clickable → student profile)
-- **F08** — Needs Improvement list (avg < 65, with progress bars)
-
-### 5.2 New Evaluation Form
-- **F09** — Searchable student selector (type to filter)
-- **F10** — Ability to create a new student inline (name, email, track)
-- **F11** — Week selector (Week 1–16, current week pre-selected)
-- **F12** — Score input for each of 7 categories with max enforcement
-- **F13** — Live score total updates as inputs change
-- **F14** — Live summary panel (student info, score, performance badge)
-- **F15** — Prevent duplicate submission for same student + week
-- **F16** — Mentor notes/feedback textarea
-- **F17** — On save: navigate to student profile with confirmation toast
-
-### 5.3 Students List
-- **F18** — List all enrolled students with avatar, track, eval count, average
-- **F19** — Search/filter by name or track
-- **F20** — Each row links to student's full profile
-
-### 5.4 Student Profile (Mentor View)
-- **F21** — Student header with avatar, name, email, track
-- **F22** — Summary stats: latest, average, highest, lowest, trend
-- **F23** — Score history line chart
-- **F24** — Latest category mix radar chart
-- **F25** — Full evaluation history with category breakdown and mentor notes
-- **F26** — "Student View" button — opens `/student/$id` in new tab for sharing
-
-### 5.5 Leaderboard
-- **F27** — Ranked table with 4 tabs: Current Week / Overall Average / Highest Score / Lowest Score
-- **F28** — Top 3 highlighted with Trophy / Medal / Award icons
-- **F29** — Each row links to student profile
-
-### 5.6 Student Portal (Student-Facing)
-- **F30** — Accessible at `/student/$id` — no login required
-- **F31** — Shows student's own scores only
-- **F32** — Current week score with performance badge
-- **F33** — Score vs class average (progress bar comparison)
-- **F34** — Score history chart + radar category chart
-- **F35** — Full category breakdown for latest evaluation
-- **F36** — Mentor feedback/notes displayed prominently
-- **F37** — All weeks score history
-- **F38** — Leaderboard rank (e.g. #3 of 8)
-- **F39** — No mentor navigation visible — clean student-only layout
-
-### 5.7 Navigation
-- **F40** — Sidebar navigation (desktop)
-- **F41** — Hamburger drawer navigation (mobile)
-- **F42** — Header search bar (press Enter → Students page)
-- **F43** — Dashboard stat cards link to relevant pages
+- JWT stored in localStorage (key: excellence_auth)
+- Token contains: userId, role
+- All protected routes check token on mount via useEffect
+- Unauthenticated users redirected to role-specific login page
+- Restricted accounts blocked at login with clear error message
+- Strong password enforced: uppercase + lowercase + number + symbol (min 8 chars)
+- Password reset via Resend email (1-hour token expiry)
 
 ---
 
-## 6. Evaluation Categories & Scoring
+## 5. Features by Role
 
-| # | Category | Max | Breakdown |
-|---|---|---|---|
-| 1 | Attendance & Participation | 25 | Attend (10) + Punctual (10) + Participation (5) |
-| 2 | LinkedIn & X Visibility | 10 | Posts ≥2×/week (5) + Engagement (5) |
-| 3 | Project Milestone | 20 | Weekly tasks (10) + On-time submission (5) + README (5) |
-| 4 | Coding Practice | 20 | Code ≥5 days/week (10) + ≥3 GitHub commits (10) |
-| 5 | Collaboration & Teamwork | 10 | Monthly events (5) + Support teammates (5) |
-| 6 | Learning Logs | 10 | Weekly reflection (10) |
-| 7 | Bootcamp Housekeeping | 5 | Readings/videos (5) |
-| | **Total** | **100** | |
+### 5.1 Student
+- Self-register with name, email, track, password
+- Welcome email sent on registration
+- Personal dashboard at /dashboard
+- View own scores, charts, mentor feedback, rank, class average comparison
+- Forgot/reset password
 
-**Performance Levels:**
-- 🟢 Excellent: ≥ 85
-- 🔵 Good: ≥ 70
-- 🟡 Needs Improvement: ≥ 50
-- 🔴 Poor: < 50
+### 5.2 Mentor
+- Login at /mentor-login (no register link)
+- Full mentor dashboard with stats and charts
+- Create and submit weekly evaluations for students
+- View all students and their profiles
+- Add students inline (combobox with create option)
+- View all mentors (read-only)
+- View leaderboard
 
----
-
-## 7. Out of Scope (v1 frontend)
-
-- User authentication / login system
-- Data persistence (backend/database)
-- Email notifications
-- Student-to-student visibility controls
-- Admin user management
-- Mobile app
+### 5.3 Admin
+- Login at /admin-login (no register link)
+- Full mentor dashboard (same design and features as mentor)
+- User Management: create mentors + students, delete, restrict/unrestrict, reset passwords
+- All emails sent automatically on account creation
+- Can do everything a mentor can do
 
 ---
 
-## 8. Future Roadmap
+## 6. Evaluation System
+
+Students are scored weekly across 7 categories (100 points total):
+
+| Category | Max |
+|---|---|
+| Attendance and Participation | 25 |
+| LinkedIn and X Visibility | 10 |
+| Project Milestone | 20 |
+| Coding Practice | 20 |
+| Collaboration and Teamwork | 10 |
+| Learning Logs | 10 |
+| Bootcamp Housekeeping | 5 |
+
+Performance levels: Excellent (85+) / Good (70+) / Needs Improvement (50+) / Poor (<50)
+
+Evaluation rules:
+- One evaluation per student per week (duplicates blocked)
+- Evaluator name pulled from logged-in user's account
+- Notes/feedback field included
+
+---
+
+## 7. Pages and Routes
+
+| Route | Access | Purpose |
+|---|---|---|
+| / | Public | Landing page with features and scoring breakdown |
+| /login | Student | Login + link to register |
+| /register | Public | Student self-registration |
+| /forgot-password | All | Request password reset |
+| /reset-password | All | Set new password via token |
+| /mentor-login | Mentor | Mentor-specific login |
+| /admin-login | Admin | Admin-specific login |
+| /mentor | Mentor + Admin | Dashboard: stats, charts, top performers, needs improvement |
+| /mentor/evaluate | Mentor + Admin | Weekly evaluation form |
+| /mentor/students | Mentor + Admin | Student list with search and add |
+| /mentor/students/:id | Mentor + Admin | Student profile with full history |
+| /mentor/mentors | Mentor (view) / Admin (manage) | Mentors list |
+| /mentor/leaderboard | Mentor + Admin | Rankings (4 tabs) |
+| /admin | Admin | Admin dashboard (same as mentor) |
+| /admin/manage | Admin | User Management |
+| /dashboard | Student | Personal score dashboard |
+
+---
+
+## 8. Email Notifications
+
+| Event | Recipient | Content |
+|---|---|---|
+| Student self-registers | Student | Welcome + dashboard link |
+| Admin creates student | Student | Welcome + login credentials |
+| Admin/Mentor adds student | Student | Welcome + login credentials |
+| Admin creates mentor | Mentor | Welcome + login credentials |
+| Password reset requested | User | Reset link (expires 1 hour) |
+| Admin resets password | User | New temporary credentials |
+
+---
+
+## 9. Security
+
+- Passwords hashed with bcrypt (12 rounds)
+- JWT tokens with 7-day expiry
+- Role-based route protection on all routes (frontend + backend)
+- Rate limiting: 20 auth requests per 15 minutes per IP
+- HTTP security headers via helmet
+- CORS locked to frontend URL
+- Admin can restrict accounts (blocked at login)
+- Backend validates all inputs at route level
+- Strong password policy enforced on register and password reset
+
+---
+
+## 10. Tracks Available
+
+Software Engineering, Data Analytics, Cloud Engineering, Digital Marketing,
+Cybersecurity Engineering, Artificial Intelligence (AI), Blockchain Engineering,
+Project Management, Product Design, Product Management
+
+---
+
+## 11. Bootcamp Info
+
+- Duration: 16 weeks
+- Current Week: 4
+- Evaluations stored permanently in PostgreSQL
+
+---
+
+## 12. Future Roadmap
 
 | Phase | Feature |
 |---|---|
-| v2 | Connect `tracking_backend` REST API — persist evaluations and students to database |
-| v2 | Mentor login (JWT auth) |
-| v2 | Student login with unique code or email link |
-| v3 | Email/WhatsApp notifications to students after evaluation |
-| v3 | Cohort management (multiple bootcamp cohorts) |
+| v2 | Connect to Supabase (change DATABASE_URL only) |
+| v2 | Cohort management (multiple bootcamp intakes) |
+| v2 | Mentor assigned to specific students |
+| v3 | Email/WhatsApp notifications after evaluation |
 | v3 | Export evaluations to CSV/PDF |
-| v4 | Mobile app for mentors |
-
----
-
-## 9. Technical Notes
-
-- **Frontend only** in current frontend — all data is in-memory React state (resets on refresh)
-- **Backend folder** (`tracking_backend`) exists and is ready for API development
-- Student IDs follow pattern `s1`, `s2`, etc. — will be replaced with UUIDs in production
-- Bootcamp duration: **16 weeks**
+| v3 | Student peer comparison opt-in |
+| v4 | Mobile app |

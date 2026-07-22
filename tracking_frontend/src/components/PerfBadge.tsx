@@ -1,11 +1,16 @@
-import { perfLevel, perfColor } from "@/lib/tracking";
+import { perfLevel, perfColor, PERF_THRESHOLDS } from "@/lib/tracking";
+import { useStore } from "@/lib/store";
 
 export function PerfBadge({ total }: { total: number }) {
-  const level = perfLevel(total);
+  const { settings } = useStore();
+  const thresholds = {
+    excellent: settings.grade_excellent,
+    good: settings.grade_good,
+    needs: settings.grade_needs,
+  };
+  const level = perfLevel(total, thresholds);
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${perfColor(level)}`}
-    >
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${perfColor(level)}`}>
       {level}
     </span>
   );

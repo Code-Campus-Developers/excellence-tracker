@@ -7,6 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  MENTOR
+  STUDENT
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(STUDENT)
+  track        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  resetToken   String?   @map("reset_token")
+  resetExpires DateTime? @map("reset_expires")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  student      Student?
+
+  @@map("users")
+}
+
 model Student {
   id          String       @id
   name        String
@@ -14,6 +36,8 @@ model Student {
   track       String
   avatarColor String       @default("#16a34a") @map("avatar_color")
   createdAt   DateTime     @default(now()) @map("created_at")
+  userId      String?      @unique @map("user_id")
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   evaluations Evaluation[]
 
   @@map("students")
@@ -32,4 +56,23 @@ model Evaluation {
 
   @@unique([studentId, week])
   @@map("evaluations")
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  message   String
+  link      String   @default("")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
 }

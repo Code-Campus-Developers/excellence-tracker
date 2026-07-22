@@ -1,7 +1,48 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { authenticate, authorize } from "../middleware/authenticate";
+import { hashPassword } from "../lib/auth";
+import { sendStudentWelcomeEmail } from "../lib/email";
+import { notifyAdmins, notifyMentors } from "./notifications";
 
 const router = Router();
+router.use(authenticate);
+
+// POST /api/students/enroll — Mentor or Admin creates a student with a user account
+router.post("/enroll", authorize("MENTOR", "ADMIN"), async (req: Request, res: Response) => {
+  const { name, email, track } = req.body as { name: string; email: string; track: string };
+  if (!name || !email || !track) {
+    res.status(400).json({ error: "name, email and track are required" }); return;
+  }
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) { res.status(409).json({ error: "Email already registered" }); return; }
+
+  const tempPassword = Math.random().toString(36).slice(-8) + "S1!";
+  const passwordHash = await hashPassword(tempPassword);
+  const studentId = `s_${Date.now()}`;
+
+  const user = await prisma.user.create({
+    data: {
+      name, email, passwordHash, role: "STUDENT",
+      student: { create: { id: studentId, name, email, track, avatarColor: "#16a34a" } },
+    },
+    include: { student: true },
+  });
+
+  try { await sendStudentWelcomeEmail({ to: email, name, track }); }
+  catch (err) { console.error("Welcome email failed:", err); }
+
+  try {
+    await notifyAdmins(`New student enrolled: ${name} (${track})`, "/admin/manage");
+    await notifyMentors(`New student enrolled: ${name} (${track})`, "/mentor/students");
+  } catch { /* silent */ }
+
+  res.status(201).json({
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    student: user.student,
+    tempPassword,
+  });
+});
 
 // GET /api/students
 router.get("/", async (_req: Request, res: Response) => {

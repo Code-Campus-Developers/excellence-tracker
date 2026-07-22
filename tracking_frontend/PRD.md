@@ -1,174 +1,240 @@
-# Product Requirements Document
+# PRD - tracking_frontend
+## Code Campus Excellence Tracker Frontend
 
-## Code Campus Excellence Tracker
-
-**Date:** July 2026
-**Organisation:** Code Campus International
-**Status:** In Development
+**Version:** 2.1 | **Date:** July 2026 | **Stack:** React 19 + TypeScript + TanStack Start + Tailwind CSS
 
 ---
 
 ## 1. Overview
 
-The **Code Campus Excellence Tracker** is an internal web application for the Code Campus International Software Engineering Bootcamp. It enables mentors to evaluate students weekly across defined performance categories, track progress over time, and share individual score dashboards with each student.
+The frontend is a server-side rendered React application. All data is fetched from the backend REST API. No hardcoded or in-memory data is used in production. Authentication is JWT-based, stored in localStorage.
 
 ---
 
-## 2. Problem Statement
+## 2. Auth Flow
 
-The bootcamp currently has no structured way to:
-
-- Record and track weekly student performance consistently
-- Give students visibility into their own scores and progress
-- Identify students who are excelling or falling behind at a glance
-- Maintain a historical record of evaluations across the 16-week programme
-
----
-
-## 3. Goals
-
-1. Give mentors a fast, structured way to submit weekly evaluations
-2. Provide students with a personal, read-only view of their performance
-3. Surface trends and rankings to motivate healthy competition
-4. Lay the foundation for a data-driven backend system
+- JWT stored in localStorage under key `excellence_auth`
+- On login: token saved, store fetches students + evaluations + settings from API
+- Protected routes use `useEffect` auth guards (SSR-safe)
+- Role-based redirects: Admin → /admin, Mentor → /mentor, Student → /dashboard
+- On logout: redirected to role-specific login page (admin → /admin-login, mentor → /mentor-login, student → /login)
 
 ---
 
-## 4. User Personas
+## 3. State Management
 
-### Mentor / Admin (Sarah)
+| Store | Purpose |
+|---|---|
+| AuthStore (React Context) | JWT, user, student profile |
+| DataStore (React Context) | students, evaluations, settings fetched from API |
 
-- Runs the bootcamp week-to-week
-- Evaluates 8–20 students every week
-- Needs a dashboard to spot struggling students quickly
-- Wants to add new students easily as cohort grows
-
-### Student
-
-- Wants to know their score and how they compare to peers
-- Should NOT see other students' individual scores (future)
-- Accesses their dashboard via a link shared by the mentor
+DataStore fetches on login:
+- GET /api/students
+- GET /api/evaluations
+- GET /api/settings
 
 ---
 
-## 5. Features & Requirements
+## 4. Pages and Routes
 
-### 5.1 Mentor Dashboard
+### Public
+- `/` - Landing page: hero with background image, sticky navbar, features, scoring breakdown, grading scale, CTA
+- `/login` - Student login, eye toggle, field validation, register link
+- `/register` - Registration: name, email, track (10 options), strong password with strength hint
+- `/forgot-password` - Email field, sends reset link
+- `/reset-password` - New password + confirm, reads token from URL
+- `/mentor-login` - Mentor login, no register link
+- `/admin-login` - Admin login, no register link
 
-- **F01** — Show total students enrolled
-- **F02** — Show how many students have been evaluated in the current week
-- **F03** — Show average score for the current week
-- **F04** — Show total evaluations all-time
-- **F05** — Weekly score trend chart (line chart, all weeks)
-- **F06** — Category performance breakdown (bar chart)
-- **F07** — Top 5 performers list (clickable → student profile)
-- **F08** — Needs Improvement list (avg < 65, with progress bars)
+### All Logged-In Users
+- `/change-password` - Current password + new password + confirm, strong password enforced
 
-### 5.2 New Evaluation Form
+### Student (STUDENT role)
+- `/dashboard` - Fetches own data directly from API:
+  - Profile: name, track, rank, performance badge
+  - 4 stat cards: current week, average, best score, trend
+  - Score vs class average comparison bar
+  - Score history line chart
+  - Radar chart for latest category mix
+  - Latest category breakdown with mentor feedback
+  - All weekly scores history
+  - Class Leaderboard (top 10, own row highlighted)
+  - Grading Scale legend
+  - Bell notification icon with dropdown (delete/clear all)
+  - Change password icon link
 
-- **F09** — Searchable student selector (type to filter)
-- **F10** — Ability to create a new student inline (name, email, track)
-- **F11** — Week selector (Week 1–16, current week pre-selected)
-- **F12** — Score input for each of 7 categories with max enforcement
-- **F13** — Live score total updates as inputs change
-- **F14** — Live summary panel (student info, score, performance badge)
-- **F15** — Prevent duplicate submission for same student + week
-- **F16** — Mentor notes/feedback textarea
-- **F17** — On save: navigate to student profile with confirmation toast
+### Mentor + Admin (MENTOR or ADMIN role)
+- `/mentor` - Dashboard: stats, weekly trend, category bar chart, top 5, needs improvement, grading scale
+- `/mentor/evaluate` - Evaluation form: searchable combobox, create inline, week selector (1-total), 7 categories, live total, notes, save to API
+- `/mentor/students` - Student list: search, add student button, rank column
+- `/mentor/students/:id` - Student profile: charts, eval history, Student View button
+- `/mentor/mentors` - Mentor list. Admin: add/reset/delete. Mentor: view only
+- `/mentor/leaderboard` - 4 tabs with grading scale legend
 
-### 5.3 Students List
-
-- **F18** — List all enrolled students with avatar, track, eval count, average
-- **F19** — Search/filter by name or track
-- **F20** — Each row links to student's full profile
-
-### 5.4 Student Profile (Mentor View)
-
-- **F21** — Student header with avatar, name, email, track
-- **F22** — Summary stats: latest, average, highest, lowest, trend
-- **F23** — Score history line chart
-- **F24** — Latest category mix radar chart
-- **F25** — Full evaluation history with category breakdown and mentor notes
-- **F26** — "Student View" button — opens `/student/$id` in new tab for sharing
-
-### 5.5 Leaderboard
-
-- **F27** — Ranked table with 4 tabs: Current Week / Overall Average / Highest Score / Lowest Score
-- **F28** — Top 3 highlighted with Trophy / Medal / Award icons
-- **F29** — Each row links to student profile
-
-### 5.6 Student Portal (Student-Facing)
-
-- **F30** — Accessible at `/student/$id` — no login required
-- **F31** — Shows student's own scores only
-- **F32** — Current week score with performance badge
-- **F33** — Score vs class average (progress bar comparison)
-- **F34** — Score history chart + radar category chart
-- **F35** — Full category breakdown for latest evaluation
-- **F36** — Mentor feedback/notes displayed prominently
-- **F37** — All weeks score history
-- **F38** — Leaderboard rank (e.g. #3 of 8)
-- **F39** — No mentor navigation visible — clean student-only layout
-
-### 5.7 Navigation
-
-- **F40** — Sidebar navigation (desktop)
-- **F41** — Hamburger drawer navigation (mobile)
-- **F42** — Header search bar (press Enter → Students page)
-- **F43** — Dashboard stat cards link to relevant pages
+### Admin Only (ADMIN role)
+- `/admin` - Same dashboard as mentor, admin's name shown
+- `/admin/manage` - User Management: create mentors/students, restrict/unrestrict, reset passwords, delete
+- `/admin/settings` - Settings:
+  - Cohort name and start date
+  - Grade thresholds (Excellent/Good/Needs Improvement min scores)
+  - Total weeks
+  - Current week per track (10 tracks, each independent)
 
 ---
 
-## 6. Evaluation Categories & Scoring
+## 5. Notifications
 
-| #   | Category                   | Max     | Breakdown                                               |
-| --- | -------------------------- | ------- | ------------------------------------------------------- |
-| 1   | Attendance & Participation | 25      | Attend (10) + Punctual (10) + Participation (5)         |
-| 2   | LinkedIn & X Visibility    | 10      | Posts ≥2×/week (5) + Engagement (5)                     |
-| 3   | Project Milestone          | 20      | Weekly tasks (10) + On-time submission (5) + README (5) |
-| 4   | Coding Practice            | 20      | Code ≥5 days/week (10) + ≥3 GitHub commits (10)         |
-| 5   | Collaboration & Teamwork   | 10      | Monthly events (5) + Support teammates (5)              |
-| 6   | Learning Logs              | 10      | Weekly reflection (10)                                  |
-| 7   | Bootcamp Housekeeping      | 5       | Readings/videos (5)                                     |
-|     | **Total**                  | **100** |                                                         |
-
-**Performance Levels:**
-
-- 🟢 Excellent: ≥ 85
-- 🔵 Good: ≥ 70
-- 🟡 Needs Improvement: ≥ 50
-- 🔴 Poor: < 50
+Bell icon in all dashboards (mentor/admin header + student header):
+- Shows unread count badge (red)
+- Opens dropdown with notification list
+- Hover to reveal delete (x) button on each item
+- "Clear all" button at top
+- Auto-polls every 60 seconds
+- Marks all as read when opened
 
 ---
 
-## 7. Out of Scope (v1 Prototype)
+## 6. Shared Components
 
-- User authentication / login system
-- Data persistence (backend/database)
-- Email notifications
-- Student-to-student visibility controls
-- Admin user management
-- Mobile app
-
----
-
-## 8. Future Roadmap
-
-| Phase | Feature                                                                            |
-| ----- | ---------------------------------------------------------------------------------- |
-| v2    | Connect `tracking_backend` REST API — persist evaluations and students to database |
-| v2    | Mentor login (JWT auth)                                                            |
-| v2    | Student login with unique code or email link                                       |
-| v3    | Email/WhatsApp notifications to students after evaluation                          |
-| v3    | Cohort management (multiple bootcamp cohorts)                                      |
-| v3    | Export evaluations to CSV/PDF                                                      |
-| v4    | Mobile app for mentors                                                             |
+- `AppShell` - Sidebar with Code Campus logo, dynamic nav (admin sees User Management + Settings extra), cohort name + week in sidebar, notification bell, user name/role, change password icon, logout
+- `PageHeader` - Title, subtitle, optional action buttons
+- `PerfBadge` - Uses live grade thresholds from settings store
+- `Avatar` - Initials-based coloured circle
+- `GradingScale` - Shows all 4 levels with score ranges, uses live settings
 
 ---
 
-## 9. Technical Notes
+## 7. Sidebar Navigation
 
-- **Frontend only** in current prototype — all data is in-memory React state (resets on refresh)
-- **Backend folder** (`tracking_backend`) exists and is ready for API development
-- Student IDs follow pattern `s1`, `s2`, etc. — will be replaced with UUIDs in production
-- Bootcamp duration: **16 weeks**
+| Item | Mentor | Admin |
+|---|---|---|
+| Dashboard | /mentor | /admin |
+| New Evaluation | /mentor/evaluate | /mentor/evaluate |
+| Students | /mentor/students | /mentor/students |
+| Mentors | /mentor/mentors | /mentor/mentors |
+| Leaderboard | /mentor/leaderboard | /mentor/leaderboard |
+| User Management | - | /admin/manage |
+| Settings | - | /admin/settings |
+
+---
+
+## 8. Environment Variables
+
+```
+VITE_API_URL=http://localhost:4000
+```
+
+**Version:** 2.0 | **Date:** July 2026 | **Stack:** React 19 + TypeScript + TanStack Start + Tailwind CSS
+
+---
+
+## 1. Overview
+
+The frontend is a server-side rendered React app that communicates with the backend REST API for all data. No in-memory or static data is used. All evaluations, students, and users are fetched from and persisted to PostgreSQL via the API.
+
+---
+
+## 2. Auth Flow
+
+- JWT stored in localStorage under key excellence_auth
+- On login: token + user + student saved, store refreshed from API
+- Protected routes check auth in useEffect (client-side only, SSR-safe)
+- Role-based redirects: Admin → /admin, Mentor → /mentor, Student → /dashboard
+- Unauthenticated users redirected to role-specific login page
+
+---
+
+## 3. State Management
+
+| Store | Purpose |
+|---|---|
+| AuthStore (React Context) | JWT, user, student - from localStorage |
+| DataStore (React Context) | students and evaluations arrays - fetched from API on login |
+
+DataStore calls:
+- GET /api/students on login
+- GET /api/evaluations on login
+- POST /api/evaluations when saving evaluation
+- POST /api/students/enroll when creating a student from combobox
+
+---
+
+## 4. Pages
+
+### Public
+- / - Landing page: logo, tagline, features, scoring breakdown, CTA
+- /login - Student login with register link, eye toggle, field validation
+- /register - Student registration: name, email, track (10 options), password with strength hint
+- /forgot-password - Email field, sends reset link via API
+- /reset-password - New password + confirm, reads token from URL
+- /mentor-login - Mentor-specific login, no register link
+- /admin-login - Admin-specific login, no register link
+
+### Student (Protected - STUDENT role)
+- /dashboard - Fetches own data directly from API on mount
+  - Profile: name, track, rank, performance badge
+  - 4 stat cards: current week, average, best score, trend
+  - Score vs class average comparison
+  - Score history line chart
+  - Radar chart for latest category mix
+  - Latest category breakdown with progress bars and mentor feedback
+  - All weekly scores history
+
+### Mentor + Admin (Protected - MENTOR or ADMIN role)
+- /mentor - Dashboard: stats, weekly trend chart, category bar chart, top 5, needs improvement
+- /mentor/evaluate - Evaluation form:
+  - Searchable combobox (type to filter or create new student inline)
+  - Week selector (1-16)
+  - 7 category inputs with progress bars and live total
+  - Duplicate week prevention
+  - Notes/feedback textarea
+  - Saves to API on submit
+- /mentor/students - Student list with search, Add Student button, links to profiles
+- /mentor/students/:id - Full profile: stats, charts, evaluation history, Student View button
+- /mentor/mentors - Mentor list. Admin: add, reset password, delete. Mentor: view only
+- /mentor/leaderboard - 4 tabs: Current Week, Average, Highest, Lowest
+
+### Admin Only (Protected - ADMIN role)
+- /admin - Same dashboard design as /mentor, data from API
+- /admin/manage - User Management:
+  - Mentor count, student count, registered accounts, restricted count
+  - Mentors tab: list, add mentor (sends email), reset password, restrict/unrestrict, delete
+  - Students tab: list with eval count, add student (sends email), reset password, restrict/unrestrict, delete
+
+---
+
+## 5. Shared Components
+
+- AppShell: sidebar with Code Campus logo, dynamic nav (admin sees User Management extra), user name/role, logout button, mobile hamburger drawer
+- PageHeader: title, subtitle, optional action buttons
+- PerfBadge: Excellent / Good / Needs Improvement / Poor
+- Avatar: initials-based coloured circle
+
+---
+
+## 6. Sidebar Navigation
+
+For Mentor:
+- Dashboard, New Evaluation, Students, Mentors, Leaderboard
+
+For Admin (same + extra):
+- Dashboard, New Evaluation, Students, Mentors, Leaderboard, User Management
+
+---
+
+## 7. Validation
+
+All form fields validated client-side before API call:
+- Required field checks with specific toast error messages
+- Email format validation
+- Password: min 8 chars + uppercase + lowercase + number + symbol
+- Track selection required on register
+- Duplicate evaluation prevention (same student + week)
+
+---
+
+## 8. Environment Variables
+
+```
+VITE_API_URL=http://localhost:4000
+```

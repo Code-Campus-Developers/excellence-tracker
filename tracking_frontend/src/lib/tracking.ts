@@ -100,6 +100,8 @@ export interface Student {
   email: string;
   track: string;
   avatarColor: string;
+  createdAt?: string;
+  userId?: string | null;
 }
 
 export interface Evaluation {
@@ -121,10 +123,11 @@ export const PERF_THRESHOLDS = {
 
 export type PerfLevel = "Excellent" | "Good" | "Needs Improvement" | "Poor";
 
-export function perfLevel(total: number): PerfLevel {
-  if (total >= PERF_THRESHOLDS.excellent) return "Excellent";
-  if (total >= PERF_THRESHOLDS.good) return "Good";
-  if (total >= PERF_THRESHOLDS.needs) return "Needs Improvement";
+export function perfLevel(total: number, thresholds?: typeof PERF_THRESHOLDS): PerfLevel {
+  const t = thresholds ?? PERF_THRESHOLDS;
+  if (total >= t.excellent) return "Excellent";
+  if (total >= t.good) return "Good";
+  if (total >= t.needs) return "Needs Improvement";
   return "Poor";
 }
 
@@ -156,7 +159,18 @@ export const STUDENTS: Student[] = [
 
 export const CURRENT_WEEK = 4;
 export const TOTAL_WEEKS = 16;
-export const TRACKS = ["Frontend", "Backend", "Fullstack", "Data"] as const;
+export const TRACKS = [
+  "Software Engineering",
+  "Data Analytics",
+  "Cloud Engineering",
+  "Digital Marketing",
+  "Cybersecurity Engineering",
+  "Artificial Intelligence (AI)",
+  "Blockchain Engineering",
+  "Project Management",
+  "Product Design",
+  "Product Management",
+] as const;
 export type Track = (typeof TRACKS)[number];
 
 const AVATAR_COLORS = [

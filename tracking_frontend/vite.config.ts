@@ -11,6 +11,9 @@ export default defineConfig({
   plugins: [
     tanstackStart({
       server: { entry: "server" },
+      tsr: {
+        scaffoldEachRoute: false,
+      },
     }),
     react(),
     tailwindcss(),

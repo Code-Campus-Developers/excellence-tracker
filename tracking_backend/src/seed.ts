@@ -1,13 +1,14 @@
 import prisma from "./lib/prisma";
+import { hashPassword } from "./lib/auth";
 
 const students = [
-  { id: "s1", name: "John Doe",       email: "john@codecampus.ng",    track: "Frontend",  avatarColor: "#16a34a" },
-  { id: "s2", name: "Aisha Bello",    email: "aisha@codecampus.ng",   track: "Backend",   avatarColor: "#059669" },
-  { id: "s3", name: "Chinedu Okafor", email: "chinedu@codecampus.ng", track: "Fullstack", avatarColor: "#15803d" },
-  { id: "s4", name: "Fatima Yusuf",   email: "fatima@codecampus.ng",  track: "Frontend",  avatarColor: "#22c55e" },
-  { id: "s5", name: "Emeka Nwosu",    email: "emeka@codecampus.ng",   track: "Data",      avatarColor: "#10b981" },
-  { id: "s6", name: "Zara Ibrahim",   email: "zara@codecampus.ng",    track: "Backend",   avatarColor: "#166534" },
-  { id: "s7", name: "Tunde Adeyemi",  email: "tunde@codecampus.ng",   track: "Fullstack", avatarColor: "#4ade80" },
+  { id: "s1", name: "John Doe",       email: "john@codecampus.ng",    track: "Software Engineering",  avatarColor: "#16a34a" },
+  { id: "s2", name: "Aisha Bello",    email: "aisha@codecampus.ng",   track: "Data Analytics",        avatarColor: "#059669" },
+  { id: "s3", name: "Chinedu Okafor", email: "chinedu@codecampus.ng", track: "Cloud Engineering",     avatarColor: "#15803d" },
+  { id: "s4", name: "Fatima Yusuf",   email: "fatima@codecampus.ng",  track: "Software Engineering",  avatarColor: "#22c55e" },
+  { id: "s5", name: "Emeka Nwosu",    email: "emeka@codecampus.ng",   track: "Digital Marketing",     avatarColor: "#10b981" },
+  { id: "s6", name: "Zara Ibrahim",   email: "zara@codecampus.ng",    track: "Data Analytics",        avatarColor: "#166534" },
+  { id: "s7", name: "Tunde Adeyemi",  email: "tunde@codecampus.ng",   track: "Cloud Engineering",     avatarColor: "#4ade80" },
   { id: "s8", name: "Ngozi Eze",      email: "ngozi@codecampus.ng",   track: "Frontend",  avatarColor: "#65a30d" },
 ];
 
@@ -56,6 +57,46 @@ async function seed() {
 
   await prisma.evaluation.deleteMany();
   await prisma.student.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.setting.deleteMany();
+
+  // Seed admin
+  const adminHash = await hashPassword("Admin@1234");
+  await prisma.user.create({
+    data: {
+      name: "Admin",
+      email: "admin@codecampus.ng",
+      passwordHash: adminHash,
+      role: "ADMIN",
+    },
+  });
+  console.log("✅ Created admin user (admin@codecampus.ng / Admin@1234)");
+
+  // Seed default settings
+  const defaultTrackWeeks: Record<string, number> = {
+    "Software Engineering": 4,
+    "Data Analytics": 4,
+    "Cloud Engineering": 4,
+    "Digital Marketing": 4,
+    "Cybersecurity Engineering": 4,
+    "Artificial Intelligence (AI)": 4,
+    "Blockchain Engineering": 4,
+    "Project Management": 4,
+    "Product Design": 4,
+    "Product Management": 4,
+  };
+  await prisma.setting.createMany({
+    data: [
+      { key: "grade_excellent", value: "85" },
+      { key: "grade_good", value: "70" },
+      { key: "grade_needs", value: "50" },
+      { key: "total_weeks", value: "16" },
+      { key: "track_weeks", value: JSON.stringify(defaultTrackWeeks) },
+      { key: "cohort_name", value: "Cohort 1" },
+      { key: "cohort_start_date", value: "" },
+    ],
+  });
+  console.log("✅ Created default settings");
 
   await prisma.student.createMany({ data: students });
   console.log(`✅ Created ${students.length} students`);
