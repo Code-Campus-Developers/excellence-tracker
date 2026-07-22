@@ -137,7 +137,7 @@ function Dashboard() {
   return (
     <AppShell>
       <PageHeader
-        title={`Welcome back, ${user?.name ?? "Mentor"} 👋`}
+        title={`Welcome back, ${user?.name ?? "Mentor"}`}
         subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
@@ -294,7 +294,7 @@ function Dashboard() {
           <CardContent className="space-y-4">
             {needsImprovement.length === 0 && (
               <div className="text-sm text-muted-foreground py-6 text-center">
-                All students are on track. 🎉
+                All students are on track.
               </div>
             )}
             {needsImprovement.map((s) => (

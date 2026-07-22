@@ -90,7 +90,7 @@ function AdminDashboard() {
   return (
     <AppShell>
       <PageHeader
-        title={`Welcome back, ${user?.name ?? "Admin"} 👋`}
+        title={`Welcome back, ${user?.name ?? "Admin"}`}
         subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
@@ -169,7 +169,7 @@ function AdminDashboard() {
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingDown className="h-4 w-4 text-[color:var(--warning)]" />Needs Improvement</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {needsImprovement.length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">All students are on track. 🎉</div>}
+            {needsImprovement.length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">All students are on track.</div>}
             {needsImprovement.map((s) => (
               <Link key={s.id} to="/mentor/students/$id" params={{ id: s.id }}
                 className="block hover:bg-muted -mx-2 p-2 rounded-lg transition-colors">
