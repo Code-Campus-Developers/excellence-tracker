@@ -105,7 +105,13 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
 // DELETE /admin/students/:id
 router.delete("/students/:id", async (req: AuthRequest, res: Response) => {
   try {
+    // Find the student to get their userId before deleting
+    const student = await prisma.student.findUnique({ where: { id: req.params.id } });
     await prisma.student.delete({ where: { id: req.params.id } });
+    // Also delete the user account if linked
+    if (student?.userId) {
+      await prisma.user.delete({ where: { id: student.userId } }).catch(() => {});
+    }
     await audit(req, "STUDENT_DELETED", { studentId: req.params.id });
     res.status(204).send();
   } catch { res.status(404).json({ error: "Student not found" }); }
