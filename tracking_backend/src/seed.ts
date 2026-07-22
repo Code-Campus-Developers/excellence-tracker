@@ -60,17 +60,20 @@ async function seed() {
   await prisma.user.deleteMany();
   await prisma.setting.deleteMany();
 
-  // Seed admin
-  const adminHash = await hashPassword("Admin@1234");
+  // Seed admin — credentials from env vars
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@codecampus.ng";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin@1234";
+  const adminHash = await hashPassword(adminPassword);
   await prisma.user.create({
     data: {
       name: "Admin",
-      email: "admin@codecampus.ng",
+      email: adminEmail,
       passwordHash: adminHash,
       role: "ADMIN",
     },
   });
-  console.log("✅ Created admin user (admin@codecampus.ng / Admin@1234)");
+  console.log(`✅ Created admin user (${adminEmail})`);
+  console.log(`   Password: ${adminPassword} — change this immediately in production!`);
 
   // Seed default settings
   const defaultTrackWeeks: Record<string, number> = {

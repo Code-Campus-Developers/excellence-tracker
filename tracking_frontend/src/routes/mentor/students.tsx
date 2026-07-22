@@ -29,6 +29,12 @@ export const Route = createFileRoute("/mentor/students")({
 function StudentsList() {
   const { evaluations, students, refresh } = useStore();
   const [q, setQ] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", track: "" });
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 20;
+
   const rows = useMemo(() => {
     setPage(1); // reset page on search
     return students.map((s) => ({ ...s, stats: studentStats(s.id, evaluations) })).filter((s) =>
@@ -42,12 +48,6 @@ function StudentsList() {
       };
     });
   }, [q, evaluations, students]);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", track: "" });
-  const [saving, setSaving] = useState(false);
-  const [page, setPage] = useState(1);
-  const PER_PAGE = 20;
 
   const totalPages = Math.ceil(rows.length / PER_PAGE);
   const pagedRows = rows.slice((page - 1) * PER_PAGE, page * PER_PAGE);

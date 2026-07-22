@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed": "ts-node src/seed.ts"
+    "db:seed": "ts-node src/seed.ts",
+    "db:seed:prod": "ts-node src/seed.prod.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.16.0",
