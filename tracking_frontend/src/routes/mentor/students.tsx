@@ -17,6 +17,7 @@ import { studentStats, TRACKS } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { Pagination } from "@/components/Pagination";
 
 export const Route = createFileRoute("/mentor/students")({
   head: () => ({
@@ -29,20 +30,27 @@ function StudentsList() {
   const { evaluations, students, refresh } = useStore();
   const [q, setQ] = useState("");
   const rows = useMemo(() => {
-    const withStats = students.map((s) => ({ ...s, stats: studentStats(s.id, evaluations) }));
-    const ranked = [...withStats].filter((s) => s.stats.count > 0).sort((a, b) => b.stats.avg - a.stats.avg);
-    return withStats
-      .filter((s) => (s.name + s.track + (s.email ?? "")).toLowerCase().includes(q.toLowerCase()))
-      .map((s) => ({
+    setPage(1); // reset page on search
+    return students.map((s) => ({ ...s, stats: studentStats(s.id, evaluations) })).filter((s) =>
+      (s.name + s.track + (s.email ?? "")).toLowerCase().includes(q.toLowerCase()),
+    ).map((s, _, arr) => {
+      const ranked = [...arr].filter((x) => x.stats.count > 0).sort((a, b) => b.stats.avg - a.stats.avg);
+      return {
         ...s,
         rank: s.stats.count > 0 ? ranked.findIndex((r) => r.id === s.id) + 1 : null,
         total: ranked.filter((r) => r.stats.count > 0).length,
-      }));
+      };
+    });
   }, [q, evaluations, students]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 20;
+
+  const totalPages = Math.ceil(rows.length / PER_PAGE);
+  const pagedRows = rows.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -132,7 +140,7 @@ function StudentsList() {
               No students match your search.
             </div>
           )}
-          {rows.map((s) => (
+          {pagedRows.map((s) => (
             <Link
               key={s.id}
               to="/mentor/students/$id"
@@ -174,6 +182,13 @@ function StudentsList() {
           ))}
         </CardContent>
       </Card>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPage={setPage}
+        totalItems={rows.length}
+        perPage={PER_PAGE}
+      />
     </AppShell>
   );
 }

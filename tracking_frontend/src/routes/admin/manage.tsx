@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { TRACKS } from "@/lib/tracking";
+import { Pagination } from "@/components/Pagination";
 
 export const Route = createFileRoute("/admin/manage")({
   component: AdminPanel,
@@ -34,8 +35,10 @@ function AdminPanel() {
   const [studentDialog, setStudentDialog] = useState(false);
   const [newMentor, setNewMentor] = useState({ name: "", email: "", track: "" });
   const [newStudent, setNewStudent] = useState({ name: "", email: "", track: "" });
-  const [saving, setSaving] = useState(false);
-
+  const [saving, setSaving] = useState(false);  const [studentPage, setStudentPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
+  const STUDENTS_PER_PAGE = 20;
+  const AUDIT_PER_PAGE = 50;
   const load = async () => {
     const [u, s, a] = await Promise.all([
       api.get<UserRow[]>("/admin/users"),
@@ -51,6 +54,11 @@ function AdminPanel() {
 
   const mentors = users.filter((u) => u.role === "MENTOR");
   const studentUsers = users.filter((u) => u.role === "STUDENT");
+
+  const pagedStudents = students.slice((studentPage - 1) * STUDENTS_PER_PAGE, studentPage * STUDENTS_PER_PAGE);
+  const studentTotalPages = Math.ceil(students.length / STUDENTS_PER_PAGE);
+  const pagedAudit = auditLogs.slice((auditPage - 1) * AUDIT_PER_PAGE, auditPage * AUDIT_PER_PAGE);
+  const auditTotalPages = Math.ceil(auditLogs.length / AUDIT_PER_PAGE);
 
   const createMentor = async () => {
     if (!newMentor.name || !newMentor.email) { toast.error("Name and email required"); return; }
@@ -197,7 +205,7 @@ function AdminPanel() {
           <Card>
             <CardContent className="p-0 divide-y">
               {students.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No students yet.</div>}
-              {students.map((s) => {
+              {pagedStudents.map((s) => {
                 const userRecord = users.find((u) => u.email === s.email);
                 return (
                   <div key={s.id} className="flex items-center gap-4 p-4">
@@ -238,13 +246,20 @@ function AdminPanel() {
               })}
             </CardContent>
           </Card>
+          <Pagination
+            page={studentPage}
+            totalPages={studentTotalPages}
+            onPage={setStudentPage}
+            totalItems={students.length}
+            perPage={STUDENTS_PER_PAGE}
+          />
         </TabsContent>
 
         {/* Audit Log Tab */}
         <TabsContent value="audit">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-semibold">Audit Log</h2>
-            <span className="text-xs text-muted-foreground">{auditLogs.length} recent entries</span>
+            <span className="text-xs text-muted-foreground">{auditLogs.length} total entries</span>
           </div>
           <Card>
             <CardContent className="p-0">
@@ -263,7 +278,7 @@ function AdminPanel() {
                     {auditLogs.length === 0 && (
                       <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No audit logs yet.</td></tr>
                     )}
-                    {auditLogs.map((log) => (
+                    {pagedAudit.map((log) => (
                       <tr key={log.id} className="hover:bg-muted/40 transition-colors">
                         <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString()}
@@ -287,6 +302,13 @@ function AdminPanel() {
               </div>
             </CardContent>
           </Card>
+          <Pagination
+            page={auditPage}
+            totalPages={auditTotalPages}
+            onPage={setAuditPage}
+            totalItems={auditLogs.length}
+            perPage={AUDIT_PER_PAGE}
+          />
         </TabsContent>
       </Tabs>
 
