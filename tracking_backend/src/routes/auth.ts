@@ -8,6 +8,7 @@ import {
 } from "../lib/auth";
 import { sendPasswordResetEmail, sendStudentWelcomeEmail } from "../lib/email";
 import { notifyAdmins } from "./notifications";
+import { audit } from "../lib/audit";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
 
 const router = Router();
@@ -72,6 +73,8 @@ router.post("/register", async (req: Request, res: Response) => {
     await notifyAdmins(`New student registered: ${name} (${track})`, "/admin/manage");
   } catch { /* silent */ }
 
+  await audit(req, "STUDENT_REGISTERED", { name, email, track });
+
   res.status(201).json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -108,6 +111,9 @@ router.post("/login", async (req: Request, res: Response) => {
   }
 
   const token = signToken({ userId: user.id, role: user.role });
+
+  await audit(req, "LOGIN", { email: user.email, role: user.role });
+
   res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -204,6 +210,8 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
 
   const passwordHash = await hashPassword(newPassword);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  await audit(req, "PASSWORD_CHANGED", { userId: user.id });
 
   res.json({ message: "Password changed successfully" });
 });

@@ -76,3 +76,16 @@ model Notification {
 
   @@map("notifications")
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  userName  String   @default("System") @map("user_name")
+  userRole  String   @default("") @map("user_role")
+  action    String
+  details   Json     @default("{}")
+  ipAddress String   @default("") @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

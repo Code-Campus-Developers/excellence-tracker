@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Users, UserPlus, Trash2, LogOut, GraduationCap, RefreshCw, ShieldOff, ShieldCheck } from "lucide-react";
+import { Users, UserPlus, Trash2, LogOut, GraduationCap, RefreshCw, ShieldOff, ShieldCheck, FileText } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,12 @@ export const Route = createFileRoute("/admin/manage")({
 
 interface UserRow { id: string; name: string; email: string; role: string; track?: string | null; isActive: boolean; createdAt: string; }
 interface StudentRow { id: string; name: string; email: string; track: string; _count: { evaluations: number }; }
+interface AuditRow { id: string; userName: string; userRole: string; action: string; details: Record<string, unknown>; ipAddress: string; createdAt: string; }
 
 function AdminPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
 
   const [mentorDialog, setMentorDialog] = useState(false);
   const [studentDialog, setStudentDialog] = useState(false);
@@ -35,12 +37,14 @@ function AdminPanel() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const [u, s] = await Promise.all([
+    const [u, s, a] = await Promise.all([
       api.get<UserRow[]>("/admin/users"),
       api.get<StudentRow[]>("/admin/students"),
+      api.get<{ logs: AuditRow[] }>("/admin/audit-logs"),
     ]);
     setUsers(u);
     setStudents(s);
+    setAuditLogs(a?.logs ?? []);
   };
 
   useEffect(() => { load(); }, []);
@@ -137,6 +141,7 @@ function AdminPanel() {
         <TabsList className="mb-4">
           <TabsTrigger value="mentors">Mentors</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         {/* Mentors Tab */}
@@ -231,6 +236,55 @@ function AdminPanel() {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Audit Log Tab */}
+        <TabsContent value="audit">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-semibold">Audit Log</h2>
+            <span className="text-xs text-muted-foreground">{auditLogs.length} recent entries</span>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">User</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Action</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {auditLogs.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No audit logs yet.</td></tr>
+                    )}
+                    {auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 font-medium">{log.userName}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            log.userRole === "ADMIN" ? "bg-red-100 text-red-700" :
+                            log.userRole === "MENTOR" ? "bg-blue-100 text-blue-700" :
+                            "bg-green-100 text-green-700"
+                          }`}>{log.userRole || "—"}</span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs">{log.action}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground max-w-xs truncate">
+                          {JSON.stringify(log.details)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

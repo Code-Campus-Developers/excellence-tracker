@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
 import { createNotification, notifyAdmins } from "./notifications";
 import { sendEvaluationEmail } from "../lib/email";
+import { audit } from "../lib/audit";
 
 const router = Router();
 router.use(authenticate);
@@ -73,6 +74,7 @@ router.post("/", async (req: Request, res: Response) => {
       console.error("Notification/email after eval failed:", err);
     }
     res.status(201).json(evaluation);
+    await audit(req, "EVALUATION_SUBMITTED", { studentId, week, total, evaluator: evaluator ?? "Mentor" });
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e.code === "P2002") {

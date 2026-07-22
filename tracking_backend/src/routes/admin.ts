@@ -4,6 +4,7 @@ import { hashPassword, generateResetToken } from "../lib/auth";
 import { sendMentorWelcomeEmail, sendStudentWelcomeEmail } from "../lib/email";
 import { authenticate, authorize, AuthRequest } from "../middleware/authenticate";
 import { notifyAdmins, notifyMentors } from "./notifications";
+import { audit } from "../lib/audit";
 
 const router = Router();
 router.use(authenticate, authorize("ADMIN"));
@@ -40,6 +41,8 @@ router.post("/mentors", async (req: AuthRequest, res: Response) => {
   try { await notifyAdmins(`New mentor account created: ${name}`, "/admin/manage"); }
   catch { /* silent */ }
 
+  await audit(req, "MENTOR_CREATED", { name, email });
+
   res.status(201).json({ mentor, tempPassword });
 });
 
@@ -47,6 +50,7 @@ router.post("/mentors", async (req: AuthRequest, res: Response) => {
 router.delete("/mentors/:id", async (req: AuthRequest, res: Response) => {
   try {
     await prisma.user.delete({ where: { id: req.params.id, role: "MENTOR" } });
+    await audit(req, "MENTOR_DELETED", { mentorId: req.params.id });
     res.status(204).send();
   } catch { res.status(404).json({ error: "Mentor not found" }); }
 });
@@ -102,6 +106,7 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
 router.delete("/students/:id", async (req: AuthRequest, res: Response) => {
   try {
     await prisma.student.delete({ where: { id: req.params.id } });
+    await audit(req, "STUDENT_DELETED", { studentId: req.params.id });
     res.status(204).send();
   } catch { res.status(404).json({ error: "Student not found" }); }
 });
@@ -124,6 +129,8 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res: Response)
   const passwordHash = await hashPassword(tempPassword);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash, resetToken: null, resetExpires: null } });
 
+  await audit(req, "PASSWORD_RESET_BY_ADMIN", { targetUserId: user.id, targetEmail: user.email });
+
   try {
     await sendMentorWelcomeEmail({ to: user.email, name: user.name, tempPassword,
       loginUrl: `${process.env.APP_URL}/${user.role === 'MENTOR' ? 'mentor-login' : user.role === 'ADMIN' ? 'admin-login' : 'login'}` });
@@ -143,7 +150,26 @@ router.post("/users/:id/toggle-active", async (req: AuthRequest, res: Response) 
     data: { isActive: !user.isActive },
     select: { id: true, isActive: true },
   });
+
+  await audit(req, user.isActive ? "ACCOUNT_RESTRICTED" : "ACCOUNT_UNRESTRICTED", {
+    targetUserId: user.id, targetEmail: user.email,
+  });
+
   res.json(updated);
+});
+
+// GET /admin/audit-logs
+router.get("/audit-logs", async (req: AuthRequest, res: Response) => {
+  const page = Number((req.query as Record<string,string>).page ?? 1);
+  const limit = 50;
+  const skip = (page - 1) * limit;
+  const logs = await prisma.auditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    skip,
+  });
+  const total = await prisma.auditLog.count();
+  res.json({ logs, total, page, pages: Math.ceil(total / limit) });
 });
 
 export default router;
