@@ -1,6 +1,126 @@
 # PRD - tracking_frontend
 ## Code Campus Excellence Tracker Frontend
 
+**Version:** 2.2 | **Date:** July 2026 | **Stack:** React 19 + TypeScript + TanStack Start + Tailwind CSS
+
+---
+
+## 1. Overview
+
+The frontend is a server-side rendered React app. All data is fetched from the backend REST API. Authentication is JWT-based (localStorage). Settings (grades, weeks, cohort) are fetched from API and stored in the DataStore.
+
+---
+
+## 2. Auth Flow
+
+- JWT stored in localStorage under key `excellence_auth`
+- On login: token saved, store fetches students + evaluations + settings
+- On logout: redirected to role-specific login (mentor → /mentor-login, admin → /admin-login, student → /login)
+- Protected routes use `useEffect` auth guards
+
+---
+
+## 3. State Management
+
+| Store | Purpose |
+|---|---|
+| AuthStore | JWT, user, student from localStorage |
+| DataStore | students, evaluations, settings from API |
+
+DataStore fetches on login: GET /api/students, /api/evaluations, /api/settings
+
+---
+
+## 4. Pages
+
+### Public
+- `/` - Landing page: hero with background image, sticky nav, features, scoring, grading scale, CTA
+- `/login` - Student login + register link, eye toggle
+- `/register` - Name, email, track (10 options), strong password + hint
+- `/forgot-password` - Email + sends reset link
+- `/reset-password` - New password + confirm via token
+- `/mentor-login` - Mentor only login
+- `/admin-login` - Admin only login
+
+### All Logged-In
+- `/change-password` - Current + new + confirm. Strong password enforced.
+
+### Student (STUDENT role)
+- `/dashboard` - Fetches own data from API directly:
+  - Profile: name, track, rank, badge
+  - 4 stat cards, score vs class average
+  - Score history + radar chart
+  - Latest category breakdown + mentor feedback
+  - All weekly scores history
+  - Class Leaderboard (top 10, own row highlighted)
+  - Grading Scale legend
+  - Bell notifications (delete/clear all)
+  - Change password icon
+
+### Mentor + Admin
+- `/mentor` - Dashboard: stats, charts (live data from store), grading scale
+- `/mentor/evaluate` - Evaluation form: searchable combobox, inline create, week selector, categories, notes
+- `/mentor/students` - Student list: search, rank column, Add Student button, pagination (20/page)
+- `/mentor/students/:id` - Student profile: charts, history, Student View button
+- `/mentor/mentors` - Mentor list. Admin: add/reset/delete. Mentor: view.
+- `/mentor/leaderboard` - 4 tabs with pagination (20/page) + grading scale
+
+### Admin Only
+- `/admin` - Admin dashboard (same design as mentor)
+- `/admin/manage` - User Management:
+  - Mentors tab: add (sends email), reset password, restrict/unrestrict, delete
+  - Students tab: add (sends email), reset password, restrict/unrestrict, delete, pagination (20/page)
+  - Audit Log tab: full action history with pagination (50/page)
+- `/admin/settings`:
+  - Cohort name + start date
+  - Grade thresholds (Excellent/Good/Needs Improvement)
+  - Total weeks
+  - Current week per track (10 tracks, independent)
+
+---
+
+## 5. Notifications
+
+Bell icon in all dashboards:
+- Red badge shows unread count
+- Dropdown with list of notifications
+- Hover to reveal delete (x) button
+- "Clear all" button
+- Marks all read on open
+- Polls every 60 seconds
+
+---
+
+## 6. Components
+
+- `AppShell` - Sidebar: Code Campus logo, dynamic nav (admin sees User Management + Settings), cohort name + week from settings, notification bell (dropdown), user name, change password icon, logout
+- `GradingScale` - Uses live grade thresholds from DataStore settings
+- `PerfBadge` - Uses live grade thresholds from DataStore settings
+- `Pagination` - Reusable numbered pages component
+- `Avatar` - Initials-based coloured circle
+
+---
+
+## 7. Sidebar Navigation
+
+| Item | Mentor | Admin |
+|---|---|---|
+| Dashboard | /mentor | /admin |
+| New Evaluation | /mentor/evaluate | /mentor/evaluate |
+| Students | /mentor/students | /mentor/students |
+| Mentors | /mentor/mentors | /mentor/mentors |
+| Leaderboard | /mentor/leaderboard | /mentor/leaderboard |
+| User Management | - | /admin/manage |
+| Settings | - | /admin/settings |
+
+---
+
+## 8. Environment Variables
+
+```
+VITE_API_URL=http://localhost:4000
+```
+
 **Version:** 2.1 | **Date:** July 2026 | **Stack:** React 19 + TypeScript + TanStack Start + Tailwind CSS
 
 ---
