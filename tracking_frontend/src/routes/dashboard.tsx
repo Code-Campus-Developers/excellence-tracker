@@ -47,12 +47,16 @@ function StudentDashboard() {
   }, [fetchNotifications]);
 
   const handleBellClick = async () => {
-    setShowNotifications((p) => !p);
-    if (!showNotifications && unreadCount > 0) {
-      try {
-        await api.put("/api/notifications/read-all", {});
-        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      } catch { /* silent */ }
+    const opening = !showNotifications;
+    setShowNotifications(opening);
+    if (opening) {
+      await fetchNotifications();
+      if (unreadCount > 0) {
+        try {
+          await api.put("/api/notifications/read-all", {});
+          setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        } catch { /* silent */ }
+      }
     }
   };
 
