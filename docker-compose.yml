@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  # PostgreSQL database (for local Docker development)
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: excellence_tracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Express backend
+  backend:
+    build:
+      context: ./tracking_backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./tracking_backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/excellence_tracker
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/index.js"
+
+  # React/TanStack Start frontend
+  frontend:
+    build:
+      context: ./tracking_frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./tracking_frontend/.env
+    environment:
+      VITE_API_URL: http://backend:4000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
