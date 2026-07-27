@@ -10,7 +10,7 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart({
-      server: { entry: "server" },
+      server: { entry: "server", preset: "vercel" },
       tsr: {
         scaffoldEachRoute: false,
       },
