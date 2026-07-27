@@ -1,14 +1,14 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardCheck, Users, Trophy,
-  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap,
+  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap, MessageCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { ReactNode } from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { CURRENT_WEEK, TOTAL_WEEKS } from "@/lib/tracking";
+import { TOTAL_WEEKS } from "@/lib/tracking";
 import { useAuth } from "@/lib/authStore";
-import { useStore } from "@/lib/store";
+import { useStore, getCurrentWeek } from "@/lib/store";
 import { api } from "@/lib/api";
 
 interface Notification {
@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { students, settings } = useStore();
 
   const trackWeek = student?.track ? (settings.track_weeks[student.track] ?? settings.total_weeks) : null;
-  const displayWeek = trackWeek ?? Math.max(...Object.values(settings.track_weeks));
+  const displayWeek = trackWeek ?? getCurrentWeek(settings);
 
   const [searchQ, setSearchQ] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -100,26 +100,29 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const primaryDashboard = user?.role === "ADMIN" ? "/admin" : "/mentor";
+  const primaryDashboard = user?.role === "ADMIN" ? "/admin" : "/instructor";
 
   const MENTOR_NAV = [
     { to: primaryDashboard, label: "Dashboard", icon: LayoutDashboard },
-    { to: "/mentor/evaluate", label: "New Evaluation", icon: ClipboardCheck },
-    { to: "/mentor/students", label: "Students", icon: Users },
-    { to: "/mentor/mentors", label: "Mentors", icon: GraduationCap },
-    { to: "/mentor/leaderboard", label: "Leaderboard", icon: Trophy },
+    { to: "/instructor/evaluate", label: "New Evaluation", icon: ClipboardCheck },
+    { to: "/instructor/students", label: "Students", icon: Users },
+    { to: "/instructor/instructors", label: "Instructors", icon: GraduationCap },
+    { to: "/instructor/leaderboard", label: "Leaderboard", icon: Trophy },
+    { to: "/instructor/messages", label: "Messages", icon: MessageCircle },
+    // Only show instructor settings for MENTOR role | admins use /admin/settings
+    ...(user?.role === "MENTOR" ? [{ to: "/instructor/settings", label: "Settings", icon: UserCog }] : []),
   ];
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQ.trim()) {
-      navigate({ to: "/mentor/students" });
+      navigate({ to: "/instructor/students" });
       setSearchQ("");
     }
   };
 
   const handleLogout = () => {
     logout();
-    if (user?.role === "MENTOR") navigate({ to: "/mentor-login" });
+    if (user?.role === "MENTOR") navigate({ to: "/instructor-login" });
     else if (user?.role === "ADMIN") navigate({ to: "/admin-login" });
     else navigate({ to: "/login" });
   };
@@ -133,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col border-r bg-sidebar sticky top-0 h-screen">
         <div className="flex items-center px-4 h-16 border-b">
-          <img src="/image-1784557444135.png" alt="Code Campus International" className="h-10 w-auto max-w-full" />
+          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
         </div>
 
         <div className="px-4 py-4">
@@ -215,7 +218,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ].join(" ")}
       >
         <div className="flex items-center px-4 h-16 border-b">
-          <img src="/image-1784557444135.png" alt="Code Campus International" className="h-10 w-auto max-w-full" />
+          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -291,7 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {filteredStudents.map((s) => (
                   <Link
                     key={s.id}
-                    to="/mentor/students/$id"
+                    to="/instructor/students/$id"
                     params={{ id: s.id }}
                     onClick={() => { setSearchQ(""); setShowResults(false); }}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted transition-colors"
@@ -369,14 +372,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold">
-                {initials}
-              </div>
+              {user?.profilePicture ? (
+                <img src={user.profilePicture} alt={user.name} className="h-9 w-9 rounded-full object-cover" />
+              ) : (
+                <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold">
+                  {initials}
+                </div>
+              )}
               <div className="hidden sm:block">
                 <div className="text-sm font-medium leading-tight">{user?.name ?? "User"}</div>
-                <div className="text-xs text-muted-foreground capitalize">{user?.role?.toLowerCase() ?? ""}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user?.role === "MENTOR" ? "Instructor" : user?.role === "ADMIN" ? "Admin" : "Student"}</div>
               </div>
-              <Link to="/change-password" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center" title="Change password">
+              <Link to="/edit-profile" className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center" title="Edit profile">
                 <UserCog className="h-4 w-4 text-muted-foreground" />
               </Link>
               <button

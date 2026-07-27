@@ -6,13 +6,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = process.env.FROM_EMAIL ?? "onboarding@resend.dev";
 const APP_URL = process.env.APP_URL ?? "http://localhost:8080";
 
-export async function sendMentorWelcomeEmail(opts: {
+export async function sendInstructorWelcomeEmail(opts: {
   to: string;
   name: string;
   tempPassword: string;
   loginUrl?: string;
 }) {
-  const url = opts.loginUrl ?? `${APP_URL}/mentor-login`;
+  const url = opts.loginUrl ?? `${APP_URL}/instructor-login`;
   await resend.emails.send({
     from: FROM,
     to: opts.to,
@@ -74,7 +74,7 @@ export async function sendEvaluationEmail(opts: {
           <div style="font-size:48px;font-weight:bold;color:#16a34a">${opts.total}<span style="font-size:20px;color:#6b7280">/100</span></div>
           <div style="color:#6b7280;font-size:14px;margin-top:4px">Week ${opts.week} Score</div>
         </div>
-        <p>Log in to view your full breakdown, charts, mentor feedback, and how you compare to the class.</p>
+        <p>Log in to view your full breakdown, charts, instructor feedback, and how you compare to the class.</p>
         <a href="${dashboardUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View My Dashboard</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
@@ -98,7 +98,7 @@ export async function sendStudentWelcomeEmail(opts: {
         <p><strong>Track:</strong> ${opts.track}</p>
         <p>You can now log in to view your weekly evaluation scores, track your progress, and see how you compare with your peers.</p>
         <a href="${APP_URL}/login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Go to My Dashboard</a>
-        <p style="margin-top:24px;color:#6b7280;font-size:13px">Questions? Contact your mentor.</p>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Questions? Contact your instructor.</p>
         <p style="color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,

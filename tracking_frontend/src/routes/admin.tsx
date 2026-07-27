@@ -16,7 +16,7 @@ function AdminLayout() {
       if (user.role !== "ADMIN") { navigate({ to: "/admin-login" }); return; }
       setReady(true);
     } catch {
-      navigate({ to: "/admin/login" });
+      navigate({ to: "/admin-login" });
     }
   }, []);
   if (!ready) return null;

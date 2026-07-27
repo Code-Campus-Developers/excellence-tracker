@@ -31,9 +31,9 @@ function AdminPanel() {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
 
-  const [mentorDialog, setMentorDialog] = useState(false);
+  const [instructorDialog, setInstructorDialog] = useState(false);
   const [studentDialog, setStudentDialog] = useState(false);
-  const [newMentor, setNewMentor] = useState({ name: "", email: "", track: "" });
+  const [newInstructor, setNewInstructor] = useState({ name: "", email: "", track: "" });
   const [newStudent, setNewStudent] = useState({ name: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);  const [studentPage, setStudentPage] = useState(1);
   const [auditPage, setAuditPage] = useState(1);
@@ -52,7 +52,7 @@ function AdminPanel() {
 
   useEffect(() => { load(); }, []);
 
-  const mentors = users.filter((u) => u.role === "MENTOR");
+  const instructors = users.filter((u) => u.role === "MENTOR");
   const studentUsers = users.filter((u) => u.role === "STUDENT");
 
   const pagedStudents = students.slice((studentPage - 1) * STUDENTS_PER_PAGE, studentPage * STUDENTS_PER_PAGE);
@@ -60,14 +60,14 @@ function AdminPanel() {
   const pagedAudit = auditLogs.slice((auditPage - 1) * AUDIT_PER_PAGE, auditPage * AUDIT_PER_PAGE);
   const auditTotalPages = Math.ceil(auditLogs.length / AUDIT_PER_PAGE);
 
-  const createMentor = async () => {
-    if (!newMentor.name || !newMentor.email) { toast.error("Name and email required"); return; }
+  const createInstructor = async () => {
+    if (!newInstructor.name || !newInstructor.email) { toast.error("Name and email required"); return; }
     setSaving(true);
     try {
-      await api.post("/admin/mentors", newMentor);
-      toast.success(`Mentor created — welcome email sent to ${newMentor.email}`);
-      setMentorDialog(false);
-      setNewMentor({ name: "", email: "", track: "" });
+      await api.post("/admin/instructors", newInstructor);
+      toast.success(`Instructor created | welcome email sent to ${newInstructor.email}`);
+      setInstructorDialog(false);
+      setNewInstructor({ name: "", email: "", track: "" });
       load();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
     finally { setSaving(false); }
@@ -78,7 +78,7 @@ function AdminPanel() {
     setSaving(true);
     try {
       await api.post("/admin/students", newStudent);
-      toast.success(`Student created — welcome email sent to ${newStudent.email}`);
+      toast.success(`Student created | welcome email sent to ${newStudent.email}`);
       setStudentDialog(false);
       setNewStudent({ name: "", email: "", track: "" });
       load();
@@ -86,9 +86,9 @@ function AdminPanel() {
     finally { setSaving(false); }
   };
 
-  const deleteMentor = async (id: string, name: string) => {
-    if (!confirm(`Remove mentor ${name}?`)) return;
-    try { await api.del(`/admin/mentors/${id}`); load(); toast.success("Mentor removed"); }
+  const deleteInstructor = async (id: string, name: string) => {
+    if (!confirm(`Remove instructor ${name}?`)) return;
+    try { await api.del(`/admin/instructors/${id}`); load(); toast.success("Instructor removed"); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
   };
 
@@ -102,7 +102,7 @@ function AdminPanel() {
     if (!confirm(`Reset password for ${name}? A new password will be sent to their email.`)) return;
     try {
       await api.post(`/admin/users/${userId}/reset-password`, {});
-      toast.success(`Password reset — new credentials emailed to ${name}`);
+      toast.success(`Password reset | new credentials emailed to ${name}`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
   };
 
@@ -122,14 +122,14 @@ function AdminPanel() {
     <AppShell>
       <PageHeader
         title="User Management"
-        subtitle="Manage mentors, students and account access."
+        subtitle="Manage instructors, students and account access."
       />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card><CardContent className="p-5">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Mentors</div>
-          <div className="text-3xl font-bold mt-2">{mentors.length}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Instructors</div>
+          <div className="text-3xl font-bold mt-2">{instructors.length}</div>
         </CardContent></Card>
         <Card><CardContent className="p-5">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Students</div>
@@ -145,25 +145,25 @@ function AdminPanel() {
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="mentors">
+      <Tabs defaultValue="instructors">
         <TabsList className="mb-4">
-          <TabsTrigger value="mentors">Mentors</TabsTrigger>
+          <TabsTrigger value="instructors">Instructors</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
-        {/* Mentors Tab */}
-        <TabsContent value="mentors">
+        {/* Instructors Tab */}
+        <TabsContent value="instructors">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-semibold">Mentors / Evaluators</h2>
-            <Button onClick={() => setMentorDialog(true)} className="bg-brand text-brand-foreground hover:bg-brand/90">
-              <UserPlus className="h-4 w-4" /> Add Mentor
+            <h2 className="font-semibold">Instructors / Evaluators</h2>
+            <Button onClick={() => setInstructorDialog(true)} className="bg-brand text-brand-foreground hover:bg-brand/90">
+              <UserPlus className="h-4 w-4" /> Add Instructor
             </Button>
           </div>
           <Card>
             <CardContent className="p-0 divide-y">
-              {mentors.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No mentors yet.</div>}
-              {mentors.map((m) => (
+              {instructors.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No instructors yet.</div>}
+              {instructors.map((m) => (
                 <div key={m.id} className="flex items-center gap-4 p-4">
                   <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold shrink-0">
                     {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
@@ -184,7 +184,7 @@ function AdminPanel() {
                     title={m.isActive ? "Restrict" : "Unrestrict"}>
                     {m.isActive ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4 text-brand" />}
                   </button>
-                  <button onClick={() => deleteMentor(m.id, m.name)}
+                  <button onClick={() => deleteInstructor(m.id, m.name)}
                     className="text-destructive hover:opacity-70 p-1">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -312,24 +312,24 @@ function AdminPanel() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Mentor Dialog */}
-      <Dialog open={mentorDialog} onOpenChange={setMentorDialog}>
+      {/* Add Instructor Dialog */}
+      <Dialog open={instructorDialog} onOpenChange={setInstructorDialog}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Add New Mentor</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Add New Instructor</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label className="mb-1.5 block">Full Name</Label>
-              <Input placeholder="enter full name" value={newMentor.name}
-                onChange={(e) => setNewMentor((p) => ({ ...p, name: e.target.value }))} />
+              <Input placeholder="enter full name" value={newInstructor.name}
+                onChange={(e) => setNewInstructor((p) => ({ ...p, name: e.target.value }))} />
             </div>
             <div>
               <Label className="mb-1.5 block">Email</Label>
-              <Input type="email" placeholder="enter email address" value={newMentor.email}
-                onChange={(e) => setNewMentor((p) => ({ ...p, email: e.target.value }))} />
+              <Input type="email" placeholder="enter email address" value={newInstructor.email}
+                onChange={(e) => setNewInstructor((p) => ({ ...p, email: e.target.value }))} />
             </div>
             <div>
               <Label className="mb-1.5 block">Track / Specialty</Label>
-              <Select value={newMentor.track} onValueChange={(v) => setNewMentor((p) => ({ ...p, track: v }))}>
+              <Select value={newInstructor.track} onValueChange={(v) => setNewInstructor((p) => ({ ...p, track: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -339,9 +339,9 @@ function AdminPanel() {
             <p className="text-xs text-muted-foreground">A welcome email with login credentials will be sent automatically.</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setMentorDialog(false)}>Cancel</Button>
-            <Button onClick={createMentor} disabled={saving} className="bg-brand text-brand-foreground hover:bg-brand/90">
-              <UserPlus className="h-4 w-4" />{saving ? "Creating..." : "Create Mentor"}
+            <Button variant="outline" onClick={() => setInstructorDialog(false)}>Cancel</Button>
+            <Button onClick={createInstructor} disabled={saving} className="bg-brand text-brand-foreground hover:bg-brand/90">
+              <UserPlus className="h-4 w-4" />{saving ? "Creating..." : "Create Instructor"}
             </Button>
           </DialogFooter>
         </DialogContent>

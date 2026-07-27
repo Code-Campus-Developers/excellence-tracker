@@ -1,15 +1,13 @@
 # Product Requirements Document
 ## Code Campus Excellence Tracker
 
-**Version:** 2.0 | **Date:** July 2026 | **Organisation:** Code Campus International | **Status:** Production
+**Version:** 3.0 | **Date:** July 2026 | **Organisation:** Code Campus International | **Status:** Production
 
 ---
 
 ## 1. Overview
 
-The **Code Campus Excellence Tracker** is a full-stack web application for the Code Campus International bootcamp. It enables admins to manage users, mentors to evaluate students weekly, and students to view their personalised performance dashboards.
-
-The system is fully connected to a PostgreSQL database via a REST API. All data persists across sessions.
+The **Code Campus Excellence Tracker** is a full-stack web application for the Code Campus International bootcamp. It enables admins and instructors to manage and evaluate students weekly. Students track their progress, self-report weekly activities, message their instructor, and log physical attendance.
 
 ---
 
@@ -18,141 +16,191 @@ The system is fully connected to a PostgreSQL database via a REST API. All data 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19 + TypeScript + TanStack Start (SSR) + Vite 8 |
-| Routing | TanStack Router v1 |
+| Routing | TanStack Router v1 (file-based) |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 | Charts | Recharts |
+| State | React Context (AuthStore + DataStore) |
 | Backend | Node.js + Express + TypeScript |
 | ORM | Prisma 5 |
 | Database | PostgreSQL 17 |
-| Auth | JWT (jsonwebtoken) + bcrypt (12 rounds) |
+| Auth | JWT (7-day) + bcrypt (12 rounds) |
 | Email | Resend |
+| File Upload | Cloudinary (signed, server-side) |
 | Security | helmet + express-rate-limit + CORS |
 
 ---
 
 ## 3. User Roles
 
-| Role | How Created | Login URL |
-|---|---|---|
-| **Admin** | Seeded directly into DB | /admin-login |
-| **Mentor** | Admin creates via User Management | /mentor-login |
-| **Student** | Self-registers OR admin/mentor creates | /login |
+| Role (DB) | Display Name | Login URL | After Login |
+|---|---|---|---|
+| ADMIN | Admin | `/admin-login` | `/admin` |
+| MENTOR | Instructor | `/instructor-login` | `/instructor` |
+| STUDENT | Student | `/login` | `/student` |
+
+> **Important:** DB enum value is `MENTOR`. Display text is "Instructor" throughout the app.
 
 ---
 
-## 4. Authentication
+## 4. Authentication & Security
 
-- JWT stored in localStorage (key: excellence_auth)
-- Token contains: userId, role
-- All protected routes check token on mount via useEffect
-- Unauthenticated users redirected to role-specific login page
-- Restricted accounts blocked at login with clear error message
-- Strong password enforced: uppercase + lowercase + number + symbol (min 8 chars)
-- Password reset via Resend email (1-hour token expiry)
+- JWT stored in localStorage (key: `excellence_auth`). Contains `userId` + `role`.
+- All protected routes check token on mount. Unauthenticated users redirected to login.
+- Restricted accounts (`isActive=false`) blocked at login.
+- Strong password policy: uppercase + lowercase + number + symbol, min 8 chars.
+- Password reset via Resend email (1-hour token expiry).
+- Rate limiting: 20 auth requests per 15 min per IP.
+- Cloudinary uploads: API secret stays on backend — clients never see it.
+- bcrypt (12 rounds) for all password hashing.
 
 ---
 
 ## 5. Features by Role
 
 ### 5.1 Student
-- Self-register with name, email, track, password
-- Welcome email sent on registration
-- Personal dashboard at /dashboard
-- View own scores, charts, mentor feedback, rank, class average comparison
-- Forgot/reset password
+- Self-register (auto-generates CC-YEAR-NNN student code, welcome email sent)
+- Student sidebar with 6 sections: Dashboard, Progress, Self-Report, Messages, Attendance, Leaderboard
+- View personal scores, charts, instructor feedback, class rank, class average comparison
+- Submit weekly self-report: LinkedIn post, learning log, coding activity, event attended (with proof URLs)
+- Message track instructor in real-time chat
+- Clock In / Clock Out for physical attendance
+- Edit profile: name, email, track, profile picture (Cloudinary)
+- Change password
 
-### 5.2 Mentor
-- Login at /mentor-login (no register link)
-- Full mentor dashboard with stats and charts
-- Create and submit weekly evaluations for students
-- View all students and their profiles
-- Add students inline (combobox with create option)
-- View all mentors (read-only)
-- View leaderboard
+### 5.2 Instructor (MENTOR role in DB)
+- Full instructor dashboard: stats, charts, top/bottom performers
+- Create weekly evaluations (defaults to current cohort week)
+- View all students with student codes, tracks, and ranks
+- View full student profile: evaluations + self-reports + attendance history
+- Verify or Reject student self-reports
+- Inbox: chat threads with all students; unread badge per thread
+- Settings: set cohort name, start date, total weeks, current week override
+- View instructors list + leaderboard
 
 ### 5.3 Admin
-- Login at /admin-login (no register link)
-- Full mentor dashboard (same design and features as mentor)
-- User Management: create mentors + students, delete, restrict/unrestrict, reset passwords
-- All emails sent automatically on account creation
-- Can do everything a mentor can do
+- Everything an instructor can do (shared /instructor/* routes)
+- User Management: create/delete instructors + students, restrict/unrestrict accounts, reset passwords
+- Full Settings: all instructor settings + grade threshold configuration
+- Audit log: paginated log of all sensitive actions
 
 ---
 
 ## 6. Evaluation System
 
-Students are scored weekly across 7 categories (100 points total):
+Students scored weekly across 7 categories (100 pts total):
 
 | Category | Max |
 |---|---|
-| Attendance and Participation | 25 |
-| LinkedIn and X Visibility | 10 |
+| Attendance & Participation | 25 |
+| LinkedIn & X Visibility | 10 |
 | Project Milestone | 20 |
 | Coding Practice | 20 |
-| Collaboration and Teamwork | 10 |
+| Collaboration & Teamwork | 10 |
 | Learning Logs | 10 |
 | Bootcamp Housekeeping | 5 |
 
-Performance levels: Excellent (85+) / Good (70+) / Needs Improvement (50+) / Poor (<50)
+**Performance levels (admin-configurable):** Excellent ≥85 / Good ≥70 / Needs Improvement ≥50 / Poor <50
 
-Evaluation rules:
-- One evaluation per student per week (duplicates blocked)
-- Evaluator name pulled from logged-in user's account
-- Notes/feedback field included
+One evaluation per student per week (duplicates blocked). Evaluator name from logged-in user.
 
 ---
 
-## 7. Pages and Routes
+## 7. Self-Reporting System
 
-| Route | Access | Purpose |
-|---|---|---|
-| / | Public | Landing page with features and scoring breakdown |
-| /login | Student | Login + link to register |
-| /register | Public | Student self-registration |
-| /forgot-password | All | Request password reset |
-| /reset-password | All | Set new password via token |
-| /mentor-login | Mentor | Mentor-specific login |
-| /admin-login | Admin | Admin-specific login |
-| /mentor | Mentor + Admin | Dashboard: stats, charts, top performers, needs improvement |
-| /mentor/evaluate | Mentor + Admin | Weekly evaluation form |
-| /mentor/students | Mentor + Admin | Student list with search and add |
-| /mentor/students/:id | Mentor + Admin | Student profile with full history |
-| /mentor/mentors | Mentor (view) / Admin (manage) | Mentors list |
-| /mentor/leaderboard | Mentor + Admin | Rankings (4 tabs) |
-| /admin | Admin | Admin dashboard (same as mentor) |
-| /admin/manage | Admin | User Management |
-| /dashboard | Student | Personal score dashboard |
+Students submit weekly activity log:
+- LinkedIn Post (checkbox + URL)
+- Learning Log (checkbox + URL)
+- Coding Activity (checkbox + URL)
+- Event / Workshop Attended (checkbox + URL)
+- Optional notes
+
+Status lifecycle: PENDING → VERIFIED or REJECTED (by instructor/admin).
+Editing a submitted report resets status to PENDING.
 
 ---
 
-## 8. Email Notifications
+## 8. Messaging System
 
-| Event | Recipient | Content |
-|---|---|---|
-| Student self-registers | Student | Welcome + dashboard link |
-| Admin creates student | Student | Welcome + login credentials |
-| Admin/Mentor adds student | Student | Welcome + login credentials |
-| Admin creates mentor | Mentor | Welcome + login credentials |
-| Password reset requested | User | Reset link (expires 1 hour) |
-| Admin resets password | User | New temporary credentials |
+- Students matched to instructor by `track` field
+- Students can only message their track instructor
+- Instructors see inbox with all student threads + unread counts
+- Messages auto-marked read when thread is opened
+- 15-second polling for new messages
 
 ---
 
-## 9. Security
+## 9. Attendance System
 
-- Passwords hashed with bcrypt (12 rounds)
-- JWT tokens with 7-day expiry
-- Role-based route protection on all routes (frontend + backend)
-- Rate limiting: 20 auth requests per 15 minutes per IP
-- HTTP security headers via helmet
-- CORS locked to frontend URL
-- Admin can restrict accounts (blocked at login)
-- Backend validates all inputs at route level
-- Strong password policy enforced on register and password reset
+- One session per student per day
+- Clock In creates record; Clock Out closes it and calculates duration
+- Live elapsed timer while clocked in
+- Admin/Instructor can view attendance on student detail page
+- History shows last 60 records
 
 ---
 
-## 10. Tracks Available
+## 10. Dynamic Current Week
+
+The current bootcamp week is never hardcoded:
+1. If `current_week_override` is set in settings → use it
+2. Else if `cohort_start_date` is set → auto-calculate from start date
+3. Else → default to 1
+
+Both ADMIN and MENTOR can update cohort settings (name, start date, total weeks, week override).
+
+---
+
+## 11. Profile Pictures (Cloudinary)
+
+- Upload from Edit Profile page
+- File goes to backend → backend signs with Cloudinary API secret → uploads
+- Max 5 MB; auto-compressed to ~20–80 KB; cropped to 400×400 face-aware
+- URL stored in `users.profile_picture` column
+- Shown in sidebar, header, student cards
+
+---
+
+## 12. Student Identity
+
+- Auto-generated ID: `CC-YEAR-NNN` (e.g. `CC-2026-001`)
+- Displayed on student dashboard, student list, student detail page
+- Unique constraint in DB
+
+---
+
+## 13. Pages and Routes
+
+### Public
+`/` · `/login` · `/register` · `/instructor-login` · `/admin-login` · `/forgot-password` · `/reset-password`
+
+### Shared (logged in)
+`/change-password` · `/edit-profile`
+
+### Student Sidebar (`/student/*`)
+`/student` · `/student/progress` · `/student/self-report` · `/student/messages` · `/student/attendance` · `/student/leaderboard`
+
+### Instructor (`/instructor/*`)
+`/instructor` · `/instructor/evaluate` · `/instructor/students` · `/instructor/students/:id` · `/instructor/instructors` · `/instructor/leaderboard` · `/instructor/messages` · `/instructor/settings`
+
+### Admin (`/admin/*`)
+`/admin` · `/admin/manage` · `/admin/settings`
+
+---
+
+## 14. Email Notifications
+
+| Event | Recipient |
+|---|---|
+| Student self-registers | Student (welcome + login link) |
+| Admin creates student | Student (welcome + credentials) |
+| Admin creates instructor | Instructor (welcome + credentials) |
+| Admin resets password | User (new credentials) |
+| Evaluation submitted | Student (score summary) |
+| Forgot password | User (reset link, 1-hour expiry) |
+
+---
+
+## 15. Tracks (10 available)
 
 Software Engineering, Data Analytics, Cloud Engineering, Digital Marketing,
 Cybersecurity Engineering, Artificial Intelligence (AI), Blockchain Engineering,
@@ -160,22 +208,25 @@ Project Management, Product Design, Product Management
 
 ---
 
-## 11. Bootcamp Info
+## 16. Deployment
 
-- Duration: 16 weeks
-- Current Week: 4
-- Evaluations stored permanently in PostgreSQL
+| Service | Platform |
+|---|---|
+| Frontend | Vercel |
+| Backend | Railway or Render |
+| Database | Supabase (change DATABASE_URL only) |
+| File Storage | Cloudinary |
+
+**Render Start Command:** `npx prisma migrate deploy && npm run db:seed:prod && npm run start`
 
 ---
 
-## 12. Future Roadmap
+## 17. Future Roadmap
 
 | Phase | Feature |
 |---|---|
-| v2 | Connect to Supabase (change DATABASE_URL only) |
-| v2 | Cohort management (multiple bootcamp intakes) |
-| v2 | Mentor assigned to specific students |
-| v3 | Email/WhatsApp notifications after evaluation |
-| v3 | Export evaluations to CSV/PDF |
-| v3 | Student peer comparison opt-in |
-| v4 | Mobile app |
+| v4 | Real-time WebSocket messaging (replace polling) |
+| v4 | Export evaluations to CSV/PDF |
+| v4 | Multiple cohort management |
+| v5 | Mobile app (React Native) |
+| v5 | WhatsApp/SMS notifications |

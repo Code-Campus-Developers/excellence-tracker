@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { generateStudentCode } from "../lib/prisma";
 import {
   hashPassword,
   comparePassword,
@@ -40,22 +40,12 @@ router.post("/register", async (req: Request, res: Response) => {
 
   const passwordHash = await hashPassword(password);
   const studentId = `s_${Date.now()}`;
+  const studentCode = await generateStudentCode();
 
   const user = await prisma.user.create({
     data: {
-      name,
-      email,
-      passwordHash,
-      role: "STUDENT",
-      student: {
-        create: {
-          id: studentId,
-          name,
-          email,
-          track,
-          avatarColor: "#16a34a",
-        },
-      },
+      name, email, passwordHash, role: "STUDENT",
+      student: { create: { id: studentId, studentCode, name, email, track, avatarColor: "#16a34a" } },
     },
     include: { student: true },
   });
@@ -106,7 +96,7 @@ router.post("/login", async (req: Request, res: Response) => {
   }
 
   if (!user.isActive) {
-    res.status(403).json({ error: "Your account has been restricted. Please contact your mentor or admin." });
+    res.status(403).json({ error: "Your account has been restricted. Please contact your instructor or admin." });
     return;
   }
 
@@ -214,6 +204,45 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
   await audit(req, "PASSWORD_CHANGED", { userId: user.id });
 
   res.json({ message: "Password changed successfully" });
+});
+
+// PUT /auth/profile — update name, email, track, profilePicture
+router.put("/profile", authenticate, async (req: AuthRequest, res: Response) => {
+  const { name, email, track, profilePicture } = req.body as {
+    name?: string; email?: string; track?: string; profilePicture?: string;
+  };
+  const userId = req.user!.userId;
+
+  // Check email uniqueness if changing
+  if (email) {
+    const existing = await prisma.user.findFirst({ where: { email, id: { not: userId } } });
+    if (existing) { res.status(409).json({ error: "Email already in use" }); return; }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(track !== undefined && { track }),
+      ...(profilePicture !== undefined && { profilePicture }),
+    },
+    select: { id: true, name: true, email: true, role: true, track: true, profilePicture: true },
+  });
+
+  // Also update student record if name/email/track changed
+  if (name || email || track) {
+    await prisma.student.updateMany({
+      where: { userId },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(track && { track }),
+      },
+    }).catch(() => {});
+  }
+
+  res.json({ user: updated });
 });
 
 export default router;

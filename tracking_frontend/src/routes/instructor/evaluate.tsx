@@ -23,25 +23,26 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  CATEGORIES, CURRENT_WEEK, TOTAL_WEEKS, MAX_TOTAL, TRACKS,
+  CATEGORIES, TOTAL_WEEKS, MAX_TOTAL, TRACKS,
   emptyScores, sumScores, nextAvatarColor, type CategoryKey, type Scores,
 } from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { useStore, getCurrentWeek } from "@/lib/store";
 import { useAuth } from "@/lib/authStore";
 
-export const Route = createFileRoute("/mentor/evaluate")({
+export const Route = createFileRoute("/instructor/evaluate")({
   head: () => ({
-    meta: [{ title: "New Weekly Evaluation — CodeCampus" }],
+    meta: [{ title: "New Weekly Evaluation | CodeCampus" }],
   }),
   component: Evaluate,
 });
 
 function Evaluate() {
   const navigate = useNavigate();
-  const { addEvaluation, evaluations, students, addStudent } = useStore();
+  const { addEvaluation, evaluations, students, addStudent, settings } = useStore();
   const { user } = useAuth();
+  const currentWeek = getCurrentWeek(settings);
   const [studentId, setStudentId] = useState<string>("");
-  const [week, setWeek] = useState<number>(CURRENT_WEEK);
+  const [week, setWeek] = useState<number>(() => getCurrentWeek(settings));
   const [scores, setScores] = useState<Scores>(emptyScores());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -86,6 +87,7 @@ function Evaluate() {
         email: newEmail.trim() || `${newName.trim().toLowerCase().replace(/\s+/g, ".")}@codecampus.ng`,
         track: newTrack,
         avatarColor: nextAvatarColor(),
+        studentCode: "",
         userId: null,
       });
       setStudentId(created.id);
@@ -110,14 +112,14 @@ function Evaluate() {
         id: `e_${Date.now()}`,
         studentId,
         week,
-        evaluator: user?.name ?? "Mentor",
+        evaluator: user?.name ?? "Instructor",
         scores,
         total,
         notes,
         createdAt: new Date().toISOString(),
       });
-      toast.success(`Evaluation saved — ${student?.name} scored ${total}/${MAX_TOTAL} in Week ${week}`);
-      setTimeout(() => navigate({ to: "/mentor/students/$id", params: { id: studentId } }), 800);
+      toast.success(`Evaluation saved | ${student?.name} scored ${total}/${MAX_TOTAL} in Week ${week}`);
+      setTimeout(() => navigate({ to: "/instructor/students/$id", params: { id: studentId } }), 800);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save evaluation");
     } finally {
@@ -263,7 +265,7 @@ function Evaluate() {
                     {Array.from({ length: TOTAL_WEEKS }, (_, i) => i + 1).map((w) => (
                       <SelectItem key={w} value={String(w)}>
                         Week {w}
-                        {w === CURRENT_WEEK ? " (current)" : ""}
+                        {w === currentWeek ? " (current)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

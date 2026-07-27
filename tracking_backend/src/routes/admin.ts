@@ -1,26 +1,26 @@
 import { Router, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { generateStudentCode } from "../lib/prisma";
 import { hashPassword, generateResetToken } from "../lib/auth";
-import { sendMentorWelcomeEmail, sendStudentWelcomeEmail } from "../lib/email";
+import { sendInstructorWelcomeEmail, sendStudentWelcomeEmail } from "../lib/email";
 import { authenticate, authorize, AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyMentors } from "./notifications";
+import { notifyAdmins, notifyInstructors } from "./notifications";
 import { audit } from "../lib/audit";
 
 const router = Router();
 router.use(authenticate, authorize("ADMIN"));
 
-// GET /admin/mentors
-router.get("/mentors", async (_req: AuthRequest, res: Response) => {
-  const mentors = await prisma.user.findMany({
+// GET /admin/instructors
+router.get("/instructors", async (_req: AuthRequest, res: Response) => {
+  const instructors = await prisma.user.findMany({
     where: { role: "MENTOR" },
     select: { id: true, name: true, email: true, track: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
-  res.json(mentors);
+  res.json(instructors);
 });
 
-// POST /admin/mentors — create mentor + send welcome email
-router.post("/mentors", async (req: AuthRequest, res: Response) => {
+// POST /admin/instructors — create instructor + send welcome email
+router.post("/instructors", async (req: AuthRequest, res: Response) => {
   const { name, email, track } = req.body as { name: string; email: string; track?: string };
   if (!name || !email) {
     res.status(400).json({ error: "name and email are required" }); return;
@@ -30,29 +30,29 @@ router.post("/mentors", async (req: AuthRequest, res: Response) => {
 
   const tempPassword = Math.random().toString(36).slice(-8) + "C1!";
   const passwordHash = await hashPassword(tempPassword);
-  const mentor = await prisma.user.create({
+  const instructor = await prisma.user.create({
     data: { name, email, passwordHash, role: "MENTOR", track: track ?? null },
     select: { id: true, name: true, email: true, track: true, createdAt: true },
   });
 
-  try { await sendMentorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/mentor-login` }); }
+  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/instructor-login` }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
-  try { await notifyAdmins(`New mentor account created: ${name}`, "/admin/manage"); }
+  try { await notifyAdmins(`New instructor account created: ${name}`, "/admin/manage"); }
   catch { /* silent */ }
 
   await audit(req, "MENTOR_CREATED", { name, email });
 
-  res.status(201).json({ mentor, tempPassword });
+  res.status(201).json({ instructor, tempPassword });
 });
 
-// DELETE /admin/mentors/:id
-router.delete("/mentors/:id", async (req: AuthRequest, res: Response) => {
+// DELETE /admin/instructors/:id
+router.delete("/instructors/:id", async (req: AuthRequest, res: Response) => {
   try {
     await prisma.user.delete({ where: { id: req.params.id, role: "MENTOR" } });
-    await audit(req, "MENTOR_DELETED", { mentorId: req.params.id });
+    await audit(req, "MENTOR_DELETED", { instructorId: req.params.id });
     res.status(204).send();
-  } catch { res.status(404).json({ error: "Mentor not found" }); }
+  } catch { res.status(404).json({ error: "Instructor not found" }); }
 });
 
 // GET /admin/students
@@ -78,21 +78,22 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
   const tempPassword = Math.random().toString(36).slice(-8) + "S1!";
   const passwordHash = await hashPassword(tempPassword);
   const studentId = `s_${Date.now()}`;
+  const studentCode = await generateStudentCode();
 
   const user = await prisma.user.create({
     data: {
       name, email, passwordHash, role: "STUDENT",
-      student: { create: { id: studentId, name, email, track, avatarColor: "#16a34a" } },
+      student: { create: { id: studentId, studentCode, name, email, track, avatarColor: "#16a34a" } },
     },
     include: { student: true },
   });
 
-  try { await sendMentorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/login` }); }
+  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/login` }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
   try {
     await notifyAdmins(`New student added: ${name} (${track})`, "/admin/manage");
-    await notifyMentors(`New student enrolled: ${name} (${track})`, "/mentor/students");
+    await notifyInstructors(`New student enrolled: ${name} (${track})`, "/instructor/students");
   } catch { /* silent */ }
 
   res.status(201).json({
@@ -138,8 +139,8 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res: Response)
   await audit(req, "PASSWORD_RESET_BY_ADMIN", { targetUserId: user.id, targetEmail: user.email });
 
   try {
-    await sendMentorWelcomeEmail({ to: user.email, name: user.name, tempPassword,
-      loginUrl: `${process.env.APP_URL}/${user.role === 'MENTOR' ? 'mentor-login' : user.role === 'ADMIN' ? 'admin-login' : 'login'}` });
+    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword,
+      loginUrl: `${process.env.APP_URL}/${user.role === 'MENTOR' ? 'instructor-login' : user.role === 'ADMIN' ? 'admin-login' : 'login'}` });
   } catch (err) { console.error("Reset email failed:", err); }
 
   res.json({ message: `Password reset — new credentials sent to ${user.email}`, tempPassword });

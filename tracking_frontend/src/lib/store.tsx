@@ -10,6 +10,26 @@ export interface AppSettings {
   track_weeks: Record<string, number>;
   cohort_name: string;
   cohort_start_date: string;
+  current_week_override: number | null;
+}
+
+/** Returns the current bootcamp week.
+ *  Uses manual override if set, otherwise auto-calculates from cohort_start_date.
+ *  Safe for SSR | returns 1 on server, re-calculates on client.
+ */
+export function getCurrentWeek(settings: AppSettings): number {
+  if (settings.current_week_override && settings.current_week_override > 0) {
+    return Math.min(settings.current_week_override, settings.total_weeks);
+  }
+  if (settings.cohort_start_date && typeof window !== "undefined") {
+    const start = new Date(settings.cohort_start_date);
+    const now = new Date();
+    const diffMs = now.getTime() - start.getTime();
+    if (diffMs < 0) return 1;
+    const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return Math.max(1, Math.min(week, settings.total_weeks));
+  }
+  return 1;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -20,6 +40,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   track_weeks: Object.fromEntries(TRACKS.map((t) => [t, 4])),
   cohort_name: "Cohort 1",
   cohort_start_date: "",
+  current_week_override: null,
 };
 
 interface Store {
@@ -59,6 +80,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           track_weeks: raw.track_weeks ? JSON.parse(raw.track_weeks) : DEFAULT_SETTINGS.track_weeks,
           cohort_name: raw.cohort_name ?? DEFAULT_SETTINGS.cohort_name,
           cohort_start_date: raw.cohort_start_date ?? DEFAULT_SETTINGS.cohort_start_date,
+          current_week_override: raw.current_week_override ? Number(raw.current_week_override) : null,
         });
       }
     } catch (err) {

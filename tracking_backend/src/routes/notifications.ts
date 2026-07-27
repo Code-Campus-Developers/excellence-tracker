@@ -63,8 +63,8 @@ export async function notifyAdmins(message: string, link?: string) {
   await Promise.all(admins.map((a) => createNotification({ userId: a.id, message, link })));
 }
 
-// Helper — notify all mentors
-export async function notifyMentors(message: string, link?: string) {
-  const mentors = await prisma.user.findMany({ where: { role: "MENTOR" }, select: { id: true } });
-  await Promise.all(mentors.map((m) => createNotification({ userId: m.id, message, link })));
+// Helper — notify all instructors
+export async function notifyInstructors(message: string, link?: string) {
+  const instructors = await prisma.user.findMany({ where: { role: "MENTOR" }, select: { id: true } });
+  await Promise.all(instructors.map((m) => createNotification({ userId: m.id, message, link })));
 }

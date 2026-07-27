@@ -19,9 +19,9 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Pagination } from "@/components/Pagination";
 
-export const Route = createFileRoute("/mentor/students")({
+export const Route = createFileRoute("/instructor/students")({
   head: () => ({
-    meta: [{ title: "Students — CodeCampus Excellence Tracker" }],
+    meta: [{ title: "Students | CodeCampus Excellence Tracker" }],
   }),
   component: StudentsList,
 });
@@ -62,7 +62,7 @@ function StudentsList() {
     setSaving(true);
     try {
       await api.post("/api/students/enroll", form);
-      toast.success(`${form.name} added — welcome email sent`);
+      toast.success(`${form.name} added | welcome email sent`);
       setDialogOpen(false);
       setForm({ name: "", email: "", track: "" });
       await refresh();
@@ -143,7 +143,7 @@ function StudentsList() {
           {pagedRows.map((s) => (
             <Link
               key={s.id}
-              to="/mentor/students/$id"
+              to="/instructor/students/$id"
               params={{ id: s.id }}
               className="flex items-center gap-4 p-4 hover:bg-muted transition-colors"
             >
@@ -153,6 +153,9 @@ function StudentsList() {
                 <div className="text-xs text-muted-foreground truncate">
                   {s.email} · {s.track}
                 </div>
+                {s.studentCode && (
+                  <span className="text-[10px] font-mono text-brand">{s.studentCode}</span>
+                )}
               </div>
               <div className="hidden sm:block text-right">
                 <div className="text-xs text-muted-foreground">Evaluations</div>

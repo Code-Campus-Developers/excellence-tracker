@@ -12,9 +12,51 @@ router.get("/", authenticate, async (_req: AuthRequest, res: Response) => {
   res.json(settings);
 });
 
-// PUT /admin/settings — admin only (mounted under /admin)
+// PUT /api/settings — admin and instructor (MENTOR) can update
+router.put("/", authenticate, authorize("ADMIN", "MENTOR"), async (req: AuthRequest, res: Response) => {
+  const updates = req.body as Record<string, string>;
+  const ops = Object.entries(updates).map(([key, value]) =>
+    prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    })
+  );
+  await Promise.all(ops);
+  const rows = await prisma.setting.findMany();
+  const settings: Record<string, string> = {};
+  rows.forEach((r) => (settings[r.key] = r.value));
+  res.json(settings);
+});
+
+// PUT /admin/settings — admin and instructor (MENTOR) can update (mounted under /admin)
 export const adminSettingsRouter = Router();
-adminSettingsRouter.use(authenticate, authorize("ADMIN"));
+adminSettingsRouter.use(authenticate, authorize("ADMIN", "MENTOR"));
+
+adminSettingsRouter.get("/", async (_req: AuthRequest, res: Response) => {
+  const rows = await prisma.setting.findMany();
+  const settings: Record<string, string> = {};
+  rows.forEach((r) => (settings[r.key] = r.value));
+  res.json(settings);
+});
+
+adminSettingsRouter.put("/", async (req: AuthRequest, res: Response) => {
+  const updates = req.body as Record<string, string>;
+  const ops = Object.entries(updates).map(([key, value]) =>
+    prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    })
+  );
+  await Promise.all(ops);
+  const rows = await prisma.setting.findMany();
+  const settings: Record<string, string> = {};
+  rows.forEach((r) => (settings[r.key] = r.value));
+  res.json(settings);
+});
+
+export default router;
 
 adminSettingsRouter.get("/", async (_req: AuthRequest, res: Response) => {
   const rows = await prisma.setting.findMany();

@@ -14,23 +14,27 @@ enum Role {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         Role      @default(STUDENT)
-  track        String?
-  isActive     Boolean   @default(true) @map("is_active")
-  resetToken   String?   @map("reset_token")
-  resetExpires DateTime? @map("reset_expires")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  student      Student?
+  id             String    @id @default(cuid())
+  name           String
+  email          String    @unique
+  passwordHash   String    @map("password_hash")
+  role           Role      @default(STUDENT)
+  track          String?
+  isActive       Boolean   @default(true) @map("is_active")
+  profilePicture String?   @map("profile_picture")
+  resetToken     String?   @map("reset_token")
+  resetExpires   DateTime? @map("reset_expires")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  student        Student?
+  sentMessages   Message[] @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageReceiver")
 
   @@map("users")
 }
 
 model Student {
   id          String       @id
+  studentCode String       @unique @default("") @map("student_code")
   name        String
   email       String       @unique
   track       String
@@ -39,6 +43,8 @@ model Student {
   userId      String?      @unique @map("user_id")
   user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   evaluations Evaluation[]
+  selfReports SelfReport[]
+  attendance  Attendance[]
 
   @@map("students")
 }
@@ -88,4 +94,77 @@ model AuditLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("audit_logs")
+}
+
+enum ReportStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  content    String
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  sender     User     @relation("MessageSender",   fields: [senderId],   references: [id], onDelete: Cascade)
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@map("messages")
+}
+
+model SelfReport {
+  id              String       @id @default(cuid())
+  studentId       String       @map("student_id")
+  weekNumber      Int          @map("week_number")
+  cohortYear      Int          @map("cohort_year")
+
+  linkedinDone    Boolean      @default(false) @map("linkedin_done")
+  linkedinUrl     String?      @map("linkedin_url")
+
+  learningLogDone Boolean      @default(false) @map("learning_log_done")
+  learningLogUrl  String?      @map("learning_log_url")
+
+  codingDone      Boolean      @default(false) @map("coding_done")
+  codingUrl       String?      @map("coding_url")
+
+  eventDone       Boolean      @default(false) @map("event_done")
+  eventUrl        String?      @map("event_url")
+
+  notes           String?
+
+  status          ReportStatus @default(PENDING)
+  verifiedById    String?      @map("verified_by_id")
+  verifiedAt      DateTime?    @map("verified_at")
+
+  submittedAt     DateTime     @default(now()) @map("submitted_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  student         Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, weekNumber, cohortYear])
+  @@map("self_reports")
+}
+
+
+model Attendance {
+  id          String    @id @default(cuid())
+  studentId   String    @map("student_id")
+  date        DateTime  @db.Date @map("date")
+  clockInAt   DateTime  @map("clock_in_at")
+  clockOutAt  DateTime? @map("clock_out_at")
+  durationMin Int?      @map("duration_min")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([date])
+  @@map("attendance")
 }

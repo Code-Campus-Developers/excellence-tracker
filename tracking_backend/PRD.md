@@ -1,13 +1,15 @@
 # PRD - tracking_backend
 ## Code Campus Excellence Tracker API
 
-**Version:** 2.2 | **Date:** July 2026 | **Stack:** Node.js + Express + TypeScript + Prisma + PostgreSQL
+**Version:** 3.0 | **Date:** July 2026 | **Stack:** Node.js + Express + TypeScript + Prisma + PostgreSQL
 
 ---
 
 ## 1. Overview
 
-The backend is a REST API serving the frontend. It handles all data persistence, authentication, email notifications, in-app notifications, and audit logging. All routes are protected with JWT middleware.
+The backend is a REST API serving the React frontend. It handles all data persistence, authentication, email notifications, in-app notifications, audit logging, file uploads, messaging, attendance, and self-reporting.
+
+All routes except auth endpoints are protected with JWT middleware.
 
 ---
 
@@ -15,411 +17,159 @@ The backend is a REST API serving the frontend. It handles all data persistence,
 
 | Table | Purpose |
 |---|---|
-| users | All accounts: admin, mentors, students. Stores role, isActive, passwordHash, resetToken |
-| students | Student profiles: name, email, track, avatarColor, linked to users |
-| evaluations | Weekly scores: scores (JSONB), total, week, evaluator, notes |
-| settings | Key-value config: grade thresholds, weeks, cohort info |
-| notifications | In-app notifications: userId, message, link, isRead |
-| audit_logs | Action history: userId, userName, userRole, action, details, ipAddress |
+| `users` | All accounts: ADMIN, MENTOR (instructor), STUDENT. Stores role, isActive, passwordHash, resetToken, track, profilePicture |
+| `students` | Student profiles: name, email, track, avatarColor, studentCode (CC-YEAR-NNN), linked to users via userId |
+| `evaluations` | Weekly scores: scores (JSONB), total, week, evaluator, notes. Unique per studentId+week |
+| `settings` | Key-value store: grade thresholds, cohort info, total_weeks, track_weeks, current_week_override |
+| `notifications` | In-app notifications: userId, message, link, isRead |
+| `audit_logs` | Action history: userId, userName, userRole, action, details (JSONB), ipAddress |
+| `self_reports` | Weekly student self-reports: LinkedIn, learning log, coding, event. Status: PENDING/VERIFIED/REJECTED |
+| `messages` | User-to-user chat: senderId, receiverId, content, isRead |
+| `attendance` | Daily clock-in/out: studentId, date (DATE), clockInAt, clockOutAt, durationMin |
 
 ---
 
-## 3. API Endpoints
+## 3. Auth Middleware
 
-### Auth (/auth)
-- POST /auth/register - Student self-registration + welcome email + notify admins + audit
-- POST /auth/login - Login all roles, returns JWT. Checks isActive. Audits login.
-- GET /auth/me - Get current user (token required)
-- POST /auth/forgot-password - Send password reset email
-- POST /auth/reset-password - Set new password via token
-- POST /auth/change-password - Change password with current password + audit
+**`authenticate`** — verifies JWT from `Authorization: Bearer <token>` header. Attaches `req.user = { userId, role }`.
 
-### Students (/api/students) - token required
-- GET /api/students - List all
-- GET /api/students/:id - Get one
-- POST /api/students - Create record
-- PUT /api/students/:id - Update
-- DELETE /api/students/:id - Delete
-- POST /api/students/enroll - Create with user account + email + notify admins and mentors (MENTOR or ADMIN)
+**`authorize(...roles)`** — checks `req.user.role` against allowed roles. Returns 403 if not allowed.
 
-### Evaluations (/api/evaluations) - token required
-- GET /api/evaluations - All evaluations
-- GET /api/evaluations/student/:id - By student
-- GET /api/evaluations/week/:week - By week
-- POST /api/evaluations - Create, triggers: student in-app notification + email + admin notification + audit
-- DELETE /api/evaluations/:id - Delete
-
-### Notifications (/api/notifications) - token required
-- GET /api/notifications - Last 20 for current user
-- PUT /api/notifications/read-all - Mark all read
-- DELETE /api/notifications/clear - Delete all
-- DELETE /api/notifications/:id - Delete one
-
-### Settings (/api/settings) - token required
-- GET /api/settings - All settings as key-value
-
-### Mentors (/api/mentors) - token required
-- GET /api/mentors - Active mentors list
-
-### Admin (/admin) - ADMIN role only
-- GET/POST/DELETE /admin/mentors, /admin/students
-- GET /admin/users - All users with roles, isActive, track
-- POST /admin/users/:id/reset-password - Reset + email + audit
-- POST /admin/users/:id/toggle-active - Restrict or unrestrict + audit
-- GET/PUT /admin/settings
-- GET /admin/audit-logs - Paginated audit log (50/page)
+**DB Role enum:** `ADMIN`, `MENTOR`, `STUDENT` — never rename. Display name for MENTOR is "Instructor".
 
 ---
 
-## 4. Audit Log Actions
+## 4. API Routes
 
-| Action | Trigger |
-|---|---|
-| LOGIN | Successful login |
-| STUDENT_REGISTERED | Student self-registers |
-| PASSWORD_CHANGED | User changes own password |
-| PASSWORD_RESET_BY_ADMIN | Admin resets a user's password |
-| MENTOR_CREATED | Admin creates a mentor |
-| MENTOR_DELETED | Admin deletes a mentor |
-| STUDENT_DELETED | Admin deletes a student |
-| ACCOUNT_RESTRICTED | Admin restricts an account |
-| ACCOUNT_UNRESTRICTED | Admin unrestricts an account |
-| EVALUATION_SUBMITTED | Mentor submits an evaluation |
+### Auth (`/auth/*`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/auth/register` | Public | Student self-registration. Auto-generates studentCode CC-YEAR-NNN. Notifies admins. |
+| POST | `/auth/login` | Public | Returns JWT + user + student record |
+| GET | `/auth/me` | Any | Own profile + student record |
+| PUT | `/auth/profile` | Any | Update name, email, track, profilePicture |
+| POST | `/auth/change-password` | Any | Change password (validates old password) |
+| POST | `/auth/forgot-password` | Public | Sends reset email via Resend |
+| POST | `/auth/reset-password` | Public | Set new password via reset token |
+
+### Students (`/api/students`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/students` | Any | All active students |
+| POST | `/api/students/enroll` | MENTOR/ADMIN | Enroll student (creates user + student records) |
+
+### Evaluations (`/api/evaluations`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/evaluations` | Any | All evaluations |
+| POST | `/api/evaluations` | Any | Create evaluation. Triggers student notification + email + admin notification + audit |
+| DELETE | `/api/evaluations/:id` | MENTOR/ADMIN | Delete evaluation |
+
+### Settings (`/api/settings`, `/admin/settings`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/settings` | Any | All settings as key-value |
+| GET | `/admin/settings` | ADMIN/MENTOR | Same |
+| PUT | `/admin/settings` | ADMIN/MENTOR | Upsert settings. Both admin and instructor can update cohort/week settings |
+
+**Available setting keys:** `grade_excellent`, `grade_good`, `grade_needs`, `total_weeks`, `track_weeks` (JSON), `cohort_name`, `cohort_start_date`, `current_week_override`
+
+### Self-Reports (`/api/self-reports`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/self-reports/me` | STUDENT | Own reports ordered by date desc |
+| GET | `/api/self-reports/student/:id` | MENTOR/ADMIN | A student's reports |
+| POST | `/api/self-reports` | STUDENT | Submit/update weekly report (upsert). Resets status to PENDING on edit |
+| PATCH | `/api/self-reports/:id/verify` | MENTOR/ADMIN | Set status to VERIFIED or REJECTED |
+
+### Messages (`/api/messages`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/messages/instructor` | STUDENT | Find student's track instructor user record |
+| GET | `/api/messages/thread/:userId` | Any | Full thread with user. Auto-marks incoming as read |
+| GET | `/api/messages/inbox` | MENTOR/ADMIN | Conversation list with unread counts |
+| GET | `/api/messages/unread-count` | Any | Quick unread count |
+| POST | `/api/messages` | Any | Send message. Students validated to only message their track instructor |
+
+### Attendance (`/api/attendance`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/attendance/today` | STUDENT | Today's record (null if not clocked in) |
+| POST | `/api/attendance/clock-in` | STUDENT | Create today's record. Blocks duplicate |
+| POST | `/api/attendance/clock-out` | STUDENT | Close today's record, sets durationMin |
+| GET | `/api/attendance/me` | STUDENT | Own history (last 60 records) |
+| GET | `/api/attendance/student/:id` | MENTOR/ADMIN | A student's history |
+
+### Upload (`/api/upload`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/upload/profile-picture` | Any | Upload image file (max 5 MB, images only). Uploads to Cloudinary signed with API secret. Returns `{ url }`. Auto-crops to 400x400 face-aware, auto-compresses |
+
+### Notifications (`/api/notifications`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/notifications` | Any | Own notifications |
+| PUT | `/api/notifications/read-all` | Any | Mark all as read |
+| DELETE | `/api/notifications/:id` | Any | Delete one |
+| DELETE | `/api/notifications/clear` | Any | Delete all |
+
+### Admin (`/admin/*`)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/admin/instructors` | ADMIN | All instructors |
+| POST | `/admin/instructors` | ADMIN | Create instructor. Sends welcome email |
+| DELETE | `/admin/instructors/:id` | ADMIN | Delete instructor + audit |
+| POST | `/admin/students` | ADMIN | Create student with auto studentCode |
+| DELETE | `/admin/students/:id` | ADMIN | Delete student + audit |
+| PUT | `/admin/users/:id/reset-password` | ADMIN | Reset password, email new credentials |
+| PUT | `/admin/users/:id/toggle-active` | ADMIN | Restrict/unrestrict account |
+| GET | `/admin/audit-logs` | ADMIN | Paginated (50/page) audit log |
 
 ---
 
-## 5. Notification Triggers
+## 5. Current Week Logic
 
-| Event | Recipients |
-|---|---|
-| Evaluation submitted | Student (in-app + email), all Admins (in-app) |
-| Student self-registers | All Admins (in-app) |
-| Admin creates mentor | All Admins (in-app) |
-| Admin or Mentor adds student | All Admins + All Mentors (in-app) |
+The current bootcamp week is dynamic:
+1. If `current_week_override` setting is set → use that value
+2. Else if `cohort_start_date` is set → auto-calculate: `floor((now - start) / 7) + 1`, clamped to `[1, total_weeks]`
+3. Else → 1
+
+Frontend uses `getCurrentWeek(settings)` from `store.tsx`. No hardcoded week values anywhere.
+
+Both ADMIN and MENTOR can update settings (cohort name, start date, total weeks, override).
 
 ---
 
-## 6. Settings Keys
+## 6. Email Templates (Resend)
 
-| Key | Default | Description |
+| Function | Trigger | Recipient |
 |---|---|---|
-| grade_excellent | 85 | Min score for Excellent |
-| grade_good | 70 | Min score for Good |
-| grade_needs | 50 | Min score for Needs Improvement |
-| total_weeks | 16 | Total bootcamp duration |
-| track_weeks | JSON object | Current week per track (10 tracks) |
-| cohort_name | Cohort 1 | Display name |
-| cohort_start_date | (empty) | Optional start date |
+| `sendInstructorWelcomeEmail` | Admin creates instructor | New instructor |
+| `sendStudentWelcomeEmail` | Admin/mentor creates student | New student |
+| `sendPasswordResetEmail` | Forgot password request | Requesting user |
+| `sendEvaluationEmail` | Evaluation submitted | Evaluated student |
+
+FROM address: configurable via `FROM_EMAIL` env var (default: `onboarding@resend.dev` for testing).
 
 ---
 
-## 7. Seeding
+## 7. Student Code Generation
 
-| Script | Purpose | Safe in production? |
-|---|---|---|
-| npm run db:seed | Full reset with demo data (local dev only) | Never |
-| npm run db:seed:prod | Creates admin + settings only if absent | Always safe |
+Auto-generated on student creation: `CC-${year}-${padStart(count+1, 3, "0")}`
 
-Admin credentials come from env vars: ADMIN_EMAIL, ADMIN_PASSWORD
+Examples: `CC-2026-001`, `CC-2026-042`
 
----
-
-## 8. Security
-
-- bcrypt (12 rounds), JWT (7-day), rate limiting (20 req/15 min), helmet, CORS
-- isActive check on login (restricted users get 403)
-- Strong password: uppercase + lowercase + number + symbol
-- All admin actions logged to audit_logs
+Guaranteed unique via `@unique` DB constraint. Falls back to retry if race condition occurs.
 
 ---
 
-## 9. Scripts
-
-| Script | Purpose |
-|---|---|
-| npm run dev | Start with hot reload |
-| npm run build | Compile TypeScript |
-| npm run start | Run compiled build |
-| npm run db:migrate | Run Prisma migrations |
-| npm run db:generate | Regenerate Prisma client |
-| npm run db:studio | Open Prisma Studio |
-| npm run db:seed | Full reset seed (local dev) |
-| npm run db:seed:prod | Safe production seed (admin + settings only) |
-
----
-
-## 10. Production Deployment (Render)
-
-Build Command: `npm install && npm run build && npx prisma generate`
-Start Command: `npx prisma migrate deploy && npm run start`
-First launch: run `npm run db:seed:prod` manually from Render shell once
-
----
-
-## 11. Switching to Supabase
-
-Change only DATABASE_URL in .env. No code changes needed.
-
-**Version:** 2.1 | **Date:** July 2026 | **Stack:** Node.js + Express + TypeScript + Prisma + PostgreSQL
-
----
-
-## 1. Overview
-
-The backend is a REST API serving the frontend. It handles all data persistence, authentication, email notifications, and in-app notifications. All routes are protected with JWT middleware.
-
----
-
-## 2. Database Tables
-
-| Table | Purpose |
-|---|---|
-| users | All accounts: admin, mentors, students. Stores role, isActive, passwordHash, resetToken |
-| students | Student profiles: name, email, track, avatarColor, linked to users |
-| evaluations | Weekly scores: scores (JSONB), total, week, evaluator, notes |
-| settings | Key-value config: grade thresholds, weeks, cohort info |
-| notifications | In-app notifications: userId, message, link, isRead |
-
----
-
-## 3. API Endpoints
-
-### Auth (/auth) - no token required
-- POST /auth/register - Student self-registration + welcome email + notify admins
-- POST /auth/login - Login all roles, returns JWT. Checks isActive.
-- GET /auth/me - Get current user profile (token required)
-- POST /auth/forgot-password - Send password reset email
-- POST /auth/reset-password - Set new password via token
-- POST /auth/change-password - Change password with current password (token required)
-
-### Students (/api/students) - token required
-- GET /api/students - List all
-- GET /api/students/:id - Get one
-- POST /api/students - Create record
-- PUT /api/students/:id - Update
-- DELETE /api/students/:id - Delete
-- POST /api/students/enroll - Create with user account + email + notify admins and mentors (MENTOR or ADMIN)
-
-### Evaluations (/api/evaluations) - token required
-- GET /api/evaluations - All evaluations
-- GET /api/evaluations/student/:id - By student
-- GET /api/evaluations/week/:week - By week
-- POST /api/evaluations - Create, triggers student notification + email + admin notification
-- DELETE /api/evaluations/:id - Delete
-
-### Notifications (/api/notifications) - token required
-- GET /api/notifications - Last 20 for current user
-- PUT /api/notifications/read-all - Mark all read
-- DELETE /api/notifications/clear - Delete all
-- DELETE /api/notifications/:id - Delete one
-
-### Settings (/api/settings) - token required
-- GET /api/settings - All settings as key-value
-
-### Mentors (/api/mentors) - token required
-- GET /api/mentors - Active mentors list (MENTOR or ADMIN)
-
-### Admin (/admin) - ADMIN role only
-- GET /admin/mentors, POST, DELETE /admin/mentors/:id
-- GET /admin/students, POST, DELETE /admin/students/:id
-- GET /admin/users - All users with roles and isActive
-- POST /admin/users/:id/reset-password - Reset + email
-- POST /admin/users/:id/toggle-active - Restrict or unrestrict
-- GET /admin/settings, PUT /admin/settings
-
----
-
-## 4. Notification Triggers
-
-| Event | Recipients |
-|---|---|
-| Evaluation submitted | Student (in-app + email), all Admins (in-app) |
-| Student self-registers | All Admins (in-app) |
-| Admin creates mentor | All Admins (in-app) |
-| Admin or Mentor adds student | All Admins + All Mentors (in-app) |
-
----
-
-## 5. Settings Keys
-
-| Key | Default | Description |
-|---|---|---|
-| grade_excellent | 85 | Min score for Excellent |
-| grade_good | 70 | Min score for Good |
-| grade_needs | 50 | Min score for Needs Improvement |
-| total_weeks | 16 | Total bootcamp duration |
-| track_weeks | JSON object | Current week per track (10 tracks) |
-| cohort_name | Cohort 1 | Display name |
-| cohort_start_date | (empty) | Optional start date |
-
----
-
-## 6. Security
-
-- bcrypt (12 rounds), JWT (7-day), rate limiting (20 req/15 min), helmet, CORS
-- isActive check on login (restricted users get 403)
-- Strong password: uppercase + lowercase + number + symbol
-
----
-
-## 7. Scripts
-
-| Script | Purpose |
-|---|---|
-| npm run dev | Start with hot reload |
-| npm run db:migrate | Run Prisma migrations |
-| npm run db:generate | Regenerate Prisma client |
-| npm run db:studio | Open Prisma Studio |
-| npm run db:seed | Seed DB: admin + 8 students + 26 evaluations + default settings |
-
----
-
-## 8. Moving to Supabase
-
-Change only DATABASE_URL in .env to Supabase connection string. No code changes needed.
-
-**Version:** 2.0 | **Date:** July 2026 | **Stack:** Node.js + Express + TypeScript + Prisma + PostgreSQL
-
----
-
-## 1. Overview
-
-The backend is a REST API that serves the frontend. It manages all persistent data: users (admin, mentors, students), student profiles, weekly evaluations, and authentication. It connects to PostgreSQL via Prisma ORM.
-
----
-
-## 2. Database Schema
-
-### users table
-| Column | Type | Notes |
-|---|---|---|
-| id | TEXT (cuid) | Primary key |
-| name | TEXT | Full name |
-| email | TEXT | Unique |
-| password_hash | TEXT | bcrypt 12 rounds |
-| role | ENUM | ADMIN / MENTOR / STUDENT |
-| is_active | BOOLEAN | Default true. False = restricted |
-| reset_token | TEXT | Nullable, for password reset |
-| reset_expires | TIMESTAMPTZ | Nullable |
-| created_at | TIMESTAMPTZ | Auto |
-
-### students table
-| Column | Type | Notes |
-|---|---|---|
-| id | TEXT | Primary key |
-| name | TEXT | |
-| email | TEXT | Unique |
-| track | TEXT | One of 10 tracks |
-| avatar_color | TEXT | Hex colour |
-| user_id | TEXT | FK to users.id (nullable) |
-| created_at | TIMESTAMPTZ | Auto |
-
-### evaluations table
-| Column | Type | Notes |
-|---|---|---|
-| id | TEXT | Primary key |
-| student_id | TEXT | FK to students.id (cascade delete) |
-| week | INTEGER | 1-16 |
-| evaluator | TEXT | Mentor name from JWT |
-| scores | JSONB | {attendance, linkedin, project, coding, teamwork, learning, housekeeping} |
-| total | INTEGER | Sum of scores |
-| notes | TEXT | Mentor feedback |
-| created_at | TIMESTAMPTZ | Auto |
-| UNIQUE | (student_id, week) | One eval per student per week |
-
----
-
-## 3. API Endpoints
-
-### Auth (no auth required)
-- POST /auth/register - Student self-registration
-- POST /auth/login - Login all roles, returns JWT
-- GET /auth/me - Get current user (auth required)
-- POST /auth/forgot-password - Send reset email
-- POST /auth/reset-password - Set new password via token
-
-### Students (auth required)
-- GET /api/students - List all students
-- GET /api/students/:id - Get one student
-- POST /api/students - Create student record
-- PUT /api/students/:id - Update student
-- DELETE /api/students/:id - Delete student
-- POST /api/students/enroll - Create student with user account + email (MENTOR or ADMIN)
-
-### Evaluations (auth required)
-- GET /api/evaluations - All evaluations
-- GET /api/evaluations/student/:id - By student
-- GET /api/evaluations/week/:week - By week
-- POST /api/evaluations - Create evaluation
-- DELETE /api/evaluations/:id - Delete evaluation
-
-### Admin (ADMIN role only)
-- GET /admin/mentors - List all mentors
-- POST /admin/mentors - Create mentor + send welcome email
-- DELETE /admin/mentors/:id - Delete mentor
-- GET /admin/students - All students with eval counts
-- POST /admin/students - Create student + send welcome email
-- DELETE /admin/students/:id - Delete student
-- GET /admin/users - All users with roles and isActive status
-- POST /admin/users/:id/reset-password - Reset password + email new credentials
-- POST /admin/users/:id/toggle-active - Restrict or unrestrict account
-
----
-
-## 4. Security
-
-- authenticate middleware: validates JWT on every protected route
-- authorize middleware: checks role (ADMIN, MENTOR, STUDENT)
-- Rate limiting on /auth/* (20 requests per 15 min per IP)
-- helmet for HTTP security headers
-- CORS locked to FRONTEND_URL env variable
-- isActive check on login (restricted users get 403)
-- Strong password regex enforced on register: uppercase + lowercase + number + symbol
-
----
-
-## 5. Email (Resend)
-
-| Trigger | Template |
-|---|---|
-| Student self-registers | Welcome email with dashboard link |
-| Admin/Mentor creates student | Welcome + temporary credentials |
-| Admin creates mentor | Welcome + temporary credentials |
-| Password reset requested | Reset link (1 hour expiry) |
-| Admin resets a user password | New temporary credentials |
-
-FROM address: configured via FROM_EMAIL env var (default: onboarding@resend.dev for testing)
-
----
-
-## 6. Environment Variables
-
-```
-PORT=4000
-DATABASE_URL=postgresql://postgres:password@localhost:5432/excellence_tracker
-FRONTEND_URL=http://localhost:8080
-APP_URL=http://localhost:8080
-JWT_SECRET=your-secret-key
-RESEND_API_KEY=re_your_key
-FROM_EMAIL=onboarding@resend.dev
-```
-
----
-
-## 7. Scripts
-
-| Script | Purpose |
-|---|---|
-| npm run dev | Start dev server with hot reload |
-| npm run build | Compile TypeScript |
-| npm run start | Run compiled build |
-| npm run db:migrate | Run Prisma migrations |
-| npm run db:generate | Regenerate Prisma client |
-| npm run db:studio | Open Prisma Studio |
-| npm run db:seed | Seed DB with admin + 8 students + 26 evaluations |
-
----
-
-## 8. Moving to Supabase
-
-Change only DATABASE_URL in .env to Supabase connection string. No code changes needed.
+## 8. Security Notes
+
+- Passwords: bcrypt 12 rounds
+- JWT: 7-day expiry, contains `{ userId, role }`
+- Rate limiting: 20 requests / 15 min per IP on all `/auth/*` routes
+- Headers: helmet (CSP, HSTS, X-Frame-Options, etc.)
+- CORS: locked to `FRONTEND_URL` env var
+- Cloudinary: API secret never sent to client; all uploads go through backend
+- Account restriction: `isActive=false` blocks login with 403
+- Audit log: written on login, register, evaluation, user create/delete, password change/reset, restrict/unrestrict

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ArrowRight, ClipboardCheck, Trophy, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CURRENT_WEEK, TOTAL_WEEKS } from "@/lib/tracking";
+import { TOTAL_WEEKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,8 +23,8 @@ function Landing() {
       if (!raw) return;
       const { user } = JSON.parse(raw) as { user: { role: string } };
       if (user.role === "ADMIN") navigate({ to: "/admin" });
-      else if (user.role === "MENTOR") navigate({ to: "/mentor" });
-      else navigate({ to: "/dashboard" });
+      else if (user.role === "MENTOR") navigate({ to: "/instructor" });
+      else navigate({ to: "/student" });
     } catch {
       // not logged in, stay on landing
     }
@@ -35,7 +35,7 @@ function Landing() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur w-full">
         <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between w-full">
-        <img src="/image-1784557444135.png" alt="Code Campus International" className="h-9 w-auto" />
+        <img src="/image-1785130765553.png" alt="Code Campus International" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         <Link to="/login">
           <Button variant="outline" size="sm">Sign In</Button>
         </Link>
@@ -86,10 +86,10 @@ function Landing() {
           <h2 className="text-2xl font-bold text-center mb-12">Everything you need to track excellence</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: ClipboardCheck, title: "Weekly Evaluations", desc: "Mentors score students across 7 categories every week, attendance, projects, coding, and more." },
+              { icon: ClipboardCheck, title: "Weekly Evaluations", desc: "Instructors score students across 7 categories every week, attendance, projects, coding, and more." },
               { icon: BarChart3, title: "Live Dashboards", desc: "Real-time charts showing score trends, category breakdowns, and progress over 16 weeks." },
               { icon: Trophy, title: "Leaderboard", desc: "See where you rank against your peers. Updated after every evaluation." },
-              { icon: Users, title: "Student Portal", desc: "Every student gets a personal dashboard with their scores, mentor feedback, and class comparison." },
+              { icon: Users, title: "Student Portal", desc: "Every student gets a personal dashboard with their scores, instructor feedback, and class comparison." },
             ].map(({ icon: Icon, title, desc }) => (
               <div key={title} className="bg-white rounded-xl p-6 border">
                 <div className="h-10 w-10 rounded-lg bg-[oklch(0.97_0.03_145)] flex items-center justify-center mb-4">

@@ -17,12 +17,12 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { TRACKS } from "@/lib/tracking";
 
-export const Route = createFileRoute("/mentor/mentors")({
-  head: () => ({ meta: [{ title: "Mentors — CodeCampus Excellence Tracker" }] }),
-  component: MentorsList,
+export const Route = createFileRoute("/instructor/instructors")({
+  head: () => ({ meta: [{ title: "Instructors | CodeCampus Excellence Tracker" }] }),
+  component: InstructorsList,
 });
 
-interface MentorRow {
+interface InstructorRow {
   id: string;
   name: string;
   email: string;
@@ -30,11 +30,11 @@ interface MentorRow {
   createdAt: string;
 }
 
-function MentorsList() {
+function InstructorsList() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
 
-  const [mentors, setMentors] = useState<MentorRow[]>([]);
+  const [instructors, setInstructors] = useState<InstructorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", track: "" });
@@ -43,11 +43,11 @@ function MentorsList() {
   const load = async () => {
     try {
       const data = isAdmin
-        ? await api.get<MentorRow[]>("/admin/mentors")
-        : await api.get<MentorRow[]>("/api/mentors");
-      setMentors(data);
+        ? await api.get<InstructorRow[]>("/admin/instructors")
+        : await api.get<InstructorRow[]>("/api/instructors");
+      setInstructors(data);
     } catch (err) {
-      toast.error("Failed to load mentors");
+      toast.error("Failed to load instructors");
     } finally {
       setLoading(false);
     }
@@ -56,27 +56,27 @@ function MentorsList() {
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { toast.error("Please enter the mentor's full name"); return; }
-    if (!form.email.trim()) { toast.error("Please enter the mentor's email"); return; }
+    if (!form.name.trim()) { toast.error("Please enter the instructor's full name"); return; }
+    if (!form.email.trim()) { toast.error("Please enter the instructor's email"); return; }
     setSaving(true);
     try {
-      await api.post("/admin/mentors", form);
-      toast.success(`Mentor created — welcome email sent to ${form.email}`);
+      await api.post("/admin/instructors", form);
+      toast.success(`Instructor created | welcome email sent to ${form.email}`);
       setDialogOpen(false);
       setForm({ name: "", email: "", track: "" });
       load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create mentor");
+      toast.error(err instanceof Error ? err.message : "Failed to create instructor");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Remove mentor ${name}?`)) return;
+    if (!confirm(`Remove instructor ${name}?`)) return;
     try {
-      await api.del(`/admin/mentors/${id}`);
-      toast.success("Mentor removed");
+      await api.del(`/admin/instructors/${id}`);
+      toast.success("Instructor removed");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -87,7 +87,7 @@ function MentorsList() {
     if (!confirm(`Reset password for ${name}? A new password will be emailed to them.`)) return;
     try {
       await api.post(`/admin/users/${id}/reset-password`, {});
-      toast.success(`Password reset — new credentials sent to ${name}`);
+      toast.success(`Password reset | new credentials sent to ${name}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     }
@@ -96,12 +96,12 @@ function MentorsList() {
   return (
     <AppShell>
       <PageHeader
-        title="Mentors"
-        subtitle={`${mentors.length} mentor${mentors.length !== 1 ? "s" : ""} in the current cohort.`}
+        title="Instructors"
+        subtitle={`${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} in the current cohort.`}
         actions={
           isAdmin ? (
             <Button onClick={() => setDialogOpen(true)} className="bg-brand text-brand-foreground hover:bg-brand/90">
-              <UserPlus className="h-4 w-4" /> Add Mentor
+              <UserPlus className="h-4 w-4" /> Add Instructor
             </Button>
           ) : undefined
         }
@@ -110,14 +110,14 @@ function MentorsList() {
       <Card>
         <CardContent className="p-0 divide-y">
           {loading && (
-            <div className="p-8 text-center text-sm text-muted-foreground">Loading mentors...</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Loading instructors...</div>
           )}
-          {!loading && mentors.length === 0 && (
+          {!loading && instructors.length === 0 && (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              No mentors yet.{isAdmin ? " Use \"Add Mentor\" to invite one." : ""}
+              No instructors yet.{isAdmin ? " Use \"Add Instructor\" to invite one." : ""}
             </div>
           )}
-          {mentors.map((m) => (
+          {instructors.map((m) => (
             <div key={m.id} className="flex items-center gap-4 p-4">
               <div className="h-10 w-10 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-sm font-semibold shrink-0">
                 {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
@@ -141,7 +141,7 @@ function MentorsList() {
                   <button
                     onClick={() => handleDelete(m.id, m.name)}
                     className="text-destructive hover:opacity-70 p-1"
-                    title="Remove mentor"
+                    title="Remove instructor"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -155,7 +155,7 @@ function MentorsList() {
       {isAdmin && (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Add New Mentor</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Add New Instructor</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div>
                 <Label className="mb-1.5 block">Full Name</Label>
@@ -183,7 +183,7 @@ function MentorsList() {
               <Button onClick={handleCreate} disabled={saving}
                 className="bg-brand text-brand-foreground hover:bg-brand/90">
                 <UserPlus className="h-4 w-4" />
-                {saving ? "Creating..." : "Create Mentor"}
+                {saving ? "Creating..." : "Create Instructor"}
               </Button>
             </DialogFooter>
           </DialogContent>

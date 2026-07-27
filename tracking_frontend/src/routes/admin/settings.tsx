@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { useStore } from "@/lib/store";
+import { useStore, getCurrentWeek } from "@/lib/store";
 import { TRACKS } from "@/lib/tracking";
 import { GradingScale } from "@/components/GradingScale";
 
 export const Route = createFileRoute("/admin/settings")({
-  head: () => ({ meta: [{ title: "Settings — CodeCampus" }] }),
+  head: () => ({ meta: [{ title: "Settings | CodeCampus" }] }),
   component: AdminSettings,
 });
 
@@ -26,6 +26,9 @@ function AdminSettings() {
   const [totalWeeks, setTotalWeeks] = useState(String(settings.total_weeks));
   const [cohortName, setCohortName] = useState(settings.cohort_name);
   const [cohortStartDate, setCohortStartDate] = useState(settings.cohort_start_date);
+  const [weekOverride, setWeekOverride] = useState(
+    settings.current_week_override ? String(settings.current_week_override) : ""
+  );
   const [trackWeeks, setTrackWeeks] = useState<Record<string, string>>(
     Object.fromEntries(TRACKS.map((t) => [t, String(settings.track_weeks[t] ?? 1)]))
   );
@@ -67,6 +70,7 @@ function AdminSettings() {
         track_weeks: JSON.stringify(trackWeeksNum),
         cohort_name: cohortName,
         cohort_start_date: cohortStartDate,
+        current_week_override: weekOverride ? weekOverride : "",
       });
 
       updateSettings({
@@ -77,6 +81,7 @@ function AdminSettings() {
         track_weeks: trackWeeksNum,
         cohort_name: cohortName,
         cohort_start_date: cohortStartDate,
+        current_week_override: weekOverride ? Number(weekOverride) : null,
       });
 
       toast.success("Settings saved successfully");
@@ -106,6 +111,10 @@ function AdminSettings() {
           <CardTitle className="text-base">Cohort Information</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Set the cohort name and start date. The current week is auto-calculated from the start date
+            | or you can override it manually below.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="mb-1.5 block">Cohort Name</Label>
@@ -116,6 +125,22 @@ function AdminSettings() {
               <Label className="mb-1.5 block">Start Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Input type="date" value={cohortStartDate}
                 onChange={(e) => setCohortStartDate(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">
+                Global Week Override
+                <span className="text-muted-foreground text-xs ml-1">(leave blank to auto-calculate)</span>
+              </Label>
+              <Input
+                type="number" min={1} max={Number(totalWeeks) || 52}
+                placeholder={`Auto: Week ${getCurrentWeek(settings)}`}
+                value={weekOverride}
+                onChange={(e) => setWeekOverride(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Auto-calculated: <strong>Week {getCurrentWeek(settings)}</strong>
+                {settings.cohort_start_date ? ` (from cohort start date)` : ` (no start date set)`}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -174,9 +199,12 @@ function AdminSettings() {
           <CardTitle className="text-base">Current Week per Track</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Set the current bootcamp week for each track independently. This controls which week shows as "current" for students and mentors in that track.
-          </p>
+          <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-4">
+            <strong>Use this when tracks are on different weeks.</strong> For example, if Software Engineering
+            is on Week 6 but Data Analytics is still on Week 4. If all tracks move together,
+            use the <strong>Global Week Override</strong> above instead | it's simpler.
+            Each instructor can also update their own track's week from their Settings page.
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {TRACKS.map((track) => (
               <div key={track}>

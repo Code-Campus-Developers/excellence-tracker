@@ -10,8 +10,8 @@ import { api } from "@/lib/api";
 import { useAuth, type AuthUser, type AuthStudent } from "@/lib/authStore";
 import { useStore } from "@/lib/store";
 
-export const Route = createFileRoute("/mentor-login")({
-  head: () => ({ meta: [{ title: "Mentor Login — CodeCampus" }] }),
+export const Route = createFileRoute("/instructor-login")({
+  head: () => ({ meta: [{ title: "Instructor Login | CodeCampus" }] }),
   component: MentorLogin,
 });
 
@@ -44,7 +44,7 @@ function MentorLogin() {
 
       login(data.token, data.user, data.student);
       await refresh();
-      navigate({ to: "/mentor" });
+      navigate({ to: "/instructor" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -56,13 +56,13 @@ function MentorLogin() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl text-center">Mentor Login</CardTitle>
+            <CardTitle className="text-xl text-center">Instructor Login</CardTitle>
             <p className="text-sm text-muted-foreground text-center mt-1">
-              Sign in to access your mentor dashboard
+              Sign in to access your instructor dashboard
             </p>
           </CardHeader>
           <CardContent>

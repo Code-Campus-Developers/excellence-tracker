@@ -13,9 +13,9 @@ import {
   BarChart, Bar, CartesianGrid,
 } from "recharts";
 import {
-  CURRENT_WEEK, CATEGORIES, weekEvals, studentStats, MAX_TOTAL,
+  CATEGORIES, weekEvals, studentStats, MAX_TOTAL,
 } from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { useStore, getCurrentWeek } from "@/lib/store";
 import { useAuth } from "@/lib/authStore";
 
 function Stat({
@@ -43,13 +43,14 @@ function Stat({
 }
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Dashboard — CodeCampus Excellence Tracker" }] }),
+  head: () => ({ meta: [{ title: "Dashboard | CodeCampus Excellence Tracker" }] }),
   component: AdminDashboard,
 });
 
 function AdminDashboard() {
   const { user } = useAuth();
-  const { evaluations, students } = useStore();
+  const { evaluations, students, settings } = useStore();
+  const CURRENT_WEEK = getCurrentWeek(settings);
 
   const thisWeek = weekEvals(CURRENT_WEEK, evaluations);
   const evaluatedCount = thisWeek.length;
@@ -94,7 +95,7 @@ function AdminDashboard() {
         subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/mentor/evaluate">
+            <Link to="/instructor/evaluate">
               <ClipboardCheck className="h-4 w-4" /> New Evaluation
             </Link>
           </Button>
@@ -102,10 +103,10 @@ function AdminDashboard() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Stat label="Total Students" value={students.length} icon={Users} accent="Enrolled" to="/mentor/students" />
-        <Stat label="Evaluated This Week" value={`${evaluatedCount}/${students.length}`} icon={ClipboardCheck} accent={`Week ${CURRENT_WEEK}`} to="/mentor/evaluate" />
-        <Stat label="Average Score" value={`${avgThisWeek}/${MAX_TOTAL}`} icon={TrendingUp} accent="This week" to="/mentor/leaderboard" />
-        <Stat label="Total Evaluations" value={evaluations.length} icon={BookOpen} accent="All-time" to="/mentor/leaderboard" />
+        <Stat label="Total Students" value={students.length} icon={Users} accent="Enrolled" to="/instructor/students" />
+        <Stat label="Evaluated This Week" value={`${evaluatedCount}/${students.length}`} icon={ClipboardCheck} accent={`Week ${CURRENT_WEEK}`} to="/instructor/evaluate" />
+        <Stat label="Average Score" value={`${avgThisWeek}/${MAX_TOTAL}`} icon={TrendingUp} accent="This week" to="/instructor/leaderboard" />
+        <Stat label="Total Evaluations" value={evaluations.length} icon={BookOpen} accent="All-time" to="/instructor/leaderboard" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
@@ -146,13 +147,13 @@ function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4 text-brand" />Top Performers</CardTitle>
-            <Link to="/mentor/leaderboard" className="text-xs text-brand font-medium flex items-center gap-1 hover:underline">
+            <Link to="/instructor/leaderboard" className="text-xs text-brand font-medium flex items-center gap-1 hover:underline">
               View all <ArrowRight className="h-3 w-3" />
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
             {topStudents.map((s, i) => (
-              <Link key={s.id} to="/mentor/students/$id" params={{ id: s.id }}
+              <Link key={s.id} to="/instructor/students/$id" params={{ id: s.id }}
                 className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted transition-colors">
                 <div className="w-6 text-center font-bold text-muted-foreground text-sm">#{i + 1}</div>
                 <Avatar name={s.name} color={s.avatarColor} size={36} />
@@ -171,7 +172,7 @@ function AdminDashboard() {
           <CardContent className="space-y-4">
             {needsImprovement.length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">All students are on track.</div>}
             {needsImprovement.map((s) => (
-              <Link key={s.id} to="/mentor/students/$id" params={{ id: s.id }}
+              <Link key={s.id} to="/instructor/students/$id" params={{ id: s.id }}
                 className="block hover:bg-muted -mx-2 p-2 rounded-lg transition-colors">
                 <div className="flex items-center gap-3 mb-2">
                   <Avatar name={s.name} color={s.avatarColor} size={32} />

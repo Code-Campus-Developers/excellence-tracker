@@ -11,6 +11,10 @@ import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
 import settingsRouter, { adminSettingsRouter } from "./routes/settings";
 import notificationsRouter from "./routes/notifications";
+import selfReportsRouter from "./routes/self-reports";
+import messagesRouter from "./routes/messages";
+import attendanceRouter from "./routes/attendance";
+import uploadRouter from "./routes/upload";
 import prisma from "./lib/prisma";
 import { authenticate } from "./middleware/authenticate";
 
@@ -47,15 +51,19 @@ app.use("/api/students", studentsRouter);
 app.use("/api/evaluations", evaluationsRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/self-reports", selfReportsRouter);
+app.use("/api/messages", messagesRouter);
+app.use("/api/attendance", attendanceRouter);
+app.use("/api/upload", uploadRouter);
 
-// GET /api/mentors — list mentors, accessible to any authenticated user
-app.get("/api/mentors", authenticate, async (_req, res) => {
-  const mentors = await prisma.user.findMany({
+// GET /api/instructors — list instructors, accessible to any authenticated user
+app.get("/api/instructors", authenticate, async (_req, res) => {
+  const instructors = await prisma.user.findMany({
     where: { role: "MENTOR", isActive: true },
     select: { id: true, name: true, email: true, createdAt: true },
     orderBy: { name: "asc" },
   });
-  res.json(mentors);
+  res.json(instructors);
 });
 
 // 404

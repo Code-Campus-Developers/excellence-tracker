@@ -28,18 +28,17 @@ import {
 } from "recharts";
 import {
   STUDENTS,
-  CURRENT_WEEK,
   CATEGORIES,
   weekEvals,
   studentStats,
   MAX_TOTAL,
 } from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { useStore, getCurrentWeek } from "@/lib/store";
 
-export const Route = createFileRoute("/mentor/")({
+export const Route = createFileRoute("/instructor/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — CodeCampus Excellence Tracker" },
+      { title: "Dashboard | CodeCampus Excellence Tracker" },
       {
         name: "description",
         content: "Weekly performance dashboard for the Code Campus bootcamp.",
@@ -91,7 +90,8 @@ function Stat({
 
 function Dashboard() {
   const { user } = useAuth();
-  const { evaluations, students } = useStore();
+  const { evaluations, students, settings } = useStore();
+  const CURRENT_WEEK = getCurrentWeek(settings);
   const thisWeek = weekEvals(CURRENT_WEEK, evaluations);
   const evaluatedCount = thisWeek.length;
   const avgThisWeek = evaluatedCount
@@ -137,11 +137,11 @@ function Dashboard() {
   return (
     <AppShell>
       <PageHeader
-        title={`Welcome back, ${user?.name ?? "Mentor"}`}
+        title={`Welcome back, ${user?.name ?? "Instructor"}`}
         subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/mentor/evaluate">
+            <Link to="/instructor/evaluate">
               <ClipboardCheck className="h-4 w-4" />
               New Evaluation
             </Link>
@@ -155,28 +155,28 @@ function Dashboard() {
           value={students.length}
           icon={Users}
           accent="Enrolled"
-          to="/mentor/students"
+          to="/instructor/students"
         />
         <Stat
           label="Evaluated This Week"
           value={`${evaluatedCount}/${STUDENTS.length}`}
           icon={ClipboardCheck}
           accent={`Week ${CURRENT_WEEK}`}
-          to="/mentor/evaluate"
+          to="/instructor/evaluate"
         />
         <Stat
           label="Average Score"
           value={`${avgThisWeek}/${MAX_TOTAL}`}
           icon={TrendingUp}
           accent="This week"
-          to="/mentor/leaderboard"
+          to="/instructor/leaderboard"
         />
         <Stat
           label="Total Evaluations"
           value={evaluations.length}
           icon={BookOpen}
           accent="All-time"
-          to="/mentor/leaderboard"
+          to="/instructor/leaderboard"
         />
       </div>
 
@@ -252,7 +252,7 @@ function Dashboard() {
               Top Performers
             </CardTitle>
             <Link
-              to="/mentor/leaderboard"
+              to="/instructor/leaderboard"
               className="text-xs text-brand font-medium flex items-center gap-1 hover:underline"
             >
               View all <ArrowRight className="h-3 w-3" />
@@ -262,7 +262,7 @@ function Dashboard() {
             {topStudents.map((s, i) => (
               <Link
                 key={s.id}
-                to="/mentor/students/$id"
+                to="/instructor/students/$id"
                 params={{ id: s.id }}
                 className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted transition-colors"
               >
@@ -300,7 +300,7 @@ function Dashboard() {
             {needsImprovement.map((s) => (
               <Link
                 key={s.id}
-                to="/mentor/students/$id"
+                to="/instructor/students/$id"
                 params={{ id: s.id }}
                 className="block hover:bg-muted -mx-2 p-2 rounded-lg transition-colors"
               >

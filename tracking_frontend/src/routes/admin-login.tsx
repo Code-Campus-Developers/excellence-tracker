@@ -11,7 +11,7 @@ import { useAuth, type AuthUser, type AuthStudent } from "@/lib/authStore";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/admin-login")({
-  head: () => ({ meta: [{ title: "Admin Login — CodeCampus" }] }),
+  head: () => ({ meta: [{ title: "Admin Login | CodeCampus" }] }),
   component: AdminLogin,
 });
 
@@ -56,7 +56,7 @@ function AdminLogin() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
         <Card>
           <CardHeader>

@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 
 export const Route = createFileRoute("/change-password")({
-  head: () => ({ meta: [{ title: "Change Password — CodeCampus" }] }),
+  head: () => ({ meta: [{ title: "Change Password | CodeCampus" }] }),
   component: ChangePassword,
 });
 
@@ -31,7 +31,7 @@ function ChangePassword() {
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((p) => ({ ...p, [k]: v }));
 
-  const backTo = user?.role === "ADMIN" ? "/admin" : user?.role === "MENTOR" ? "/mentor" : "/dashboard";
+  const backTo = user?.role === "ADMIN" ? "/admin" : user?.role === "MENTOR" ? "/instructor" : "/student";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +63,7 @@ function ChangePassword() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
         <Card>
           <CardHeader>

@@ -80,10 +80,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CodeCampus — Weekly Excellence Tracker" },
+      { title: "CodeCampus | Weekly Excellence Tracker" },
       { name: "description", content: "Track weekly student performance across the Code Campus Software Engineering Bootcamp." },
       { name: "author", content: "CodeCampus" },
-      { property: "og:title", content: "CodeCampus — Weekly Excellence Tracker" },
+      { property: "og:title", content: "CodeCampus | Weekly Excellence Tracker" },
       { property: "og:description", content: "Weekly evaluations, performance history, and leaderboard for the Code Campus bootcamp." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

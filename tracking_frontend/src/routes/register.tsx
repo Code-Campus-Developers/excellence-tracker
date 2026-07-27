@@ -19,7 +19,7 @@ import { useStore } from "@/lib/store";
 import { TRACKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Register — CodeCampus Excellence Tracker" }] }),
+  head: () => ({ meta: [{ title: "Register | CodeCampus Excellence Tracker" }] }),
   component: Register,
 });
 
@@ -54,7 +54,7 @@ function Register() {
       login(data.token, data.user, data.student);
       await refresh();
       toast.success("Account created! Welcome to Code Campus.");
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/student" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -66,7 +66,7 @@ function Register() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
 
         <Card>

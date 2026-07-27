@@ -5,15 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trophy, Medal, Award } from "lucide-react";
 import { useMemo, useState } from "react";
-import { STUDENTS, studentStats, studentEvals, CURRENT_WEEK } from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { STUDENTS, studentStats, studentEvals } from "@/lib/tracking";
+import { useStore, getCurrentWeek } from "@/lib/store";
 import { GradingScale } from "@/components/GradingScale";
 import { Pagination } from "@/components/Pagination";
 
-export const Route = createFileRoute("/mentor/leaderboard")({
+export const Route = createFileRoute("/instructor/leaderboard")({
   head: () => ({
     meta: [
-      { title: "Leaderboard — CodeCampus Excellence Tracker" },
+      { title: "Leaderboard | CodeCampus Excellence Tracker" },
       { name: "description", content: "Ranked student performance across the bootcamp." },
     ],
   }),
@@ -59,7 +59,7 @@ function Board({
             return (
               <Link
                 key={s.id}
-                to="/mentor/students/$id"
+                to="/instructor/students/$id"
                 params={{ id: s.id }}
                 className="grid grid-cols-[60px_1fr_100px_120px] items-center px-5 py-3 hover:bg-muted transition-colors"
               >
@@ -89,7 +89,8 @@ function Board({
 }
 
 function Leaderboard() {
-  const { evaluations, students } = useStore();
+  const { evaluations, students, settings } = useStore();
+  const CURRENT_WEEK = getCurrentWeek(settings);
   const enriched = useMemo(
     () =>
       students.map((s) => {

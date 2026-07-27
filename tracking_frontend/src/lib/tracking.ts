@@ -96,6 +96,7 @@ export const sumScores = (s: Scores) =>
 
 export interface Student {
   id: string;
+  studentCode?: string;
   name: string;
   email: string;
   track: string;

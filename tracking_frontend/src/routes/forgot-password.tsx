@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/forgot-password")({
-  head: () => ({ meta: [{ title: "Forgot Password — CodeCampus" }] }),
+  head: () => ({ meta: [{ title: "Forgot Password | CodeCampus" }] }),
   component: ForgotPassword,
 });
 
@@ -36,7 +36,7 @@ function ForgotPassword() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
         <Card>
           <CardHeader>

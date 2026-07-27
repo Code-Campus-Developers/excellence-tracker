@@ -13,10 +13,13 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  track?: string | null;
+  profilePicture?: string | null;
 }
 
 export interface AuthStudent {
   id: string;
+  studentCode: string;
   name: string;
   track: string;
   avatarColor: string;
@@ -29,6 +32,7 @@ interface AuthState {
   isLoading: boolean;
   login: (token: string, user: AuthUser, student?: AuthStudent | null) => void;
   logout: () => void;
+  updateUser: (updates: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -75,6 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateUser = (updates: Partial<AuthUser>) => {
+    const updated = { ...user, ...updates } as AuthUser;
+    setUser(updated);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...parsed, user: updated }));
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -83,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, student, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, student, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

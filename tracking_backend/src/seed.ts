@@ -1,15 +1,16 @@
 import prisma from "./lib/prisma";
 import { hashPassword } from "./lib/auth";
 
+const year = new Date().getFullYear();
 const students = [
-  { id: "s1", name: "John Doe",       email: "john@codecampus.ng",    track: "Software Engineering",  avatarColor: "#16a34a" },
-  { id: "s2", name: "Aisha Bello",    email: "aisha@codecampus.ng",   track: "Data Analytics",        avatarColor: "#059669" },
-  { id: "s3", name: "Chinedu Okafor", email: "chinedu@codecampus.ng", track: "Cloud Engineering",     avatarColor: "#15803d" },
-  { id: "s4", name: "Fatima Yusuf",   email: "fatima@codecampus.ng",  track: "Software Engineering",  avatarColor: "#22c55e" },
-  { id: "s5", name: "Emeka Nwosu",    email: "emeka@codecampus.ng",   track: "Digital Marketing",     avatarColor: "#10b981" },
-  { id: "s6", name: "Zara Ibrahim",   email: "zara@codecampus.ng",    track: "Data Analytics",        avatarColor: "#166534" },
-  { id: "s7", name: "Tunde Adeyemi",  email: "tunde@codecampus.ng",   track: "Cloud Engineering",     avatarColor: "#4ade80" },
-  { id: "s8", name: "Ngozi Eze",      email: "ngozi@codecampus.ng",   track: "Frontend",  avatarColor: "#65a30d" },
+  { id: "s1", studentCode: `CC-${year}-001`, name: "John Doe",       email: "john@codecampus.ng",    track: "Software Engineering",  avatarColor: "#16a34a" },
+  { id: "s2", studentCode: `CC-${year}-002`, name: "Aisha Bello",    email: "aisha@codecampus.ng",   track: "Data Analytics",        avatarColor: "#059669" },
+  { id: "s3", studentCode: `CC-${year}-003`, name: "Chinedu Okafor", email: "chinedu@codecampus.ng", track: "Cloud Engineering",     avatarColor: "#15803d" },
+  { id: "s4", studentCode: `CC-${year}-004`, name: "Fatima Yusuf",   email: "fatima@codecampus.ng",  track: "Software Engineering",  avatarColor: "#22c55e" },
+  { id: "s5", studentCode: `CC-${year}-005`, name: "Emeka Nwosu",    email: "emeka@codecampus.ng",   track: "Digital Marketing",     avatarColor: "#10b981" },
+  { id: "s6", studentCode: `CC-${year}-006`, name: "Zara Ibrahim",   email: "zara@codecampus.ng",    track: "Data Analytics",        avatarColor: "#166534" },
+  { id: "s7", studentCode: `CC-${year}-007`, name: "Tunde Adeyemi",  email: "tunde@codecampus.ng",   track: "Cloud Engineering",     avatarColor: "#4ade80" },
+  { id: "s8", studentCode: `CC-${year}-008`, name: "Ngozi Eze",      email: "ngozi@codecampus.ng",   track: "Digital Marketing",     avatarColor: "#65a30d" },
 ];
 
 type Scores = Record<string, number>;

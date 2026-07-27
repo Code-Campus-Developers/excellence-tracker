@@ -12,24 +12,37 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminLoginRouteImport } from './routes/admin-login'
+import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as EditProfileRouteImport } from './routes/edit-profile'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as InstructorRouteImport } from './routes/instructor'
+import { Route as InstructorLoginRouteImport } from './routes/instructor-login'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as MentorRouteImport } from './routes/mentor'
-import { Route as MentorLoginRouteImport } from './routes/mentor-login'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SelfReportRouteImport } from './routes/self-report'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StudentRouteImport } from './routes/student'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminManageRouteImport } from './routes/admin/manage'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
-import { Route as MentorIndexRouteImport } from './routes/mentor/index'
-import { Route as MentorEvaluateRouteImport } from './routes/mentor/evaluate'
-import { Route as MentorLeaderboardRouteImport } from './routes/mentor/leaderboard'
-import { Route as MentorMentorsRouteImport } from './routes/mentor/mentors'
-import { Route as MentorStudentsRouteImport } from './routes/mentor/students'
-import { Route as MentorStudentsIdRouteImport } from './routes/mentor/students.$id'
+import { Route as InstructorIndexRouteImport } from './routes/instructor/index'
+import { Route as InstructorEvaluateRouteImport } from './routes/instructor/evaluate'
+import { Route as InstructorInstructorsRouteImport } from './routes/instructor/instructors'
+import { Route as InstructorLeaderboardRouteImport } from './routes/instructor/leaderboard'
+import { Route as InstructorMessagesRouteImport } from './routes/instructor/messages'
+import { Route as InstructorSettingsRouteImport } from './routes/instructor/settings'
+import { Route as InstructorStudentsRouteImport } from './routes/instructor/students'
+import { Route as StudentIndexRouteImport } from './routes/student/index'
+import { Route as StudentAttendanceRouteImport } from './routes/student/attendance'
+import { Route as StudentLeaderboardRouteImport } from './routes/student/leaderboard'
+import { Route as StudentMessagesRouteImport } from './routes/student/messages'
+import { Route as StudentProgressRouteImport } from './routes/student/progress'
+import { Route as StudentSelfReportRouteImport } from './routes/student/self-report'
+import { Route as InstructorStudentsIdRouteImport } from './routes/instructor/students.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +59,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/admin-login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AttendanceRoute = AttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
@@ -56,9 +74,24 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditProfileRoute = EditProfileRouteImport.update({
+  id: '/edit-profile',
+  path: '/edit-profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstructorRoute = InstructorRouteImport.update({
+  id: '/instructor',
+  path: '/instructor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstructorLoginRoute = InstructorLoginRouteImport.update({
+  id: '/instructor-login',
+  path: '/instructor-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -66,14 +99,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MentorRoute = MentorRouteImport.update({
-  id: '/mentor',
-  path: '/mentor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MentorLoginRoute = MentorLoginRouteImport.update({
-  id: '/mentor-login',
-  path: '/mentor-login',
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -86,9 +114,19 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SelfReportRoute = SelfReportRouteImport.update({
+  id: '/self-report',
+  path: '/self-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentRoute = StudentRouteImport.update({
+  id: '/student',
+  path: '/student',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -106,104 +144,182 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
-const MentorIndexRoute = MentorIndexRouteImport.update({
+const InstructorIndexRoute = InstructorIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => MentorRoute,
+  getParentRoute: () => InstructorRoute,
 } as any)
-const MentorEvaluateRoute = MentorEvaluateRouteImport.update({
+const InstructorEvaluateRoute = InstructorEvaluateRouteImport.update({
   id: '/evaluate',
   path: '/evaluate',
-  getParentRoute: () => MentorRoute,
+  getParentRoute: () => InstructorRoute,
 } as any)
-const MentorLeaderboardRoute = MentorLeaderboardRouteImport.update({
+const InstructorInstructorsRoute = InstructorInstructorsRouteImport.update({
+  id: '/instructors',
+  path: '/instructors',
+  getParentRoute: () => InstructorRoute,
+} as any)
+const InstructorLeaderboardRoute = InstructorLeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
-  getParentRoute: () => MentorRoute,
+  getParentRoute: () => InstructorRoute,
 } as any)
-const MentorMentorsRoute = MentorMentorsRouteImport.update({
-  id: '/mentors',
-  path: '/mentors',
-  getParentRoute: () => MentorRoute,
+const InstructorMessagesRoute = InstructorMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => InstructorRoute,
 } as any)
-const MentorStudentsRoute = MentorStudentsRouteImport.update({
+const InstructorSettingsRoute = InstructorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => InstructorRoute,
+} as any)
+const InstructorStudentsRoute = InstructorStudentsRouteImport.update({
   id: '/students',
   path: '/students',
-  getParentRoute: () => MentorRoute,
+  getParentRoute: () => InstructorRoute,
 } as any)
-const MentorStudentsIdRoute = MentorStudentsIdRouteImport.update({
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentMessagesRoute = StudentMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentProgressRoute = StudentProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentSelfReportRoute = StudentSelfReportRouteImport.update({
+  id: '/self-report',
+  path: '/self-report',
+  getParentRoute: () => StudentRoute,
+} as any)
+const InstructorStudentsIdRoute = InstructorStudentsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => MentorStudentsRoute,
+  getParentRoute: () => InstructorStudentsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin-login': typeof AdminLoginRoute
+  '/attendance': typeof AttendanceRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
+  '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/instructor': typeof InstructorRouteWithChildren
+  '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
-  '/mentor': typeof MentorRouteWithChildren
-  '/mentor-login': typeof MentorLoginRoute
+  '/messages': typeof MessagesRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student': typeof StudentRouteWithChildren
   '/admin/manage': typeof AdminManageRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/mentor/evaluate': typeof MentorEvaluateRoute
-  '/mentor/leaderboard': typeof MentorLeaderboardRoute
-  '/mentor/mentors': typeof MentorMentorsRoute
-  '/mentor/students': typeof MentorStudentsRouteWithChildren
+  '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/leaderboard': typeof InstructorLeaderboardRoute
+  '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/settings': typeof InstructorSettingsRoute
+  '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/messages': typeof StudentMessagesRoute
+  '/student/progress': typeof StudentProgressRoute
+  '/student/self-report': typeof StudentSelfReportRoute
   '/admin/': typeof AdminIndexRoute
-  '/mentor/': typeof MentorIndexRoute
-  '/mentor/students/$id': typeof MentorStudentsIdRoute
+  '/instructor/': typeof InstructorIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/instructor/students/$id': typeof InstructorStudentsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-login': typeof AdminLoginRoute
+  '/attendance': typeof AttendanceRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
+  '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
-  '/mentor-login': typeof MentorLoginRoute
+  '/messages': typeof MessagesRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/manage': typeof AdminManageRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/mentor/evaluate': typeof MentorEvaluateRoute
-  '/mentor/leaderboard': typeof MentorLeaderboardRoute
-  '/mentor/mentors': typeof MentorMentorsRoute
-  '/mentor/students': typeof MentorStudentsRouteWithChildren
+  '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/leaderboard': typeof InstructorLeaderboardRoute
+  '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/settings': typeof InstructorSettingsRoute
+  '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/messages': typeof StudentMessagesRoute
+  '/student/progress': typeof StudentProgressRoute
+  '/student/self-report': typeof StudentSelfReportRoute
   '/admin': typeof AdminIndexRoute
-  '/mentor': typeof MentorIndexRoute
-  '/mentor/students/$id': typeof MentorStudentsIdRoute
+  '/instructor': typeof InstructorIndexRoute
+  '/student': typeof StudentIndexRoute
+  '/instructor/students/$id': typeof InstructorStudentsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/admin-login': typeof AdminLoginRoute
+  '/attendance': typeof AttendanceRoute
   '/change-password': typeof ChangePasswordRoute
   '/dashboard': typeof DashboardRoute
+  '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/instructor': typeof InstructorRouteWithChildren
+  '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
-  '/mentor': typeof MentorRouteWithChildren
-  '/mentor-login': typeof MentorLoginRoute
+  '/messages': typeof MessagesRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student': typeof StudentRouteWithChildren
   '/admin/manage': typeof AdminManageRoute
   '/admin/settings': typeof AdminSettingsRoute
-  '/mentor/evaluate': typeof MentorEvaluateRoute
-  '/mentor/leaderboard': typeof MentorLeaderboardRoute
-  '/mentor/mentors': typeof MentorMentorsRoute
-  '/mentor/students': typeof MentorStudentsRouteWithChildren
+  '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/leaderboard': typeof InstructorLeaderboardRoute
+  '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/settings': typeof InstructorSettingsRoute
+  '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/student/attendance': typeof StudentAttendanceRoute
+  '/student/leaderboard': typeof StudentLeaderboardRoute
+  '/student/messages': typeof StudentMessagesRoute
+  '/student/progress': typeof StudentProgressRoute
+  '/student/self-report': typeof StudentSelfReportRoute
   '/admin/': typeof AdminIndexRoute
-  '/mentor/': typeof MentorIndexRoute
-  '/mentor/students/$id': typeof MentorStudentsIdRoute
+  '/instructor/': typeof InstructorIndexRoute
+  '/student/': typeof StudentIndexRoute
+  '/instructor/students/$id': typeof InstructorStudentsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,83 +327,126 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-login'
+    | '/attendance'
     | '/change-password'
     | '/dashboard'
+    | '/edit-profile'
     | '/forgot-password'
+    | '/instructor'
+    | '/instructor-login'
     | '/login'
-    | '/mentor'
-    | '/mentor-login'
+    | '/messages'
     | '/register'
     | '/reset-password'
+    | '/self-report'
     | '/sitemap.xml'
+    | '/student'
     | '/admin/manage'
     | '/admin/settings'
-    | '/mentor/evaluate'
-    | '/mentor/leaderboard'
-    | '/mentor/mentors'
-    | '/mentor/students'
+    | '/instructor/evaluate'
+    | '/instructor/instructors'
+    | '/instructor/leaderboard'
+    | '/instructor/messages'
+    | '/instructor/settings'
+    | '/instructor/students'
+    | '/student/attendance'
+    | '/student/leaderboard'
+    | '/student/messages'
+    | '/student/progress'
+    | '/student/self-report'
     | '/admin/'
-    | '/mentor/'
-    | '/mentor/students/$id'
+    | '/instructor/'
+    | '/student/'
+    | '/instructor/students/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin-login'
+    | '/attendance'
     | '/change-password'
     | '/dashboard'
+    | '/edit-profile'
     | '/forgot-password'
+    | '/instructor-login'
     | '/login'
-    | '/mentor-login'
+    | '/messages'
     | '/register'
     | '/reset-password'
+    | '/self-report'
     | '/sitemap.xml'
     | '/admin/manage'
     | '/admin/settings'
-    | '/mentor/evaluate'
-    | '/mentor/leaderboard'
-    | '/mentor/mentors'
-    | '/mentor/students'
+    | '/instructor/evaluate'
+    | '/instructor/instructors'
+    | '/instructor/leaderboard'
+    | '/instructor/messages'
+    | '/instructor/settings'
+    | '/instructor/students'
+    | '/student/attendance'
+    | '/student/leaderboard'
+    | '/student/messages'
+    | '/student/progress'
+    | '/student/self-report'
     | '/admin'
-    | '/mentor'
-    | '/mentor/students/$id'
+    | '/instructor'
+    | '/student'
+    | '/instructor/students/$id'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/admin-login'
+    | '/attendance'
     | '/change-password'
     | '/dashboard'
+    | '/edit-profile'
     | '/forgot-password'
+    | '/instructor'
+    | '/instructor-login'
     | '/login'
-    | '/mentor'
-    | '/mentor-login'
+    | '/messages'
     | '/register'
     | '/reset-password'
+    | '/self-report'
     | '/sitemap.xml'
+    | '/student'
     | '/admin/manage'
     | '/admin/settings'
-    | '/mentor/evaluate'
-    | '/mentor/leaderboard'
-    | '/mentor/mentors'
-    | '/mentor/students'
+    | '/instructor/evaluate'
+    | '/instructor/instructors'
+    | '/instructor/leaderboard'
+    | '/instructor/messages'
+    | '/instructor/settings'
+    | '/instructor/students'
+    | '/student/attendance'
+    | '/student/leaderboard'
+    | '/student/messages'
+    | '/student/progress'
+    | '/student/self-report'
     | '/admin/'
-    | '/mentor/'
-    | '/mentor/students/$id'
+    | '/instructor/'
+    | '/student/'
+    | '/instructor/students/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
+  AttendanceRoute: typeof AttendanceRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   DashboardRoute: typeof DashboardRoute
+  EditProfileRoute: typeof EditProfileRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  InstructorRoute: typeof InstructorRouteWithChildren
+  InstructorLoginRoute: typeof InstructorLoginRoute
   LoginRoute: typeof LoginRoute
-  MentorRoute: typeof MentorRouteWithChildren
-  MentorLoginRoute: typeof MentorLoginRoute
+  MessagesRoute: typeof MessagesRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SelfReportRoute: typeof SelfReportRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StudentRoute: typeof StudentRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -313,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/attendance': {
+      id: '/attendance'
+      path: '/attendance'
+      fullPath: '/attendance'
+      preLoaderRoute: typeof AttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-password': {
       id: '/change-password'
       path: '/change-password'
@@ -327,11 +493,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/edit-profile': {
+      id: '/edit-profile'
+      path: '/edit-profile'
+      fullPath: '/edit-profile'
+      preLoaderRoute: typeof EditProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/forgot-password': {
       id: '/forgot-password'
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instructor': {
+      id: '/instructor'
+      path: '/instructor'
+      fullPath: '/instructor'
+      preLoaderRoute: typeof InstructorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/instructor-login': {
+      id: '/instructor-login'
+      path: '/instructor-login'
+      fullPath: '/instructor-login'
+      preLoaderRoute: typeof InstructorLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -341,18 +528,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mentor': {
-      id: '/mentor'
-      path: '/mentor'
-      fullPath: '/mentor'
-      preLoaderRoute: typeof MentorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mentor-login': {
-      id: '/mentor-login'
-      path: '/mentor-login'
-      fullPath: '/mentor-login'
-      preLoaderRoute: typeof MentorLoginRouteImport
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -369,11 +549,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/self-report': {
+      id: '/self-report'
+      path: '/self-report'
+      fullPath: '/self-report'
+      preLoaderRoute: typeof SelfReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -397,47 +591,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/mentor/': {
-      id: '/mentor/'
+    '/instructor/': {
+      id: '/instructor/'
       path: '/'
-      fullPath: '/mentor/'
-      preLoaderRoute: typeof MentorIndexRouteImport
-      parentRoute: typeof MentorRoute
+      fullPath: '/instructor/'
+      preLoaderRoute: typeof InstructorIndexRouteImport
+      parentRoute: typeof InstructorRoute
     }
-    '/mentor/evaluate': {
-      id: '/mentor/evaluate'
+    '/instructor/evaluate': {
+      id: '/instructor/evaluate'
       path: '/evaluate'
-      fullPath: '/mentor/evaluate'
-      preLoaderRoute: typeof MentorEvaluateRouteImport
-      parentRoute: typeof MentorRoute
+      fullPath: '/instructor/evaluate'
+      preLoaderRoute: typeof InstructorEvaluateRouteImport
+      parentRoute: typeof InstructorRoute
     }
-    '/mentor/leaderboard': {
-      id: '/mentor/leaderboard'
+    '/instructor/instructors': {
+      id: '/instructor/instructors'
+      path: '/instructors'
+      fullPath: '/instructor/instructors'
+      preLoaderRoute: typeof InstructorInstructorsRouteImport
+      parentRoute: typeof InstructorRoute
+    }
+    '/instructor/leaderboard': {
+      id: '/instructor/leaderboard'
       path: '/leaderboard'
-      fullPath: '/mentor/leaderboard'
-      preLoaderRoute: typeof MentorLeaderboardRouteImport
-      parentRoute: typeof MentorRoute
+      fullPath: '/instructor/leaderboard'
+      preLoaderRoute: typeof InstructorLeaderboardRouteImport
+      parentRoute: typeof InstructorRoute
     }
-    '/mentor/mentors': {
-      id: '/mentor/mentors'
-      path: '/mentors'
-      fullPath: '/mentor/mentors'
-      preLoaderRoute: typeof MentorMentorsRouteImport
-      parentRoute: typeof MentorRoute
+    '/instructor/messages': {
+      id: '/instructor/messages'
+      path: '/messages'
+      fullPath: '/instructor/messages'
+      preLoaderRoute: typeof InstructorMessagesRouteImport
+      parentRoute: typeof InstructorRoute
     }
-    '/mentor/students': {
-      id: '/mentor/students'
+    '/instructor/settings': {
+      id: '/instructor/settings'
+      path: '/settings'
+      fullPath: '/instructor/settings'
+      preLoaderRoute: typeof InstructorSettingsRouteImport
+      parentRoute: typeof InstructorRoute
+    }
+    '/instructor/students': {
+      id: '/instructor/students'
       path: '/students'
-      fullPath: '/mentor/students'
-      preLoaderRoute: typeof MentorStudentsRouteImport
-      parentRoute: typeof MentorRoute
+      fullPath: '/instructor/students'
+      preLoaderRoute: typeof InstructorStudentsRouteImport
+      parentRoute: typeof InstructorRoute
     }
-    '/mentor/students/$id': {
-      id: '/mentor/students/$id'
+    '/student/': {
+      id: '/student/'
+      path: '/'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/attendance': {
+      id: '/student/attendance'
+      path: '/attendance'
+      fullPath: '/student/attendance'
+      preLoaderRoute: typeof StudentAttendanceRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/leaderboard': {
+      id: '/student/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/student/leaderboard'
+      preLoaderRoute: typeof StudentLeaderboardRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/messages': {
+      id: '/student/messages'
+      path: '/messages'
+      fullPath: '/student/messages'
+      preLoaderRoute: typeof StudentMessagesRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/progress': {
+      id: '/student/progress'
+      path: '/progress'
+      fullPath: '/student/progress'
+      preLoaderRoute: typeof StudentProgressRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/self-report': {
+      id: '/student/self-report'
+      path: '/self-report'
+      fullPath: '/student/self-report'
+      preLoaderRoute: typeof StudentSelfReportRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/instructor/students/$id': {
+      id: '/instructor/students/$id'
       path: '/$id'
-      fullPath: '/mentor/students/$id'
-      preLoaderRoute: typeof MentorStudentsIdRouteImport
-      parentRoute: typeof MentorStudentsRoute
+      fullPath: '/instructor/students/$id'
+      preLoaderRoute: typeof InstructorStudentsIdRouteImport
+      parentRoute: typeof InstructorStudentsRoute
     }
   }
 }
@@ -456,50 +706,80 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface MentorStudentsRouteChildren {
-  MentorStudentsIdRoute: typeof MentorStudentsIdRoute
+interface InstructorStudentsRouteChildren {
+  InstructorStudentsIdRoute: typeof InstructorStudentsIdRoute
 }
 
-const MentorStudentsRouteChildren: MentorStudentsRouteChildren = {
-  MentorStudentsIdRoute: MentorStudentsIdRoute,
+const InstructorStudentsRouteChildren: InstructorStudentsRouteChildren = {
+  InstructorStudentsIdRoute: InstructorStudentsIdRoute,
 }
 
-const MentorStudentsRouteWithChildren = MentorStudentsRoute._addFileChildren(
-  MentorStudentsRouteChildren,
+const InstructorStudentsRouteWithChildren =
+  InstructorStudentsRoute._addFileChildren(InstructorStudentsRouteChildren)
+
+interface InstructorRouteChildren {
+  InstructorEvaluateRoute: typeof InstructorEvaluateRoute
+  InstructorInstructorsRoute: typeof InstructorInstructorsRoute
+  InstructorLeaderboardRoute: typeof InstructorLeaderboardRoute
+  InstructorMessagesRoute: typeof InstructorMessagesRoute
+  InstructorSettingsRoute: typeof InstructorSettingsRoute
+  InstructorStudentsRoute: typeof InstructorStudentsRouteWithChildren
+  InstructorIndexRoute: typeof InstructorIndexRoute
+}
+
+const InstructorRouteChildren: InstructorRouteChildren = {
+  InstructorEvaluateRoute: InstructorEvaluateRoute,
+  InstructorInstructorsRoute: InstructorInstructorsRoute,
+  InstructorLeaderboardRoute: InstructorLeaderboardRoute,
+  InstructorMessagesRoute: InstructorMessagesRoute,
+  InstructorSettingsRoute: InstructorSettingsRoute,
+  InstructorStudentsRoute: InstructorStudentsRouteWithChildren,
+  InstructorIndexRoute: InstructorIndexRoute,
+}
+
+const InstructorRouteWithChildren = InstructorRoute._addFileChildren(
+  InstructorRouteChildren,
 )
 
-interface MentorRouteChildren {
-  MentorEvaluateRoute: typeof MentorEvaluateRoute
-  MentorLeaderboardRoute: typeof MentorLeaderboardRoute
-  MentorMentorsRoute: typeof MentorMentorsRoute
-  MentorStudentsRoute: typeof MentorStudentsRouteWithChildren
-  MentorIndexRoute: typeof MentorIndexRoute
+interface StudentRouteChildren {
+  StudentAttendanceRoute: typeof StudentAttendanceRoute
+  StudentLeaderboardRoute: typeof StudentLeaderboardRoute
+  StudentMessagesRoute: typeof StudentMessagesRoute
+  StudentProgressRoute: typeof StudentProgressRoute
+  StudentSelfReportRoute: typeof StudentSelfReportRoute
+  StudentIndexRoute: typeof StudentIndexRoute
 }
 
-const MentorRouteChildren: MentorRouteChildren = {
-  MentorEvaluateRoute: MentorEvaluateRoute,
-  MentorLeaderboardRoute: MentorLeaderboardRoute,
-  MentorMentorsRoute: MentorMentorsRoute,
-  MentorStudentsRoute: MentorStudentsRouteWithChildren,
-  MentorIndexRoute: MentorIndexRoute,
+const StudentRouteChildren: StudentRouteChildren = {
+  StudentAttendanceRoute: StudentAttendanceRoute,
+  StudentLeaderboardRoute: StudentLeaderboardRoute,
+  StudentMessagesRoute: StudentMessagesRoute,
+  StudentProgressRoute: StudentProgressRoute,
+  StudentSelfReportRoute: StudentSelfReportRoute,
+  StudentIndexRoute: StudentIndexRoute,
 }
 
-const MentorRouteWithChildren =
-  MentorRoute._addFileChildren(MentorRouteChildren)
+const StudentRouteWithChildren =
+  StudentRoute._addFileChildren(StudentRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
+  AttendanceRoute: AttendanceRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   DashboardRoute: DashboardRoute,
+  EditProfileRoute: EditProfileRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  InstructorRoute: InstructorRouteWithChildren,
+  InstructorLoginRoute: InstructorLoginRoute,
   LoginRoute: LoginRoute,
-  MentorRoute: MentorRouteWithChildren,
-  MentorLoginRoute: MentorLoginRoute,
+  MessagesRoute: MessagesRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SelfReportRoute: SelfReportRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StudentRoute: StudentRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

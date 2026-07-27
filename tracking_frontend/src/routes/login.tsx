@@ -11,7 +11,7 @@ import { useAuth, type AuthUser, type AuthStudent } from "@/lib/authStore";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Login — CodeCampus Excellence Tracker" }] }),
+  head: () => ({ meta: [{ title: "Login | CodeCampus Excellence Tracker" }] }),
   component: Login,
 });
 
@@ -41,8 +41,8 @@ function Login() {
       await refresh();
 
       if (data.user.role === "ADMIN") navigate({ to: "/admin" });
-      else if (data.user.role === "MENTOR") navigate({ to: "/mentor" });
-      else navigate({ to: "/dashboard" });
+      else if (data.user.role === "MENTOR") navigate({ to: "/instructor" });
+      else navigate({ to: "/student" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -54,7 +54,7 @@ function Login() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src="/image-1784557444135.png" alt="Code Campus" className="h-10 w-auto" />
+          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
         </div>
 
         <Card>
