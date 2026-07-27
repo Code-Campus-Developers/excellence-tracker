@@ -135,6 +135,8 @@ model SelfReport {
 
   eventDone       Boolean      @default(false) @map("event_done")
   eventUrl        String?      @map("event_url")
+  eventImage1     String?      @map("event_image_1")
+  eventImage2     String?      @map("event_image_2")
 
   notes           String?
 

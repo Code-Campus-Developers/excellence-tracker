@@ -1,8 +1,34 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
+import { notifyAdmins, notifyTrackInstructor } from "./notifications";
 
 const router = Router();
+
+// GET /api/self-reports/all  (instructor/admin: all reports with student info)
+router.get("/all", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    let where = {};
+    if (req.user!.role === "MENTOR") {
+      const instructor = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { track: true } });
+      if (instructor?.track) {
+        where = { student: { track: instructor.track } };
+      }
+    }
+    const reports = await prisma.selfReport.findMany({
+      where,
+      include: { student: { select: { id: true, name: true, track: true, studentCode: true } } },
+      orderBy: [{ cohortYear: "desc" }, { weekNumber: "desc" }, { submittedAt: "desc" }],
+    });
+    return res.json(reports);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 // GET /api/self-reports/me  (student: own reports)
 router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
@@ -60,7 +86,7 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
       linkedinDone, linkedinUrl,
       learningLogDone, learningLogUrl,
       codingDone, codingUrl,
-      eventDone, eventUrl,
+      eventDone, eventUrl, eventImage1, eventImage2,
       notes,
     } = req.body as {
       weekNumber: number; cohortYear?: number;
@@ -68,6 +94,7 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
       learningLogDone?: boolean; learningLogUrl?: string | null;
       codingDone?: boolean; codingUrl?: string | null;
       eventDone?: boolean; eventUrl?: string | null;
+      eventImage1?: string | null; eventImage2?: string | null;
       notes?: string | null;
     };
 
@@ -83,6 +110,7 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
         learningLogDone: learningLogDone ?? false, learningLogUrl: learningLogUrl ?? null,
         codingDone: codingDone ?? false, codingUrl: codingUrl ?? null,
         eventDone: eventDone ?? false, eventUrl: eventUrl ?? null,
+        eventImage1: eventImage1 ?? null, eventImage2: eventImage2 ?? null,
         notes: notes ?? null,
         status: "PENDING", verifiedById: null, verifiedAt: null,
       },
@@ -92,9 +120,20 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
         learningLogDone: learningLogDone ?? false, learningLogUrl: learningLogUrl ?? null,
         codingDone: codingDone ?? false, codingUrl: codingUrl ?? null,
         eventDone: eventDone ?? false, eventUrl: eventUrl ?? null,
+        eventImage1: eventImage1 ?? null, eventImage2: eventImage2 ?? null,
         notes: notes ?? null,
       },
     });
+
+    // Notify admin + track instructor
+    const studentInfo = await prisma.student.findUnique({ where: { id: student.id }, select: { name: true } });
+    const msg = `${studentInfo?.name ?? "A student"} submitted their Week ${weekNumber} self-report.`;
+    const link = `/instructor/students/${student.id}`;
+    await Promise.all([
+      notifyAdmins(msg, link),
+      notifyTrackInstructor(student.id, msg, link),
+    ]);
+
     return res.json(report);
   } catch (err) {
     console.error(err);

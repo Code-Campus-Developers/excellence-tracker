@@ -63,4 +63,24 @@ router.post(
   }
 );
 
+// ─── GET /api/upload/proxy-image?url=...
+// Fetches an external image and returns it as base64 data URL (bypasses browser CORS cache)
+router.get("/proxy-image", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { url } = req.query as { url?: string };
+    if (!url || !url.startsWith("https://")) {
+      return res.status(400).json({ error: "Invalid URL" });
+    }
+    const response = await fetch(url);
+    if (!response.ok) return res.status(502).json({ error: "Failed to fetch image" });
+    const buffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") ?? "image/jpeg";
+    const base64 = Buffer.from(buffer).toString("base64");
+    return res.json({ dataUrl: `data:${contentType};base64,${base64}` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Proxy error" });
+  }
+});
+
 export default router;

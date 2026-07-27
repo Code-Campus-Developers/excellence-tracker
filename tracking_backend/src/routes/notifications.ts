@@ -68,3 +68,11 @@ export async function notifyInstructors(message: string, link?: string) {
   const instructors = await prisma.user.findMany({ where: { role: "MENTOR" }, select: { id: true } });
   await Promise.all(instructors.map((m) => createNotification({ userId: m.id, message, link })));
 }
+
+// Helper — notify the track instructor of a student
+export async function notifyTrackInstructor(studentId: string, message: string, link?: string) {
+  const student = await prisma.student.findUnique({ where: { id: studentId }, select: { track: true } });
+  if (!student?.track) return;
+  const instructor = await prisma.user.findFirst({ where: { role: "MENTOR", track: student.track, isActive: true }, select: { id: true } });
+  if (instructor) await createNotification({ userId: instructor.id, message, link });
+}

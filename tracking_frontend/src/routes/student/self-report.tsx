@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Linkedin, BookOpen, Code2, Calendar, CheckCircle2,
-  Clock, XCircle, ChevronDown, ChevronUp, Loader2,
+  Clock, XCircle, ChevronDown, ChevronUp, Loader2, ImagePlus, X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ interface SelfReport {
   learningLogDone: boolean; learningLogUrl: string | null;
   codingDone: boolean; codingUrl: string | null;
   eventDone: boolean; eventUrl: string | null;
+  eventImage1: string | null; eventImage2: string | null;
   notes: string | null; status: "PENDING" | "VERIFIED" | "REJECTED";
   submittedAt: string; updatedAt: string;
 }
@@ -37,6 +38,7 @@ interface FormState {
   learningLogDone: boolean; learningLogUrl: string;
   codingDone: boolean; codingUrl: string;
   eventDone: boolean; eventUrl: string;
+  eventImage1: string; eventImage2: string;
   notes: string;
 }
 const EMPTY: FormState = {
@@ -44,6 +46,7 @@ const EMPTY: FormState = {
   learningLogDone: false, learningLogUrl: "",
   codingDone: false, codingUrl: "",
   eventDone: false, eventUrl: "",
+  eventImage1: "", eventImage2: "",
   notes: "",
 };
 
@@ -111,6 +114,86 @@ function PastReport({ report, onEdit }: { report: SelfReport; onEdit: () => void
   );
 }
 
+// ─── Event row with photo upload ─────────────────────────────────────────────
+function EventRow({ form, setForm, disabled }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; disabled?: boolean }) {
+  const [uploading, setUploading] = useState<1 | 2 | null>(null);
+  const ref1 = useRef<HTMLInputElement>(null);
+  const ref2 = useRef<HTMLInputElement>(null);
+
+  const uploadImage = async (file: File, slot: 1 | 2) => {
+    setUploading(slot);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+      const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } })();
+      const res = await fetch(`${BASE}/api/upload/profile-picture`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json() as { url: string };
+      setForm((p) => ({ ...p, [`eventImage${slot}`]: url }));
+      toast.success(`Photo ${slot} uploaded`);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Upload failed"); }
+    finally { setUploading(null); }
+  };
+
+  const ImageSlot = ({ slot, ref: imgRef }: { slot: 1 | 2; ref: React.RefObject<HTMLInputElement | null> }) => {
+    const url = slot === 1 ? form.eventImage1 : form.eventImage2;
+    return (
+      <div>
+        {url ? (
+          <div className="relative inline-block">
+            <img src={url} alt={`Event photo ${slot}`} className="h-20 w-20 rounded-lg object-cover border-2 border-brand" />
+            {!disabled && (
+              <button type="button" onClick={() => setForm((p) => ({ ...p, [`eventImage${slot}`]: "" }))}
+                className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full text-xs flex items-center justify-center">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button type="button" disabled={disabled || uploading !== null}
+            onClick={() => imgRef.current?.click()}
+            className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-brand flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-brand transition-colors disabled:opacity-50">
+            {uploading === slot ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+            <span className="text-[10px]">Photo {slot}</span>
+          </button>
+        )}
+        <input ref={imgRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f, slot); }} />
+      </div>
+    );
+  };
+
+  const ref1Ref = useRef<HTMLInputElement>(null);
+  const ref2Ref = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="flex flex-col gap-2 py-4 border-b last:border-0">
+      <div className="flex items-start gap-3">
+        <Checkbox id="eventDone" checked={form.eventDone}
+          onCheckedChange={(c) => setForm((p) => ({ ...p, eventDone: c === true }))} className="mt-0.5" />
+        <label htmlFor="eventDone" className="cursor-pointer flex-1">
+          <div className="flex items-center gap-2 font-medium text-sm"><Calendar className="h-4 w-4 text-brand" />Event / Workshop</div>
+          <p className="text-xs text-muted-foreground mt-0.5">Meetup, webinar, hackathon, or tech community event. Upload up to 2 proof photos.</p>
+        </label>
+      </div>
+      {form.eventDone && (
+        <div className="ml-7 space-y-2">
+          <Input placeholder="Event URL (optional — https://eventbrite.com/...)" value={form.eventUrl}
+            onChange={(e) => setForm((p) => ({ ...p, eventUrl: e.target.value }))} className="text-sm" disabled={disabled} />
+          <div className="flex gap-3">
+            <ImageSlot slot={1} ref={ref1Ref} />
+            <ImageSlot slot={2} ref={ref2Ref} />
+            {!form.eventImage1 && !form.eventImage2 && (
+              <p className="text-xs text-muted-foreground self-center">Upload proof photos (max 2)</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StudentSelfReport() {
   const { settings } = useStore();
   const totalWeeks = settings?.total_weeks ?? 12;
@@ -136,6 +219,7 @@ function StudentSelfReport() {
       learningLogDone: existing.learningLogDone, learningLogUrl: existing.learningLogUrl ?? "",
       codingDone: existing.codingDone, codingUrl: existing.codingUrl ?? "",
       eventDone: existing.eventDone, eventUrl: existing.eventUrl ?? "",
+      eventImage1: existing.eventImage1 ?? "", eventImage2: existing.eventImage2 ?? "",
       notes: existing.notes ?? "",
     } : EMPTY);
   }, [selectedWeek, reports, cohortYear]);
@@ -146,7 +230,7 @@ function StudentSelfReport() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      await api.post("/api/self-reports", { weekNumber: selectedWeek, cohortYear, ...form, linkedinUrl: form.linkedinUrl || null, learningLogUrl: form.learningLogUrl || null, codingUrl: form.codingUrl || null, eventUrl: form.eventUrl || null, notes: form.notes || null });
+      await api.post("/api/self-reports", { weekNumber: selectedWeek, cohortYear, ...form, linkedinUrl: form.linkedinUrl || null, learningLogUrl: form.learningLogUrl || null, codingUrl: form.codingUrl || null, eventUrl: form.eventUrl || null, eventImage1: form.eventImage1 || null, eventImage2: form.eventImage2 || null, notes: form.notes || null });
       toast.success(`Week ${selectedWeek} report submitted!`);
       await fetchReports();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to submit"); }
@@ -176,7 +260,10 @@ function StudentSelfReport() {
               <ActivityRow icon={<Linkedin className="h-4 w-4 text-[#0077b5]" />} label="LinkedIn Post" description="Share a post about your learning journey, projects, or tech insights." doneKey="linkedinDone" urlKey="linkedinUrl" placeholder="https://linkedin.com/posts/..." form={form} setForm={setForm} />
               <ActivityRow icon={<BookOpen className="h-4 w-4 text-amber-600" />} label="Learning Log" description="Document what you learned this week." doneKey="learningLogDone" urlKey="learningLogUrl" placeholder="https://notion.so/..." form={form} setForm={setForm} />
               <ActivityRow icon={<Code2 className="h-4 w-4 text-violet-600" />} label="Coding Activity" description="GitHub contribution, project commit, or coding challenge." doneKey="codingDone" urlKey="codingUrl" placeholder="https://github.com/..." form={form} setForm={setForm} />
-              <ActivityRow icon={<Calendar className="h-4 w-4 text-brand" />} label="Event / Workshop" description="Meetup, webinar, hackathon, or tech community event." doneKey="eventDone" urlKey="eventUrl" placeholder="https://eventbrite.com/..." form={form} setForm={setForm} />
+
+              {/* Event/Workshop — with photo upload */}
+              <EventRow form={form} setForm={setForm} disabled={isVerified} />
+
               <div className="mt-4">
                 <Label className="mb-1.5 block text-sm">Notes (optional)</Label>
                 <Textarea placeholder="Anything else for your instructor..." value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} rows={3} disabled={isVerified} />

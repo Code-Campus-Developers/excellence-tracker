@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
+import { createNotification } from "./notifications";
 
 const router = Router();
 
@@ -10,6 +11,32 @@ const router = Router();
 function threadKey(a: string, b: string) {
   return [a, b].sort().join("|");
 }
+
+// ─── GET /api/messages/contacts
+//     Instructor → list all admins they can message
+//     Admin → list all instructors + students
+router.get("/contacts", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const me = req.user!.userId;
+    let where: Record<string, unknown> = {};
+    if (req.user!.role === "MENTOR") {
+      where = { role: "ADMIN", isActive: true, id: { not: me } };
+    } else if (req.user!.role === "ADMIN") {
+      where = { role: { in: ["MENTOR", "STUDENT"] }, isActive: true, id: { not: me } };
+    } else {
+      return res.status(403).json({ error: "Not allowed" });
+    }
+    const contacts = await prisma.user.findMany({
+      where,
+      select: { id: true, name: true, role: true, track: true, profilePicture: true },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+    });
+    return res.json(contacts);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ─── GET /api/messages/instructor
 //     Student → find their track instructor's User record
@@ -171,6 +198,14 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
         senderId: true, receiverId: true,
         sender: { select: { name: true, profilePicture: true } },
       },
+    });
+
+    // Notify recipient
+    const sender = await prisma.user.findUnique({ where: { id: me }, select: { name: true } });
+    await createNotification({
+      userId: receiverId,
+      message: `New message from ${sender?.name ?? "someone"}: "${content.trim().slice(0, 60)}${content.trim().length > 60 ? "…" : ""}"`,
+      link: req.user!.role === "STUDENT" ? "/instructor/messages" : "/student/messages",
     });
 
     return res.status(201).json(message);

@@ -1,21 +1,23 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, TrendingUp, ClipboardCheck, MessageCircle,
-  CalendarClock, Trophy, Bell, LogOut, UserCog, Camera, Menu, X,
+  CalendarClock, Trophy, Bell, LogOut, UserCog, Menu, CreditCard,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/authStore";
 import { Avatar } from "@/components/PerfBadge";
 import { api } from "@/lib/api";
+import { useStore, getCurrentWeek } from "@/lib/store";
 
 const NAV = [
-  { to: "/student",           label: "Dashboard",   icon: LayoutDashboard, exact: true },
-  { to: "/student/progress",  label: "My Progress", icon: TrendingUp },
+  { to: "/student",             label: "Dashboard",   icon: LayoutDashboard, exact: true },
+  { to: "/student/id-card",     label: "ID Card",     icon: CreditCard },
+  { to: "/student/progress",    label: "My Progress", icon: TrendingUp },
   { to: "/student/self-report", label: "Self-Report", icon: ClipboardCheck },
-  { to: "/student/messages",  label: "Messages",    icon: MessageCircle },
-  { to: "/student/attendance",label: "Attendance",  icon: CalendarClock },
-  { to: "/student/leaderboard",label: "Leaderboard", icon: Trophy },
+  { to: "/student/messages",    label: "Messages",    icon: MessageCircle },
+  { to: "/student/attendance",  label: "Attendance",  icon: CalendarClock },
+  { to: "/student/leaderboard", label: "Leaderboard", icon: Trophy },
 ];
 
 interface StudentShellProps {
@@ -25,6 +27,7 @@ interface StudentShellProps {
 
 export function StudentShell({ children, title }: StudentShellProps) {
   const { user, student, logout } = useAuth();
+  const { settings } = useStore();
   const navigate = useNavigate();
   const { location } = useRouterState();
   const pathname = location.pathname;
@@ -111,7 +114,7 @@ export function StudentShell({ children, title }: StudentShellProps) {
           )}
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">{user?.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{student?.track} Track</p>
+            <p className="text-xs text-muted-foreground truncate">{student?.track}</p>
             {student?.studentCode && (
               <p className="text-[10px] font-mono text-brand truncate">{student.studentCode}</p>
             )}
@@ -120,7 +123,7 @@ export function StudentShell({ children, title }: StudentShellProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto min-h-0">
         {NAV.map((item) => {
           const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
           const Icon = item.icon;
@@ -147,20 +150,12 @@ export function StudentShell({ children, title }: StudentShellProps) {
         })}
       </nav>
 
-      {/* Bottom actions */}
-      <div className="px-3 py-3 border-t space-y-0.5 shrink-0">
-        <Link to="/edit-profile" onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-muted">
-          <Camera className="h-4 w-4" /> Edit Profile
-        </Link>
-        <Link to="/change-password" onClick={() => setSidebarOpen(false)}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-muted">
-          <UserCog className="h-4 w-4" /> Change Password
-        </Link>
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-muted">
-          <LogOut className="h-4 w-4" /> Log Out
-        </button>
+      {/* Bottom — cohort/week bar */}
+      <div className="p-4 border-t shrink-0">
+        <div className="rounded-lg bg-brand text-brand-foreground p-4">
+          <div className="text-xs font-semibold opacity-90">{settings.cohort_name || "Bootcamp"} · Week</div>
+          <div className="text-3xl font-bold mt-1">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
+        </div>
       </div>
     </>
   );
@@ -235,6 +230,32 @@ export function StudentShell({ children, title }: StudentShellProps) {
                 </div>
               )}
             </div>
+
+            {/* Profile pic / avatar */}
+            {user?.profilePicture ? (
+              <img src={user.profilePicture} alt={user.name ?? ""}
+                className="h-9 w-9 rounded-full object-cover shrink-0" />
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-bold shrink-0">
+                {initials}
+              </div>
+            )}
+            <div className="hidden sm:block">
+              <div className="text-sm font-medium leading-tight">{user?.name}</div>
+              <div className="text-xs text-muted-foreground">Student</div>
+            </div>
+
+            {/* Edit profile */}
+            <Link to="/student/edit-profile" title="Edit Profile"
+              className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center">
+              <UserCog className="h-4 w-4 text-muted-foreground" />
+            </Link>
+
+            {/* Logout */}
+            <button onClick={handleLogout} title="Log Out"
+              className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center">
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
         </header>
 

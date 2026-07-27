@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
+import { notifyAdmins, notifyTrackInstructor } from "./notifications";
 
 const router = Router();
 
@@ -70,10 +71,20 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
     const record = await prisma.attendance.create({
       data: {
         studentId: student.id,
-        date: start,           // store as the UTC midnight of today
+        date: start,
         clockInAt: now,
       },
     });
+
+    // Notify admin + track instructor
+    const sInfo = await prisma.student.findUnique({ where: { id: student.id }, select: { name: true } });
+    const msg = `${sInfo?.name ?? "A student"} clocked in at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+    const link = `/instructor/students/${student.id}`;
+    await Promise.all([
+      notifyAdmins(msg, link),
+      notifyTrackInstructor(student.id, msg, link),
+    ]);
+
     return res.status(201).json(record);
   } catch (err) {
     console.error(err);
@@ -114,6 +125,18 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
         notes: (req.body as { notes?: string }).notes ?? null,
       },
     });
+
+    // Notify admin + track instructor
+    const sInfo = await prisma.student.findUnique({ where: { id: student.id }, select: { name: true } });
+    const dur = minutesDiff(record.clockInAt, now);
+    const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur/60)}h ${dur%60}m`;
+    const msg = `${sInfo?.name ?? "A student"} clocked out. Session: ${durStr}.`;
+    const link = `/instructor/students/${student.id}`;
+    await Promise.all([
+      notifyAdmins(msg, link),
+      notifyTrackInstructor(student.id, msg, link),
+    ]);
+
     return res.json(updated);
   } catch (err) {
     console.error(err);
@@ -137,6 +160,34 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
       where: { studentId: student.id },
       orderBy: { date: "desc" },
       take: 60,
+    });
+    return res.json(records);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── GET /api/attendance/all  (instructor/admin: all with student info) ──────
+router.get("/all", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    // For MENTOR, filter to their track's students
+    let studentIds: string[] | undefined;
+    if (req.user!.role === "MENTOR") {
+      const instructor = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { track: true } });
+      if (instructor?.track) {
+        const students = await prisma.student.findMany({ where: { track: instructor.track }, select: { id: true } });
+        studentIds = students.map((s) => s.id);
+      }
+    }
+    const records = await prisma.attendance.findMany({
+      where: studentIds ? { studentId: { in: studentIds } } : {},
+      include: { student: { select: { id: true, name: true, track: true, studentCode: true } } },
+      orderBy: { date: "desc" },
+      take: 200,
     });
     return res.json(records);
   } catch (err) {

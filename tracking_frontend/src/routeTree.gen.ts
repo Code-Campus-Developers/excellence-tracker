@@ -27,17 +27,24 @@ import { Route as SelfReportRouteImport } from './routes/self-report'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAttendanceOverviewRouteImport } from './routes/admin/attendance-overview'
 import { Route as AdminManageRouteImport } from './routes/admin/manage'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as InstructorIndexRouteImport } from './routes/instructor/index'
+import { Route as InstructorAttendanceOverviewRouteImport } from './routes/instructor/attendance-overview'
 import { Route as InstructorEvaluateRouteImport } from './routes/instructor/evaluate'
+import { Route as InstructorIdCardRouteImport } from './routes/instructor/id-card'
 import { Route as InstructorInstructorsRouteImport } from './routes/instructor/instructors'
 import { Route as InstructorLeaderboardRouteImport } from './routes/instructor/leaderboard'
 import { Route as InstructorMessagesRouteImport } from './routes/instructor/messages'
+import { Route as InstructorReportsRouteImport } from './routes/instructor/reports'
 import { Route as InstructorSettingsRouteImport } from './routes/instructor/settings'
 import { Route as InstructorStudentsRouteImport } from './routes/instructor/students'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StudentAttendanceRouteImport } from './routes/student/attendance'
+import { Route as StudentEditProfileRouteImport } from './routes/student/edit-profile'
+import { Route as StudentIdCardRouteImport } from './routes/student/id-card'
 import { Route as StudentLeaderboardRouteImport } from './routes/student/leaderboard'
 import { Route as StudentMessagesRouteImport } from './routes/student/messages'
 import { Route as StudentProgressRouteImport } from './routes/student/progress'
@@ -134,9 +141,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAttendanceOverviewRoute = AdminAttendanceOverviewRouteImport.update({
+  id: '/attendance-overview',
+  path: '/attendance-overview',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminManageRoute = AdminManageRouteImport.update({
   id: '/manage',
   path: '/manage',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -149,9 +166,20 @@ const InstructorIndexRoute = InstructorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => InstructorRoute,
 } as any)
+const InstructorAttendanceOverviewRoute =
+  InstructorAttendanceOverviewRouteImport.update({
+    id: '/attendance-overview',
+    path: '/attendance-overview',
+    getParentRoute: () => InstructorRoute,
+  } as any)
 const InstructorEvaluateRoute = InstructorEvaluateRouteImport.update({
   id: '/evaluate',
   path: '/evaluate',
+  getParentRoute: () => InstructorRoute,
+} as any)
+const InstructorIdCardRoute = InstructorIdCardRouteImport.update({
+  id: '/id-card',
+  path: '/id-card',
   getParentRoute: () => InstructorRoute,
 } as any)
 const InstructorInstructorsRoute = InstructorInstructorsRouteImport.update({
@@ -167,6 +195,11 @@ const InstructorLeaderboardRoute = InstructorLeaderboardRouteImport.update({
 const InstructorMessagesRoute = InstructorMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => InstructorRoute,
+} as any)
+const InstructorReportsRoute = InstructorReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => InstructorRoute,
 } as any)
 const InstructorSettingsRoute = InstructorSettingsRouteImport.update({
@@ -187,6 +220,16 @@ const StudentIndexRoute = StudentIndexRouteImport.update({
 const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentEditProfileRoute = StudentEditProfileRouteImport.update({
+  id: '/edit-profile',
+  path: '/edit-profile',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentIdCardRoute = StudentIdCardRouteImport.update({
+  id: '/id-card',
+  path: '/id-card',
   getParentRoute: () => StudentRoute,
 } as any)
 const StudentLeaderboardRoute = StudentLeaderboardRouteImport.update({
@@ -233,15 +276,22 @@ export interface FileRoutesByFullPath {
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student': typeof StudentRouteWithChildren
+  '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/id-card': typeof InstructorIdCardRoute
   '/instructor/instructors': typeof InstructorInstructorsRoute
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/edit-profile': typeof StudentEditProfileRoute
+  '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
@@ -266,15 +316,22 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/id-card': typeof InstructorIdCardRoute
   '/instructor/instructors': typeof InstructorInstructorsRoute
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/edit-profile': typeof StudentEditProfileRoute
+  '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
@@ -303,15 +360,22 @@ export interface FileRoutesById {
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student': typeof StudentRouteWithChildren
+  '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
+  '/instructor/id-card': typeof InstructorIdCardRoute
   '/instructor/instructors': typeof InstructorInstructorsRoute
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
+  '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/edit-profile': typeof StudentEditProfileRoute
+  '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
@@ -341,15 +405,22 @@ export interface FileRouteTypes {
     | '/self-report'
     | '/sitemap.xml'
     | '/student'
+    | '/admin/attendance-overview'
     | '/admin/manage'
+    | '/admin/reports'
     | '/admin/settings'
+    | '/instructor/attendance-overview'
     | '/instructor/evaluate'
+    | '/instructor/id-card'
     | '/instructor/instructors'
     | '/instructor/leaderboard'
     | '/instructor/messages'
+    | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
     | '/student/attendance'
+    | '/student/edit-profile'
+    | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
@@ -374,15 +445,22 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/self-report'
     | '/sitemap.xml'
+    | '/admin/attendance-overview'
     | '/admin/manage'
+    | '/admin/reports'
     | '/admin/settings'
+    | '/instructor/attendance-overview'
     | '/instructor/evaluate'
+    | '/instructor/id-card'
     | '/instructor/instructors'
     | '/instructor/leaderboard'
     | '/instructor/messages'
+    | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
     | '/student/attendance'
+    | '/student/edit-profile'
+    | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
@@ -410,15 +488,22 @@ export interface FileRouteTypes {
     | '/self-report'
     | '/sitemap.xml'
     | '/student'
+    | '/admin/attendance-overview'
     | '/admin/manage'
+    | '/admin/reports'
     | '/admin/settings'
+    | '/instructor/attendance-overview'
     | '/instructor/evaluate'
+    | '/instructor/id-card'
     | '/instructor/instructors'
     | '/instructor/leaderboard'
     | '/instructor/messages'
+    | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
     | '/student/attendance'
+    | '/student/edit-profile'
+    | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
@@ -577,11 +662,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/attendance-overview': {
+      id: '/admin/attendance-overview'
+      path: '/attendance-overview'
+      fullPath: '/admin/attendance-overview'
+      preLoaderRoute: typeof AdminAttendanceOverviewRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/manage': {
       id: '/admin/manage'
       path: '/manage'
       fullPath: '/admin/manage'
       preLoaderRoute: typeof AdminManageRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -598,11 +697,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstructorIndexRouteImport
       parentRoute: typeof InstructorRoute
     }
+    '/instructor/attendance-overview': {
+      id: '/instructor/attendance-overview'
+      path: '/attendance-overview'
+      fullPath: '/instructor/attendance-overview'
+      preLoaderRoute: typeof InstructorAttendanceOverviewRouteImport
+      parentRoute: typeof InstructorRoute
+    }
     '/instructor/evaluate': {
       id: '/instructor/evaluate'
       path: '/evaluate'
       fullPath: '/instructor/evaluate'
       preLoaderRoute: typeof InstructorEvaluateRouteImport
+      parentRoute: typeof InstructorRoute
+    }
+    '/instructor/id-card': {
+      id: '/instructor/id-card'
+      path: '/id-card'
+      fullPath: '/instructor/id-card'
+      preLoaderRoute: typeof InstructorIdCardRouteImport
       parentRoute: typeof InstructorRoute
     }
     '/instructor/instructors': {
@@ -624,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/instructor/messages'
       preLoaderRoute: typeof InstructorMessagesRouteImport
+      parentRoute: typeof InstructorRoute
+    }
+    '/instructor/reports': {
+      id: '/instructor/reports'
+      path: '/reports'
+      fullPath: '/instructor/reports'
+      preLoaderRoute: typeof InstructorReportsRouteImport
       parentRoute: typeof InstructorRoute
     }
     '/instructor/settings': {
@@ -652,6 +772,20 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/student/attendance'
       preLoaderRoute: typeof StudentAttendanceRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/edit-profile': {
+      id: '/student/edit-profile'
+      path: '/edit-profile'
+      fullPath: '/student/edit-profile'
+      preLoaderRoute: typeof StudentEditProfileRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/id-card': {
+      id: '/student/id-card'
+      path: '/id-card'
+      fullPath: '/student/id-card'
+      preLoaderRoute: typeof StudentIdCardRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/leaderboard': {
@@ -693,13 +827,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAttendanceOverviewRoute: typeof AdminAttendanceOverviewRoute
   AdminManageRoute: typeof AdminManageRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAttendanceOverviewRoute: AdminAttendanceOverviewRoute,
   AdminManageRoute: AdminManageRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -718,20 +856,26 @@ const InstructorStudentsRouteWithChildren =
   InstructorStudentsRoute._addFileChildren(InstructorStudentsRouteChildren)
 
 interface InstructorRouteChildren {
+  InstructorAttendanceOverviewRoute: typeof InstructorAttendanceOverviewRoute
   InstructorEvaluateRoute: typeof InstructorEvaluateRoute
+  InstructorIdCardRoute: typeof InstructorIdCardRoute
   InstructorInstructorsRoute: typeof InstructorInstructorsRoute
   InstructorLeaderboardRoute: typeof InstructorLeaderboardRoute
   InstructorMessagesRoute: typeof InstructorMessagesRoute
+  InstructorReportsRoute: typeof InstructorReportsRoute
   InstructorSettingsRoute: typeof InstructorSettingsRoute
   InstructorStudentsRoute: typeof InstructorStudentsRouteWithChildren
   InstructorIndexRoute: typeof InstructorIndexRoute
 }
 
 const InstructorRouteChildren: InstructorRouteChildren = {
+  InstructorAttendanceOverviewRoute: InstructorAttendanceOverviewRoute,
   InstructorEvaluateRoute: InstructorEvaluateRoute,
+  InstructorIdCardRoute: InstructorIdCardRoute,
   InstructorInstructorsRoute: InstructorInstructorsRoute,
   InstructorLeaderboardRoute: InstructorLeaderboardRoute,
   InstructorMessagesRoute: InstructorMessagesRoute,
+  InstructorReportsRoute: InstructorReportsRoute,
   InstructorSettingsRoute: InstructorSettingsRoute,
   InstructorStudentsRoute: InstructorStudentsRouteWithChildren,
   InstructorIndexRoute: InstructorIndexRoute,
@@ -743,6 +887,8 @@ const InstructorRouteWithChildren = InstructorRoute._addFileChildren(
 
 interface StudentRouteChildren {
   StudentAttendanceRoute: typeof StudentAttendanceRoute
+  StudentEditProfileRoute: typeof StudentEditProfileRoute
+  StudentIdCardRoute: typeof StudentIdCardRoute
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   StudentMessagesRoute: typeof StudentMessagesRoute
   StudentProgressRoute: typeof StudentProgressRoute
@@ -752,6 +898,8 @@ interface StudentRouteChildren {
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentAttendanceRoute: StudentAttendanceRoute,
+  StudentEditProfileRoute: StudentEditProfileRoute,
+  StudentIdCardRoute: StudentIdCardRoute,
   StudentLeaderboardRoute: StudentLeaderboardRoute,
   StudentMessagesRoute: StudentMessagesRoute,
   StudentProgressRoute: StudentProgressRoute,

@@ -1,7 +1,7 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardCheck, Users, Trophy,
-  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap, MessageCircle,
+  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap, MessageCircle, CreditCard, FileText, CalendarDays,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { ReactNode } from "react";
@@ -109,6 +109,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/instructor/instructors", label: "Instructors", icon: GraduationCap },
     { to: "/instructor/leaderboard", label: "Leaderboard", icon: Trophy },
     { to: "/instructor/messages", label: "Messages", icon: MessageCircle },
+    { to: user?.role === "ADMIN" ? "/admin/reports" : "/instructor/reports", label: "Self-Reports", icon: FileText },
+    { to: user?.role === "ADMIN" ? "/admin/attendance-overview" : "/instructor/attendance-overview", label: "Attendance", icon: CalendarDays },
+    { to: "/instructor/id-card", label: "ID Card", icon: CreditCard },
     // Only show instructor settings for MENTOR role | admins use /admin/settings
     ...(user?.role === "MENTOR" ? [{ to: "/instructor/settings", label: "Settings", icon: UserCog }] : []),
   ];
@@ -148,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto min-h-0">
           {MENTOR_NAV.map((item) => {
             const active =
               item.to === primaryDashboard ? pathname === primaryDashboard : pathname.startsWith(item.to);

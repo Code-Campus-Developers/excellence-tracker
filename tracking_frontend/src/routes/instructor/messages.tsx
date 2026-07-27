@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, Users } from "lucide-react";
+import { Send, MessageCircle, Loader2, Users, Plus, Shield } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,16 +26,12 @@ interface ThreadSummary {
 }
 
 interface Message {
-  id: string;
-  content: string;
-  isRead: boolean;
-  createdAt: string;
-  senderId: string;
-  receiverId: string;
+  id: string; content: string; isRead: boolean; createdAt: string;
+  senderId: string; receiverId: string;
   sender: { name: string; profilePicture: string | null };
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+interface Contact { id: string; name: string; role: string; track: string | null; profilePicture: string | null; }
 
 function InstructorMessages() {
   const { user } = useAuth();
@@ -47,6 +43,8 @@ function InstructorMessages() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [showContacts, setShowContacts] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -70,6 +68,8 @@ function InstructorMessages() {
   useEffect(() => {
     fetchInbox().finally(() => setInboxLoading(false));
     const inboxPoll = setInterval(fetchInbox, 20_000);
+    // Load contacts (admins) for "New Message" button
+    api.get<Contact[]>("/api/messages/contacts").then(setContacts).catch(() => {});
     return () => clearInterval(inboxPoll);
   }, [fetchInbox]);
 
@@ -124,7 +124,28 @@ function InstructorMessages() {
         {/* ── Inbox sidebar ── */}
         <Card className="overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b">
+          <div className="px-4 py-3 border-b flex items-center justify-between">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Conversations</p>
+            {contacts.length > 0 && (
+              <button onClick={() => setShowContacts((p) => !p)}
+                className="h-7 w-7 rounded-full hover:bg-muted flex items-center justify-center" title="Message admin">
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          {showContacts && contacts.length > 0 && (
+            <div className="border-b bg-muted/30 px-3 py-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">Start conversation</p>
+              {contacts.map((c) => (
+                <button key={c.id} onClick={() => { setActiveId(c.id); setShowContacts(false); }}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background text-left">
+                  <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium">{c.name}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize ml-auto">{c.role === "ADMIN" ? "Admin" : "Instructor"}</span>
+                </button>
+              ))}
+            </div>
+          )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {inboxLoading ? (
