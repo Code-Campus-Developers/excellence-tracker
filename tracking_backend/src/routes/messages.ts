@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
+import { getCurrentInstructorForTrack } from "./track-assignments";
 import { createNotification } from "./notifications";
 
 const router = Router();
@@ -186,7 +187,9 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
       if (!instructor) {
         return res.status(403).json({ error: "You can only message your track instructor" });
       }
-      if (instructor.track !== student.track) {
+      // Verify this instructor is the current one for the student's track
+      const currentInstructor = await getCurrentInstructorForTrack(student.track);
+      if (!currentInstructor || currentInstructor.id !== receiverId) {
         return res.status(403).json({ error: "You can only message your track instructor" });
       }
     }

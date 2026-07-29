@@ -15,6 +15,7 @@ import selfReportsRouter from "./routes/self-reports";
 import messagesRouter from "./routes/messages";
 import attendanceRouter from "./routes/attendance";
 import uploadRouter from "./routes/upload";
+import trackAssignmentsRouter from "./routes/track-assignments";
 import prisma from "./lib/prisma";
 import { authenticate } from "./middleware/authenticate";
 
@@ -30,13 +31,16 @@ app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:8080" }));
 // Body parser
 app.use(express.json());
 
-// Rate limit auth endpoints (max 20 requests per 15 min per IP)
+// Rate limit only sensitive auth endpoints (login, register, forgot/reset password)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 30,
   message: { error: "Too many requests, please try again later." },
 });
-app.use("/auth", authLimiter);
+app.use("/auth/login", authLimiter);
+app.use("/auth/register", authLimiter);
+app.use("/auth/forgot-password", authLimiter);
+app.use("/auth/reset-password", authLimiter);
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -55,6 +59,7 @@ app.use("/api/self-reports", selfReportsRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/admin/track-assignments", trackAssignmentsRouter);
 
 // GET /api/instructors — list instructors, accessible to any authenticated user
 app.get("/api/instructors", authenticate, async (_req, res) => {

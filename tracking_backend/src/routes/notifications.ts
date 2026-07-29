@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
+import { getCurrentInstructorForTrack } from "./track-assignments";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
 
 const router = Router();
@@ -69,10 +70,10 @@ export async function notifyInstructors(message: string, link?: string) {
   await Promise.all(instructors.map((m) => createNotification({ userId: m.id, message, link })));
 }
 
-// Helper — notify the track instructor of a student
+// Helper — notify the currently active track instructor for a student
 export async function notifyTrackInstructor(studentId: string, message: string, link?: string) {
   const student = await prisma.student.findUnique({ where: { id: studentId }, select: { track: true } });
   if (!student?.track) return;
-  const instructor = await prisma.user.findFirst({ where: { role: "MENTOR", track: student.track, isActive: true }, select: { id: true } });
+  const instructor = await getCurrentInstructorForTrack(student.track);
   if (instructor) await createNotification({ userId: instructor.id, message, link });
 }

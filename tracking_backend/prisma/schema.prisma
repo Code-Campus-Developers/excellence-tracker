@@ -15,20 +15,21 @@ enum Role {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  name           String
-  email          String    @unique
-  passwordHash   String    @map("password_hash")
-  role           Role      @default(STUDENT)
-  track          String?
-  isActive       Boolean   @default(true) @map("is_active")
-  profilePicture String?   @map("profile_picture")
-  resetToken     String?   @map("reset_token")
-  resetExpires   DateTime? @map("reset_expires")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  student        Student?
-  sentMessages   Message[] @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
+  id               String             @id @default(cuid())
+  name             String
+  email            String             @unique
+  passwordHash     String             @map("password_hash")
+  role             Role               @default(STUDENT)
+  track            String?
+  isActive         Boolean            @default(true) @map("is_active")
+  profilePicture   String?            @map("profile_picture")
+  resetToken       String?            @map("reset_token")
+  resetExpires     DateTime?          @map("reset_expires")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  student          Student?
+  sentMessages     Message[]          @relation("MessageSender")
+  receivedMessages Message[]          @relation("MessageReceiver")
+  trackAssignments TrackAssignment[]
 
   @@map("users")
 }
@@ -170,4 +171,19 @@ model Attendance {
   @@unique([studentId, date])
   @@index([date])
   @@map("attendance")
+}
+
+model TrackAssignment {
+  id           String    @id @default(cuid())
+  instructorId String    @map("instructor_id")
+  track        String
+  startDate    DateTime  @map("start_date")
+  endDate      DateTime? @map("end_date")
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  instructor   User      @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@index([track, startDate])
+  @@map("track_assignments")
 }

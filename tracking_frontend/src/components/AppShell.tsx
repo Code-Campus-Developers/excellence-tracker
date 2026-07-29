@@ -21,6 +21,7 @@ interface Notification {
 
 const ADMIN_EXTRA_NAV = [
   { to: "/admin/manage", label: "User Management", icon: Shield },
+  { to: "/admin/track-assignments", label: "Track Assignments", icon: GraduationCap },
   { to: "/admin/settings", label: "Settings", icon: UserCog },
 ];
 

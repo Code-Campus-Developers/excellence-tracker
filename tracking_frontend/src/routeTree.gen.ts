@@ -31,6 +31,7 @@ import { Route as AdminAttendanceOverviewRouteImport } from './routes/admin/atte
 import { Route as AdminManageRouteImport } from './routes/admin/manage'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminTrackAssignmentsRouteImport } from './routes/admin/track-assignments'
 import { Route as InstructorIndexRouteImport } from './routes/instructor/index'
 import { Route as InstructorAttendanceOverviewRouteImport } from './routes/instructor/attendance-overview'
 import { Route as InstructorEvaluateRouteImport } from './routes/instructor/evaluate'
@@ -161,6 +162,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTrackAssignmentsRoute = AdminTrackAssignmentsRouteImport.update({
+  id: '/track-assignments',
+  path: '/track-assignments',
+  getParentRoute: () => AdminRoute,
+} as any)
 const InstructorIndexRoute = InstructorIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/admin/manage': typeof AdminManageRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
@@ -320,6 +327,7 @@ export interface FileRoutesByTo {
   '/admin/manage': typeof AdminManageRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
@@ -364,6 +372,7 @@ export interface FileRoutesById {
   '/admin/manage': typeof AdminManageRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
@@ -409,6 +418,7 @@ export interface FileRouteTypes {
     | '/admin/manage'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/track-assignments'
     | '/instructor/attendance-overview'
     | '/instructor/evaluate'
     | '/instructor/id-card'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/admin/manage'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/track-assignments'
     | '/instructor/attendance-overview'
     | '/instructor/evaluate'
     | '/instructor/id-card'
@@ -492,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/manage'
     | '/admin/reports'
     | '/admin/settings'
+    | '/admin/track-assignments'
     | '/instructor/attendance-overview'
     | '/instructor/evaluate'
     | '/instructor/id-card'
@@ -690,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/track-assignments': {
+      id: '/admin/track-assignments'
+      path: '/track-assignments'
+      fullPath: '/admin/track-assignments'
+      preLoaderRoute: typeof AdminTrackAssignmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/instructor/': {
       id: '/instructor/'
       path: '/'
@@ -831,6 +850,7 @@ interface AdminRouteChildren {
   AdminManageRoute: typeof AdminManageRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminTrackAssignmentsRoute: typeof AdminTrackAssignmentsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -839,6 +859,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminManageRoute: AdminManageRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminTrackAssignmentsRoute: AdminTrackAssignmentsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 

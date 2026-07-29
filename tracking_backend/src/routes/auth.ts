@@ -67,7 +67,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
   res.status(201).json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null },
     student: user.student,
   });
 });
@@ -106,7 +106,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null },
     student: user.student ?? null,
   });
 });
@@ -119,7 +119,7 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
   });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   res.json({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null },
     student: user.student ?? null,
   });
 });
