@@ -5,7 +5,12 @@
  */
 import prisma from "./lib/prisma";
 import { hashPassword } from "./lib/auth";
-import { TRACKS } from "./lib/tracking";
+
+const TRACKS = [
+  "Software Engineering", "Data Analytics", "Cloud Engineering",
+  "Digital Marketing", "Cybersecurity Engineering", "Artificial Intelligence (AI)",
+  "Blockchain Engineering", "Project Management", "Product Design", "Product Management",
+];
 
 async function seedProd() {
   console.log("🌱 Running production seed...");
@@ -41,7 +46,7 @@ async function seedProd() {
     console.log("✅ Settings already exist — skipping");
   } else {
     const defaultTrackWeeks: Record<string, number> = {};
-    TRACKS.forEach((t) => (defaultTrackWeeks[t] = 1));
+    TRACKS.forEach((t: string) => (defaultTrackWeeks[t] = 1));
 
     await prisma.setting.createMany({
       data: [

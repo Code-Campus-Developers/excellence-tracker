@@ -56,8 +56,7 @@ adminSettingsRouter.put("/", async (req: AuthRequest, res: Response) => {
   res.json(settings);
 });
 
-export default router;
-
+// adminSettingsRouter is exported as named export
 adminSettingsRouter.get("/", async (_req: AuthRequest, res: Response) => {
   const rows = await prisma.setting.findMany();
   const settings: Record<string, string> = {};

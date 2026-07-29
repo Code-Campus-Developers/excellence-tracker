@@ -35,7 +35,7 @@ export async function audit(
         userName,
         userRole,
         action,
-        details,
+        details: details as object,
         ipAddress: ip,
       },
     });
