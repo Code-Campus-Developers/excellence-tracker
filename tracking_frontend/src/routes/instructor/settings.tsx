@@ -87,22 +87,17 @@ function InstructorSettings() {
         }
       />
 
-      {/* Cohort Info */}
+      {/* Bootcamp Schedule */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">Cohort Information</CardTitle>
+          <CardTitle className="text-base">Bootcamp Schedule</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Set the cohort name and start date. The current week is auto-calculated from
-            the start date | or you can override it manually below.
+            Set the bootcamp start date. The current week is auto-calculated from
+            the start date — or you can override it manually below.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="mb-1.5 block">Cohort Name</Label>
-              <Input placeholder="e.g. Cohort 3" value={cohortName}
-                onChange={(e) => setCohortName(e.target.value)} />
-            </div>
             <div>
               <Label className="mb-1.5 block">Start Date
                 <span className="text-muted-foreground text-xs ml-1">(auto-calculates week)</span>

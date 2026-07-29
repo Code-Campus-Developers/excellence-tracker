@@ -85,7 +85,7 @@ function StudentIdCard() {
     return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
   })();
 
-  const qrValue = `${code} | ${name} | ${cohort}`;
+  const qrValue = `${code} | ${name}`;
   const cardStyle: React.CSSProperties = { width: CARD_W, fontFamily: "system-ui, sans-serif", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" };
 
   return (
@@ -114,7 +114,6 @@ function StudentIdCard() {
               <div style={{ fontSize: 10, color: "#15803d", fontWeight: 600, marginTop: 2 }}>{track}</div>
               <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 8px" }}>
                 <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Student ID</div><div style={{ fontSize: 11, fontWeight: 700, color: "#15803d", fontFamily: "monospace" }}>{code}</div></div>
-                <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Cohort</div><div style={{ fontSize: 11, fontWeight: 600, color: "#111" }}>{cohort}</div></div>
                 <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Issue Date</div><div style={{ fontSize: 9, color: "#111" }}>{issueDate}</div></div>
                 <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Expiry Date</div><div style={{ fontSize: 9, color: "#111" }}>{expiryDate}</div></div>
                 <div style={{ gridColumn: "span 2" }}><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Email</div><div style={{ fontSize: 9, color: "#374151", wordBreak: "break-all" }}>{user?.email}</div></div>
@@ -148,9 +147,8 @@ function StudentIdCard() {
               <strong style={{ color: "#15803d" }}>Code Campus International</strong>.<br />
               If found, please return to the nearest Code Campus office.
             </div>
-            <div style={{ marginTop: 8, borderTop: "1px solid #e5e7eb", paddingTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px" }}>
+            <div style={{ marginTop: 8, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
               <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Student ID</div><div style={{ fontSize: 9, fontWeight: 700, color: "#15803d", fontFamily: "monospace" }}>{code}</div></div>
-              <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Cohort</div><div style={{ fontSize: 9, fontWeight: 600, color: "#111" }}>{cohort}</div></div>
             </div>
             <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
               <div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Authorised Signature</div>

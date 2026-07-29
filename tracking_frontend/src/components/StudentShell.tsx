@@ -153,7 +153,7 @@ export function StudentShell({ children, title }: StudentShellProps) {
       {/* Bottom — cohort/week bar */}
       <div className="p-4 border-t shrink-0">
         <div className="rounded-lg bg-brand text-brand-foreground p-4">
-          <div className="text-xs font-semibold opacity-90">{settings.cohort_name || "Bootcamp"} · Week</div>
+          <div className="text-xs font-semibold opacity-90">Week</div>
           <div className="text-3xl font-bold mt-1">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
         </div>
       </div>

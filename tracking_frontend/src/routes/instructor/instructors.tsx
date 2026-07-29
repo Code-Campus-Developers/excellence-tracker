@@ -97,7 +97,7 @@ function InstructorsList() {
     <AppShell>
       <PageHeader
         title="Instructors"
-        subtitle={`${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} in the current cohort.`}
+        subtitle={`${instructors.length} instructor${instructors.length !== 1 ? "s" : ""} in this programme.`}
         actions={
           isAdmin ? (
             <Button onClick={() => setDialogOpen(true)} className="bg-brand text-brand-foreground hover:bg-brand/90">
