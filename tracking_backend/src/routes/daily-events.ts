@@ -41,8 +41,8 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
     const student = await prisma.student.findFirst({ where: { userId: req.user!.userId }, select: { id: true, name: true } });
     if (!student) return res.status(404).json({ error: "Student not found" });
 
-    const { description, image1, image2, date } = req.body as {
-      description?: string; image1?: string | null; image2?: string | null; date?: string;
+    const { description, image1, image2, image3, date } = req.body as {
+      description?: string; image1?: string | null; image2?: string | null; image3?: string | null; date?: string;
     };
 
     const now = date ? new Date(date) : new Date();
@@ -55,13 +55,13 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
       // Update existing record
       const updated = await prisma.dailyEvent.update({
         where: { id: existing.id },
-        data: { description: description ?? null, image1: image1 ?? null, image2: image2 ?? null },
+        data: { description: description ?? null, image1: image1 ?? null, image2: image2 ?? null, image3: image3 ?? null },
       });
       return res.json(updated);
     }
 
     const event = await prisma.dailyEvent.create({
-      data: { studentId: student.id, date: startOfDay, description: description ?? null, image1: image1 ?? null, image2: image2 ?? null },
+      data: { studentId: student.id, date: startOfDay, description: description ?? null, image1: image1 ?? null, image2: image2 ?? null, image3: image3 ?? null },
     });
 
     // Notify admin + instructor

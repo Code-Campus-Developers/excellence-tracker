@@ -197,6 +197,7 @@ model DailyEvent {
   description String?
   image1      String?  @map("image_1")
   image2      String?  @map("image_2")
+  image3      String?  @map("image_3")
   createdAt   DateTime @default(now()) @map("created_at")
 
   student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)

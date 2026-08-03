@@ -149,3 +149,46 @@ export async function sendTrackInstructorAssignedEmail(opts: {
     `,
   });
 }
+
+export async function sendEditRequestEmail(opts: {
+  to: string; recipientName: string; studentName: string; week: number;
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Edit Request: ${opts.studentName} - Week ${opts.week} Self-Report — Code Campus`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#f59e0b">Edit Request 📝</h2>
+        <p>Hi <strong>${opts.recipientName}</strong>,</p>
+        <p><strong>${opts.studentName}</strong> has requested to edit their <strong>Week ${opts.week}</strong> self-report (which was previously verified).</p>
+        <p>Please log in to review and approve or deny this request.</p>
+        <a href="${APP_URL}/instructor/reports" style="display:inline-block;background:#f59e0b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Review Request</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendEditApprovalEmail(opts: {
+  to: string; studentName: string; week: number; approved: boolean;
+}) {
+  const color = opts.approved ? "#16a34a" : "#dc2626";
+  const title = opts.approved ? "Edit Request Approved ✅" : "Edit Request Denied ❌";
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Your Week ${opts.week} Edit Request ${opts.approved ? "Approved" : "Denied"} — Code Campus`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:${color}">${title}</h2>
+        <p>Hi <strong>${opts.studentName}</strong>,</p>
+        ${opts.approved
+          ? `<p>Your request to edit your <strong>Week ${opts.week}</strong> self-report has been <strong>approved</strong>. You can now log in and make your changes.</p>`
+          : `<p>Your request to edit your <strong>Week ${opts.week}</strong> self-report has been <strong>denied</strong> by your instructor.</p>`}
+        <a href="${APP_URL}/student/self-report" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Go to Self-Reports</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}

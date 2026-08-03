@@ -173,6 +173,7 @@ function EventRow({ form, setForm, disabled }: { form: FormState; setForm: React
 
   const ref1Ref = useRef<HTMLInputElement>(null);
   const ref2Ref = useRef<HTMLInputElement>(null);
+  const ref3Ref = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex flex-col gap-2 py-4 border-b last:border-0">
@@ -210,6 +211,7 @@ function DailyEventSection() {
   const [desc, setDesc] = useState("");
   const [image1, setImage1] = useState("");
   const [image2, setImage2] = useState("");
+  const [image3, setImage3] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<1 | 2 | null>(null);
   const ref1 = useRef<HTMLInputElement>(null);
@@ -218,12 +220,12 @@ function DailyEventSection() {
   useEffect(() => {
     api.get<DailyEventRecord | null>("/api/daily-events/today").then((d) => {
       setToday(d);
-      if (d) { setDesc(d.description ?? ""); setImage1(d.image1 ?? ""); setImage2(d.image2 ?? ""); }
+      if (d) { setDesc(d.description ?? ""); setImage1(d.image1 ?? ""); setImage2(d.image2 ?? ""); setImage3((d as any).image3 ?? ""); }
     }).catch(() => setToday(null));
     api.get<DailyEventRecord[]>("/api/daily-events/me").then((d) => setHistory(d ?? [])).catch(() => {});
   }, []);
 
-  const uploadPhoto = async (file: File, slot: 1 | 2) => {
+  const uploadPhoto = async (file: File, slot: 1 | 2 | 3) => {
     setUploading(slot);
     try {
       const fd = new FormData(); fd.append("file", file);
@@ -232,7 +234,7 @@ function DailyEventSection() {
       const res = await fetch(`${BASE}/api/upload/profile-picture`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const { url } = await res.json() as { url: string };
-      if (slot === 1) setImage1(url); else setImage2(url);
+      if (slot === 1) setImage1(url); else if (slot === 2) setImage2(url); else setImage3(url);
       toast.success(`Photo ${slot} uploaded`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Upload failed"); }
     finally { setUploading(null); }
@@ -243,7 +245,7 @@ function DailyEventSection() {
     setSaving(true);
     try {
       const result = await api.post<DailyEventRecord>("/api/daily-events", {
-        description: desc || null, image1: image1 || null, image2: image2 || null,
+        description: desc || null, image1: image1 || null, image2: image2 || null, image3: image3 || null,
       });
       setToday(result);
       setHistory((prev) => {
@@ -255,14 +257,14 @@ function DailyEventSection() {
     finally { setSaving(false); }
   };
 
-  const ImageSlot = ({ slot, imgRef }: { slot: 1 | 2; imgRef: React.RefObject<HTMLInputElement | null> }) => {
-    const url = slot === 1 ? image1 : image2;
+  const ImageSlot = ({ slot, imgRef }: { slot: 1 | 2 | 3; imgRef: React.RefObject<HTMLInputElement | null> }) => {
+    const url = slot === 1 ? image1 : slot === 2 ? image2 : image3;
     return (
       <div>
         {url ? (
           <div className="relative inline-block">
             <img src={url} alt={`Photo ${slot}`} className="h-20 w-20 rounded-lg object-cover border-2 border-brand" />
-            <button type="button" onClick={() => slot === 1 ? setImage1("") : setImage2("")}
+            <button type="button" onClick={() => slot === 1 ? setImage1("") : slot === 2 ? setImage2("") : setImage3("")}
               className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center">
               <X className="h-3 w-3" />
             </button>
@@ -275,13 +277,14 @@ function DailyEventSection() {
           </button>
         )}
         <input ref={imgRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, slot); }} />
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, slot as 1 | 2 | 3); }} />
       </div>
     );
   };
 
   const ref1Ref = useRef<HTMLInputElement>(null);
   const ref2Ref = useRef<HTMLInputElement>(null);
+  const ref3Ref = useRef<HTMLInputElement>(null);
 
   return (
     <Card>
@@ -289,18 +292,19 @@ function DailyEventSection() {
         <CardTitle className="text-lg flex items-center gap-2">
           <Calendar className="h-5 w-5 text-brand" /> Daily Event / Workshop
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Log any event, meetup, webinar, or workshop you attended today. Upload up to 2 proof photos.</p>
+        <p className="text-xs text-muted-foreground">Log any event, meetup, webinar, or workshop you attended today. Upload up to 3 proof photos.</p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <Label className="mb-1.5 block text-sm">What did you attend today? (optional)</Label>
+            <Label className="mb-1.5 block text-sm">What did you attend today?</Label>
             <Input placeholder="e.g. Attended a webinar on React..." value={desc} onChange={(e) => setDesc(e.target.value)} />
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-3 flex-wrap items-center">
             <ImageSlot slot={1} imgRef={ref1Ref} />
             <ImageSlot slot={2} imgRef={ref2Ref} />
-            <p className="text-xs text-muted-foreground">Upload proof photos</p>
+            <ImageSlot slot={3} imgRef={ref3Ref} />
+            <p className="text-xs text-muted-foreground">Upload up to 3 proof photos</p>
           </div>
           <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={saving}>
             {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : today ? "Update Today's Event" : "Log Today's Event"}
@@ -316,10 +320,11 @@ function DailyEventSection() {
                   <span className="text-xs text-muted-foreground w-20 shrink-0">{new Date(e.date).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
                   <div className="flex-1 min-w-0">
                     {e.description && <p className="truncate">{e.description}</p>}
-                    {(e.image1 || e.image2) && (
+                    {(e.image1 || e.image2 || (e as any).image3) && (
                       <div className="flex gap-2 mt-1">
                         {e.image1 && <a href={e.image1} target="_blank" rel="noreferrer"><img src={e.image1} alt="proof 1" className="h-12 w-12 rounded object-cover border hover:opacity-90" /></a>}
                         {e.image2 && <a href={e.image2} target="_blank" rel="noreferrer"><img src={e.image2} alt="proof 2" className="h-12 w-12 rounded object-cover border hover:opacity-90" /></a>}
+                        {(e as any).image3 && <a href={(e as any).image3} target="_blank" rel="noreferrer"><img src={(e as any).image3} alt="proof 3" className="h-12 w-12 rounded object-cover border hover:opacity-90" /></a>}
                       </div>
                     )}
                   </div>

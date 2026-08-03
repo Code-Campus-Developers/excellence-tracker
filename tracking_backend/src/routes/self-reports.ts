@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
 import { notifyAdmins, notifyTrackInstructor, createNotification } from "./notifications";
-import { sendSelfReportVerifiedEmail } from "../lib/email";
+import { sendSelfReportVerifiedEmail, sendEditRequestEmail, sendEditApprovalEmail } from "../lib/email";
 
 const router = Router();
 
@@ -198,7 +198,7 @@ router.patch("/:id/request-edit", authenticate, async (req: AuthRequest, res: Re
       data: { editRequested: true },
     });
 
-    // Notify admin + instructor
+    // Notify admin + instructor (in-app + email)
     const studentInfo = await prisma.student.findFirst({ where: { userId: req.user!.userId }, select: { id: true, name: true } });
     if (studentInfo) {
       const msg = `${studentInfo.name} requested to edit their Week ${report.weekNumber} self-report.`;
@@ -207,6 +207,20 @@ router.patch("/:id/request-edit", authenticate, async (req: AuthRequest, res: Re
         notifyAdmins(msg, link),
         notifyTrackInstructor(studentInfo.id, msg, link),
       ]).catch(() => {/* silent */});
+
+      // Email track instructor
+      const currentInstructor = await prisma.user.findFirst({
+        where: { role: "MENTOR", track: (await prisma.student.findUnique({ where: { id: studentInfo.id }, select: { track: true } }))?.track ?? "", isActive: true },
+        select: { email: true, name: true },
+      });
+      if (currentInstructor?.email) {
+        try { await sendEditRequestEmail({ to: currentInstructor.email, recipientName: currentInstructor.name, studentName: studentInfo.name, week: report.weekNumber }); } catch { /* silent */ }
+      }
+      // Email all admins
+      const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { email: true, name: true } });
+      for (const admin of admins) {
+        try { await sendEditRequestEmail({ to: admin.email, recipientName: admin.name, studentName: studentInfo.name, week: report.weekNumber }); } catch { /* silent */ }
+      }
     }
     return res.json(updated);
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
@@ -233,12 +247,18 @@ router.patch("/:id/approve-edit", authenticate, async (req: AuthRequest, res: Re
       },
     });
 
-    // Notify the student
+    // Notify the student (in-app + email)
     if (report.student.userId) {
       const msg = approved
         ? `Your edit request for Week ${report.weekNumber} self-report was approved. You can now edit and resubmit.`
         : `Your edit request for Week ${report.weekNumber} self-report was denied.`;
       await createNotification({ userId: report.student.userId, message: msg, link: "/student/self-report" });
+
+      // Send email to student
+      const studentUser = await prisma.user.findUnique({ where: { id: report.student.userId }, select: { email: true } });
+      if (studentUser?.email) {
+        try { await sendEditApprovalEmail({ to: studentUser.email, studentName: report.student.name, week: report.weekNumber, approved }); } catch { /* silent */ }
+      }
     }
     return res.json(updated);
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
