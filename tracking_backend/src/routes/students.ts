@@ -47,8 +47,11 @@ router.post("/enroll", authorize("MENTOR", "ADMIN"), async (req: Request, res: R
 
 // GET /api/students
 router.get("/", async (_req: Request, res: Response) => {
-  const students = await prisma.student.findMany({ orderBy: { name: "asc" } });
-  res.json(students);
+  const students = await prisma.student.findMany({
+    orderBy: { name: "asc" },
+    include: { user: { select: { profilePicture: true } } },
+  });
+  res.json(students.map((s) => ({ ...s, profilePicture: s.user?.profilePicture ?? null, user: undefined })));
 });
 
 // GET /api/students/:id

@@ -147,7 +147,7 @@ function StudentsList() {
               params={{ id: s.id }}
               className="flex items-center gap-4 p-4 hover:bg-muted transition-colors"
             >
-              <Avatar name={s.name} color={s.avatarColor} size={44} />
+              <Avatar name={s.name} color={s.avatarColor} size={44} photo={s.profilePicture} />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold">{s.name}</div>
                 <div className="text-xs text-muted-foreground truncate">

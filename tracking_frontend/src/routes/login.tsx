@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,14 @@ function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [slowMessage, setSlowMessage] = useState(false);
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pre-warm the backend as soon as the page loads
+  useEffect(() => {
+    const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+    fetch(`${BASE}/health`, { method: "GET" }).catch(() => {/* silent */});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +38,8 @@ function Login() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error("Please enter a valid email address"); return; }
     if (!password) { toast.error("Please enter your password"); return; }
     setLoading(true);
+    setSlowMessage(false);
+    slowTimer.current = setTimeout(() => setSlowMessage(true), 6000);
     try {
       const data = await api.post<{
         token: string;
@@ -46,6 +56,8 @@ function Login() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+      setSlowMessage(false);
       setLoading(false);
     }
   };
@@ -105,14 +117,30 @@ function Login() {
                 className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
                 disabled={loading}
               >
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </span>
+                ) : "Sign In"}
               </Button>
+
+              {slowMessage && (
+                <div className="mt-3 text-center text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                  ⏳ Server is starting up, please wait a moment...
+                </div>
+              )}
             </form>
 
             <div className="mt-5 text-center text-sm text-muted-foreground">
               New student?{" "}
               <Link to="/register" className="text-brand font-medium hover:underline">
                 Create an account
+              </Link>
+            </div>
+            <div className="mt-4 pt-3 border-t text-center">
+              <Link to="/" className="text-sm text-muted-foreground hover:text-destructive font-medium transition-colors flex items-center justify-center gap-1">
+                ← Back to Home
               </Link>
             </div>
           </CardContent>

@@ -101,6 +101,7 @@ export interface Student {
   email: string;
   track: string;
   avatarColor: string;
+  profilePicture?: string | null;
   createdAt?: string;
   userId?: string | null;
 }

@@ -95,7 +95,7 @@ function StudentHome() {
                 <img src={user.profilePicture} alt={user.name ?? ""}
                   className="h-16 w-16 rounded-full object-cover shrink-0" />
               ) : (
-                <Avatar name={studentRecord.name} color={studentRecord.avatarColor} size={64} />
+                <Avatar name={studentRecord.name} color={studentRecord.avatarColor} size={64} photo={studentRecord.profilePicture} />
               )}
               <div>
                 <h1 className="text-2xl font-bold">{studentRecord.name}</h1>

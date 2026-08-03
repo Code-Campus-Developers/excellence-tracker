@@ -62,7 +62,7 @@ function StudentLeaderboard() {
                       <div className="w-8 font-bold text-sm text-muted-foreground flex items-center">
                         {medal ?? `#${i + 1}`}
                       </div>
-                      <Avatar name={s.name} color={s.avatarColor} size={32} />
+                      <Avatar name={s.name} color={s.avatarColor} size={32} photo={s.profilePicture} />
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${isMe ? "text-brand font-semibold" : ""}`}>
                           {s.name}{isMe && <span className="ml-1 text-[10px] font-normal">(you)</span>}

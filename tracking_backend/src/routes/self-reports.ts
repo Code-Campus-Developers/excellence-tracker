@@ -1,7 +1,8 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, createNotification } from "./notifications";
+import { sendSelfReportVerifiedEmail } from "../lib/email";
 
 const router = Router();
 
@@ -154,12 +155,93 @@ router.patch("/:id/verify", authenticate, async (req: AuthRequest, res: Response
     const report = await prisma.selfReport.update({
       where: { id: req.params.id },
       data: { status, verifiedById: req.user!.userId, verifiedAt: new Date() },
+      include: { student: { select: { userId: true, name: true } } },
     });
+
+    // Notify the student (in-app + email)
+    if (report.student?.userId) {
+      const msg = status === "VERIFIED"
+        ? `Your Week ${report.weekNumber} self-report has been verified ✅`
+        : `Your Week ${report.weekNumber} self-report was rejected ❌. Please review and resubmit.`;
+      await createNotification({ userId: report.student.userId, message: msg, link: "/student/self-report" });
+
+      // Send email to student
+      const studentUser = await prisma.user.findUnique({ where: { id: report.student.userId }, select: { email: true } });
+      if (studentUser?.email) {
+        try {
+          await sendSelfReportVerifiedEmail({ to: studentUser.email, name: report.student.name, week: report.weekNumber, status });
+        } catch { /* email failure should not break the response */ }
+      }
+    }
+
     return res.json(report);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
+});
+
+// ─── PATCH /api/self-reports/:id/request-edit  (student requests edit unlock) ─
+router.patch("/:id/request-edit", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "STUDENT") return res.status(403).json({ error: "Students only" });
+    const report = await prisma.selfReport.findUnique({
+      where: { id: req.params.id },
+      include: { student: { select: { userId: true } } },
+    });
+    if (!report) return res.status(404).json({ error: "Report not found" });
+    if (report.student.userId !== req.user!.userId) return res.status(403).json({ error: "Not your report" });
+    if (report.status !== "VERIFIED") return res.status(400).json({ error: "Only verified reports can be edit-requested" });
+
+    const updated = await prisma.selfReport.update({
+      where: { id: req.params.id },
+      data: { editRequested: true },
+    });
+
+    // Notify admin + instructor
+    const studentInfo = await prisma.student.findFirst({ where: { userId: req.user!.userId }, select: { id: true, name: true } });
+    if (studentInfo) {
+      const msg = `${studentInfo.name} requested to edit their Week ${report.weekNumber} self-report.`;
+      const link = `/instructor/reports`;
+      await Promise.all([
+        notifyAdmins(msg, link),
+        notifyTrackInstructor(studentInfo.id, msg, link),
+      ]).catch(() => {/* silent */});
+    }
+    return res.json(updated);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
+});
+
+// ─── PATCH /api/self-reports/:id/approve-edit  (instructor/admin: allow edit) ─
+router.patch("/:id/approve-edit", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    const { approved } = req.body as { approved: boolean };
+    const report = await prisma.selfReport.findUnique({
+      where: { id: req.params.id },
+      include: { student: { select: { userId: true, name: true } } },
+    });
+    if (!report) return res.status(404).json({ error: "Report not found" });
+
+    const updated = await prisma.selfReport.update({
+      where: { id: req.params.id },
+      data: {
+        editRequested: false,
+        ...(approved ? { status: "PENDING", verifiedById: null, verifiedAt: null } : {}),
+      },
+    });
+
+    // Notify the student
+    if (report.student.userId) {
+      const msg = approved
+        ? `Your edit request for Week ${report.weekNumber} self-report was approved. You can now edit and resubmit.`
+        : `Your edit request for Week ${report.weekNumber} self-report was denied.`;
+      await createNotification({ userId: report.student.userId, message: msg, link: "/student/self-report" });
+    }
+    return res.json(updated);
+  } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }
 });
 
 export default router;

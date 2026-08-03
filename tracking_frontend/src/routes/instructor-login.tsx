@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,12 @@ function MentorLogin() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Pre-warm the backend as soon as the page loads
+  useEffect(() => {
+    const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+    fetch(`${BASE}/health`, { method: "GET" }).catch(() => {/* silent */});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +101,12 @@ function MentorLogin() {
                 {loading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
+          
+            <div className="mt-4 pt-3 border-t text-center">
+              <Link to="/" className="text-sm text-muted-foreground hover:text-destructive font-medium transition-colors flex items-center justify-center gap-1">
+                ← Back to Home
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

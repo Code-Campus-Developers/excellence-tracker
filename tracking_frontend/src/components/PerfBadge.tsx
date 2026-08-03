@@ -16,13 +16,25 @@ export function PerfBadge({ total }: { total: number }) {
   );
 }
 
-export function Avatar({ name, color, size = 36 }: { name: string; color: string; size?: number }) {
+export function Avatar({ name, color, size = 36, photo }: { name: string; color: string; size?: number; photo?: string | null }) {
   const initials = name
     .split(" ")
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name}
+        className="rounded-full object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
   return (
     <div
       className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"

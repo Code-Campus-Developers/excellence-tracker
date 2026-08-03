@@ -168,7 +168,7 @@ function StudentDetail() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <Avatar name={student.name} color={student.avatarColor} size={64} />
+          <Avatar name={student.name} color={student.avatarColor} size={64} photo={student.profilePicture} />
           <div>
             <h1 className="text-2xl font-bold">{student.name}</h1>
             <p className="text-sm text-muted-foreground">

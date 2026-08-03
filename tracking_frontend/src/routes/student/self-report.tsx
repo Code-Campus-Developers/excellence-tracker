@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Linkedin, BookOpen, Code2, Calendar, CheckCircle2,
-  Clock, XCircle, ChevronDown, ChevronUp, Loader2, ImagePlus, X,
+  Clock, XCircle, ChevronDown, ChevronUp, Loader2, ImagePlus, X, PenLine,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ interface SelfReport {
   eventDone: boolean; eventUrl: string | null;
   eventImage1: string | null; eventImage2: string | null;
   notes: string | null; status: "PENDING" | "VERIFIED" | "REJECTED";
+  editRequested: boolean;
   submittedAt: string; updatedAt: string;
 }
 
@@ -82,7 +83,7 @@ function ActivityRow({ icon, label, description, doneKey, urlKey, placeholder, f
   );
 }
 
-function PastReport({ report, onEdit }: { report: SelfReport; onEdit: () => void }) {
+function PastReport({ report, onEdit, onRequestEdit }: { report: SelfReport; onEdit: () => void; onRequestEdit: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const done = [report.linkedinDone && "LinkedIn", report.learningLogDone && "Learning Log", report.codingDone && "Coding", report.eventDone && "Event"].filter(Boolean) as string[];
   return (
@@ -92,7 +93,13 @@ function PastReport({ report, onEdit }: { report: SelfReport; onEdit: () => void
           <div><span className="font-semibold text-sm">Week {report.weekNumber}</span><span className="text-xs text-muted-foreground ml-2">{report.cohortYear}</span></div>
           <div className="flex items-center gap-2">
             <StatusBadge status={report.status} />
+            {report.editRequested && <Badge className="bg-amber-100 text-amber-700 border-amber-200 gap-1 text-[10px]"><Clock className="h-3 w-3" />Edit Pending Approval</Badge>}
             {report.status === "PENDING" && <Button size="sm" variant="outline" onClick={onEdit}>Edit</Button>}
+            {report.status === "VERIFIED" && !report.editRequested && (
+              <Button size="sm" variant="outline" className="gap-1 text-xs h-7" onClick={() => onRequestEdit(report.id)}>
+                <PenLine className="h-3 w-3" />Request Edit
+              </Button>
+            )}
             <button onClick={() => setExpanded((p) => !p)} className="text-muted-foreground hover:text-foreground">
               {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
@@ -194,6 +201,138 @@ function EventRow({ form, setForm, disabled }: { form: FormState; setForm: React
   );
 }
 
+// ─── Daily Event Section ─────────────────────────────────────────────────────
+interface DailyEventRecord { id: string; date: string; description: string | null; image1: string | null; image2: string | null; }
+
+function DailyEventSection() {
+  const [today, setToday] = useState<DailyEventRecord | null | undefined>(undefined);
+  const [history, setHistory] = useState<DailyEventRecord[]>([]);
+  const [desc, setDesc] = useState("");
+  const [image1, setImage1] = useState("");
+  const [image2, setImage2] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<1 | 2 | null>(null);
+  const ref1 = useRef<HTMLInputElement>(null);
+  const ref2 = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get<DailyEventRecord | null>("/api/daily-events/today").then((d) => {
+      setToday(d);
+      if (d) { setDesc(d.description ?? ""); setImage1(d.image1 ?? ""); setImage2(d.image2 ?? ""); }
+    }).catch(() => setToday(null));
+    api.get<DailyEventRecord[]>("/api/daily-events/me").then((d) => setHistory(d ?? [])).catch(() => {});
+  }, []);
+
+  const uploadPhoto = async (file: File, slot: 1 | 2) => {
+    setUploading(slot);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+      const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } })();
+      const res = await fetch(`${BASE}/api/upload/profile-picture`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json() as { url: string };
+      if (slot === 1) setImage1(url); else setImage2(url);
+      toast.success(`Photo ${slot} uploaded`);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Upload failed"); }
+    finally { setUploading(null); }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const result = await api.post<DailyEventRecord>("/api/daily-events", {
+        description: desc || null, image1: image1 || null, image2: image2 || null,
+      });
+      setToday(result);
+      setHistory((prev) => {
+        const filtered = prev.filter((r) => r.date.slice(0,10) !== result.date.slice(0,10));
+        return [result, ...filtered];
+      });
+      toast.success("Daily event saved!");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const ImageSlot = ({ slot, imgRef }: { slot: 1 | 2; imgRef: React.RefObject<HTMLInputElement | null> }) => {
+    const url = slot === 1 ? image1 : image2;
+    return (
+      <div>
+        {url ? (
+          <div className="relative inline-block">
+            <img src={url} alt={`Photo ${slot}`} className="h-20 w-20 rounded-lg object-cover border-2 border-brand" />
+            <button type="button" onClick={() => slot === 1 ? setImage1("") : setImage2("")}
+              className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-white rounded-full flex items-center justify-center">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <button type="button" disabled={uploading !== null} onClick={() => imgRef.current?.click()}
+            className="h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-brand flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-brand disabled:opacity-50">
+            {uploading === slot ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+            <span className="text-[10px]">Photo {slot}</span>
+          </button>
+        )}
+        <input ref={imgRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f, slot); }} />
+      </div>
+    );
+  };
+
+  const ref1Ref = useRef<HTMLInputElement>(null);
+  const ref2Ref = useRef<HTMLInputElement>(null);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-brand" /> Daily Event / Workshop
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">Log any event, meetup, webinar, or workshop you attended today. Upload up to 2 proof photos.</p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <Label className="mb-1.5 block text-sm">What did you attend today? (optional)</Label>
+            <Input placeholder="e.g. Attended a webinar on React..." value={desc} onChange={(e) => setDesc(e.target.value)} />
+          </div>
+          <div className="flex gap-3 items-center">
+            <ImageSlot slot={1} imgRef={ref1Ref} />
+            <ImageSlot slot={2} imgRef={ref2Ref} />
+            <p className="text-xs text-muted-foreground">Upload proof photos</p>
+          </div>
+          <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={saving}>
+            {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : today ? "Update Today's Event" : "Log Today's Event"}
+          </Button>
+        </form>
+
+        {history.length > 0 && (
+          <div className="mt-5 border-t pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Event History</p>
+            <div className="space-y-2">
+              {history.map((e) => (
+                <div key={e.id} className="flex items-start gap-3 text-sm">
+                  <span className="text-xs text-muted-foreground w-20 shrink-0">{new Date(e.date).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                  <div className="flex-1 min-w-0">
+                    {e.description && <p className="truncate">{e.description}</p>}
+                    {(e.image1 || e.image2) && (
+                      <div className="flex gap-2 mt-1">
+                        {e.image1 && <a href={e.image1} target="_blank" rel="noreferrer"><img src={e.image1} alt="proof 1" className="h-12 w-12 rounded object-cover border hover:opacity-90" /></a>}
+                        {e.image2 && <a href={e.image2} target="_blank" rel="noreferrer"><img src={e.image2} alt="proof 2" className="h-12 w-12 rounded object-cover border hover:opacity-90" /></a>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StudentSelfReport() {
   const { settings } = useStore();
   const totalWeeks = settings?.total_weeks ?? 12;
@@ -204,6 +343,17 @@ function StudentSelfReport() {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [requestingEdit, setRequestingEdit] = useState<string | null>(null);
+
+  const handleRequestEdit = async (id: string) => {
+    setRequestingEdit(id);
+    try {
+      await api.patch(`/api/self-reports/${id}/request-edit`, {});
+      setReports((prev) => prev.map((r) => r.id === id ? { ...r, editRequested: true } : r));
+      toast.success("Edit request sent to your instructor!");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+    finally { setRequestingEdit(null); }
+  };
 
   const fetchReports = useCallback(async () => {
     try { setReports((await api.get<SelfReport[]>("/api/self-reports/me")) ?? []); }
@@ -261,9 +411,6 @@ function StudentSelfReport() {
               <ActivityRow icon={<BookOpen className="h-4 w-4 text-amber-600" />} label="Learning Log" description="Document what you learned this week." doneKey="learningLogDone" urlKey="learningLogUrl" placeholder="https://notion.so/..." form={form} setForm={setForm} />
               <ActivityRow icon={<Code2 className="h-4 w-4 text-violet-600" />} label="Coding Activity" description="GitHub contribution, project commit, or coding challenge." doneKey="codingDone" urlKey="codingUrl" placeholder="https://github.com/..." form={form} setForm={setForm} />
 
-              {/* Event/Workshop — with photo upload */}
-              <EventRow form={form} setForm={setForm} disabled={isVerified} />
-
               <div className="mt-4">
                 <Label className="mb-1.5 block text-sm">Notes (optional)</Label>
                 <Textarea placeholder="Anything else for your instructor..." value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} rows={3} disabled={isVerified} />
@@ -275,12 +422,15 @@ function StudentSelfReport() {
           </CardContent>
         </Card>
 
+        {/* Daily Events — separate from weekly self-report */}
+        <DailyEventSection />
+
         {loadingReports ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : reports.length > 0 ? (
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Submission History</h2>
-            <div className="space-y-3">{reports.map((r) => <PastReport key={r.id} report={r} onEdit={() => setSelectedWeek(r.weekNumber)} />)}</div>
+            <div className="space-y-3">{reports.map((r) => <PastReport key={r.id} report={r} onEdit={() => setSelectedWeek(r.weekNumber)} onRequestEdit={handleRequestEdit} />)}</div>
           </div>
         ) : null}
       </div>

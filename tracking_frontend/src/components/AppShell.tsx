@@ -112,7 +112,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/instructor/messages", label: "Messages", icon: MessageCircle },
     { to: user?.role === "ADMIN" ? "/admin/reports" : "/instructor/reports", label: "Self-Reports", icon: FileText },
     { to: user?.role === "ADMIN" ? "/admin/attendance-overview" : "/instructor/attendance-overview", label: "Attendance", icon: CalendarDays },
-    { to: "/instructor/id-card", label: "ID Card", icon: CreditCard },
+    // ID Card only for instructors, not admins
+    ...(user?.role === "MENTOR" ? [{ to: "/instructor/id-card", label: "ID Card", icon: CreditCard }] : []),
     // Only show instructor settings for MENTOR role | admins use /admin/settings
     ...(user?.role === "MENTOR" ? [{ to: "/instructor/settings", label: "Settings", icon: UserCog }] : []),
   ];

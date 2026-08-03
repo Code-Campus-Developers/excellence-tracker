@@ -214,4 +214,78 @@ router.get("/student/:studentId", authenticate, async (req: AuthRequest, res: Re
   }
 });
 
+// ─── POST /api/attendance/manual  (instructor/admin: add for any student/date) ─
+router.post("/manual", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    const { studentId, date, clockInAt, clockOutAt } = req.body as {
+      studentId: string; date: string; clockInAt: string; clockOutAt?: string;
+    };
+    if (!studentId || !date || !clockInAt) {
+      return res.status(400).json({ error: "studentId, date, and clockInAt are required" });
+    }
+    const dateObj = new Date(date);
+    const clockIn = new Date(clockInAt);
+    const clockOut = clockOutAt ? new Date(clockOutAt) : null;
+    const duration = clockOut ? minutesDiff(clockIn, clockOut) : null;
+
+    // Check if record already exists for this student on this date
+    const startOfDay = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate()));
+    const existing = await prisma.attendance.findFirst({
+      where: { studentId, date: { gte: startOfDay, lt: new Date(startOfDay.getTime() + 86400000) } },
+    });
+    if (existing) {
+      return res.status(409).json({ error: "Attendance record already exists for this student on this date. Use edit instead." });
+    }
+
+    const record = await prisma.attendance.create({
+      data: { studentId, date: startOfDay, clockInAt: clockIn, clockOutAt: clockOut, durationMin: duration },
+      include: { student: { select: { id: true, name: true, track: true, studentCode: true } } },
+    });
+    return res.status(201).json(record);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── PUT /api/attendance/:id  (instructor/admin: edit record) ─────────────────
+router.put("/:id", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    const { clockInAt, clockOutAt } = req.body as { clockInAt: string; clockOutAt?: string | null };
+    const clockIn = new Date(clockInAt);
+    const clockOut = clockOutAt ? new Date(clockOutAt) : null;
+    const duration = clockOut ? minutesDiff(clockIn, clockOut) : null;
+
+    const updated = await prisma.attendance.update({
+      where: { id: req.params.id },
+      data: { clockInAt: clockIn, clockOutAt: clockOut, durationMin: duration },
+      include: { student: { select: { id: true, name: true, track: true, studentCode: true } } },
+    });
+    return res.json(updated);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── DELETE /api/attendance/:id  (instructor/admin: remove incorrect record) ──
+router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    await prisma.attendance.delete({ where: { id: req.params.id } });
+    return res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 export default router;

@@ -34,33 +34,43 @@ function StudentIdCard() {
     if (!cardRef.current) return;
     setDownloading(true);
 
-    // Proxy profile photo through backend to avoid CORS cache issues
-    const photoImgs = cardRef.current.querySelectorAll<HTMLImageElement>("img[crossorigin]");
-    const originalSrcs: string[] = [];
+    // Proxy profile photo through backend to avoid CORS issues
+    const photoImgs = cardRef.current.querySelectorAll("img[crossorigin]");
+    const originalSrcs = [];
     for (const img of Array.from(photoImgs)) {
       originalSrcs.push(img.src);
       if (img.src && img.src.startsWith("http")) {
         try {
-          const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
-          const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } })();
+          const BASE = (import.meta.env.VITE_API_URL) ?? "http://localhost:4000";
+          const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? JSON.parse(r).token : null; } catch { return null; } })();
           const res = await fetch(`${BASE}/api/upload/proxy-image?url=${encodeURIComponent(img.src)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-          if (res.ok) { const { dataUrl } = await res.json() as { dataUrl: string }; img.src = dataUrl; img.removeAttribute("crossorigin"); }
+          if (res.ok) { const { dataUrl } = await res.json(); img.src = dataUrl; img.removeAttribute("crossorigin"); }
         } catch { /* use original */ }
       }
     }
 
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardRef.current, { scale: 3, useCORS: false, backgroundColor: "#f5f5f5", logging: false, allowTaint: true });
-      const link = document.createElement("a");
-      link.download = `${studentRecord?.name ?? "student"}-id-card.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      toast.success("ID Card downloaded!");
+      const { toPng } = await import("html-to-image");
+      const { jsPDF } = await import("jspdf");
+
+      // Capture card as high-res image
+      const imgData = await toPng(cardRef.current, { pixelRatio: 3, backgroundColor: "#f5f5f5" });
+
+      // Get actual card dimensions
+      const { offsetWidth: w, offsetHeight: h } = cardRef.current;
+
+      // Create PDF with card dimensions (in mm, using 96 dpi conversion)
+      const pxToMm = (px) => px * 0.2646;
+      const pdfW = pxToMm(w + 32); // +32 for padding
+      const pdfH = pxToMm(h + 32);
+
+      const pdf = new jsPDF({ orientation: pdfH > pdfW ? "portrait" : "landscape", unit: "mm", format: [pdfW, pdfH] });
+      pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+      pdf.save(`${studentRecord?.name ?? "student"}-id-card.pdf`);
+      toast.success("ID Card downloaded as PDF!");
     } catch (err) {
       toast.error("Download failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
-      // Restore original srcs
       Array.from(photoImgs).forEach((img, i) => { img.src = originalSrcs[i] ?? img.src; if (originalSrcs[i]) img.setAttribute("crossorigin", "anonymous"); });
       setDownloading(false);
     }
@@ -78,12 +88,9 @@ function StudentIdCard() {
   const issueDate = studentRecord?.createdAt
     ? new Date(studentRecord.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
     : "—";
-  const expiryDate = (() => {
-    if (!settings.cohort_start_date) return "—";
-    const d = new Date(settings.cohort_start_date);
-    d.setDate(d.getDate() + settings.total_weeks * 7);
-    return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-  })();
+  const expiryDate = studentRecord?.createdAt
+    ? (() => { const d = new Date(studentRecord!.createdAt!); d.setFullYear(d.getFullYear() + 1); return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }); })()
+    : "—";
 
   const qrValue = `${code} | ${name}`;
   const cardStyle: React.CSSProperties = { width: CARD_W, fontFamily: "system-ui, sans-serif", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" };
@@ -145,14 +152,11 @@ function StudentIdCard() {
             <div style={{ fontSize: 8, color: "#374151", textAlign: "center", lineHeight: 1.7 }}>
               This card is the property of<br />
               <strong style={{ color: "#15803d" }}>Code Campus International</strong>.<br />
-              If found, please return to the nearest Code Campus office.
+              If found, please return to:<br />
+              <span style={{ fontSize: 7.5 }}>DBM Plaza, Suite 207, Aminu Kano Crescent, Wuse 2.</span>
             </div>
             <div style={{ marginTop: 8, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
               <div><div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1 }}>Student ID</div><div style={{ fontSize: 9, fontWeight: 700, color: "#15803d", fontFamily: "monospace" }}>{code}</div></div>
-            </div>
-            <div style={{ marginTop: 10, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
-              <div style={{ fontSize: 7, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Authorised Signature</div>
-              <div style={{ borderTop: "1px solid #374151", width: "55%" }} />
             </div>
           </div>
           <div style={{ background: "#15803d", height: 16 }} />
@@ -162,7 +166,7 @@ function StudentIdCard() {
       <div style={{ width: CARD_W + 32, marginTop: 10 }}>
         <Button onClick={handleDownload} disabled={downloading} className="w-full bg-brand text-brand-foreground hover:bg-brand/90 gap-2 h-9 text-sm">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {downloading ? "Generating..." : "Download ID Card"}
+          {downloading ? "Generating..." : "Download as PDF"}
         </Button>
       </div>
     </StudentShell>

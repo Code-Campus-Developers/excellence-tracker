@@ -104,3 +104,48 @@ export async function sendStudentWelcomeEmail(opts: {
     `,
   });
 }
+
+export async function sendSelfReportVerifiedEmail(opts: {
+  to: string; name: string; week: number; status: "VERIFIED" | "REJECTED";
+}) {
+  const isVerified = opts.status === "VERIFIED";
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Your Week ${opts.week} Self-Report ${isVerified ? "Verified" : "Rejected"} — Code Campus`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:${isVerified ? "#16a34a" : "#dc2626"}">${isVerified ? "Self-Report Verified ✅" : "Self-Report Rejected ❌"}</h2>
+        <p>Hi <strong>${opts.name}</strong>,</p>
+        <p>Your <strong>Week ${opts.week}</strong> self-report has been <strong>${isVerified ? "verified" : "rejected"}</strong> by your instructor.</p>
+        ${!isVerified ? "<p>Please log in, review your submission, and resubmit with the correct proof links.</p>" : "<p>Great work keeping up with your activities this week!</p>"}
+        <a href="${APP_URL}/student/self-report" style="display:inline-block;background:${isVerified ? "#16a34a" : "#dc2626"};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Self-Reports</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendTrackInstructorAssignedEmail(opts: {
+  to: string; studentName: string; instructorName: string; track: string; startDate: string;
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `Your ${opts.track} Instructor Update — Code Campus`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#16a34a">Instructor Update 👨‍🏫</h2>
+        <p>Hi <strong>${opts.studentName}</strong>,</p>
+        <p>Your instructor for the <strong>${opts.track}</strong> track has been updated.</p>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0">
+          <div style="font-size:16px;font-weight:bold;color:#16a34a">${opts.instructorName}</div>
+          <div style="color:#6b7280;font-size:13px;margin-top:4px">${opts.track} Track · From ${opts.startDate}</div>
+        </div>
+        <p>You can message your instructor directly from your dashboard.</p>
+        <a href="${APP_URL}/student/messages" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Message Instructor</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}

@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, authorize, type AuthRequest } from "../middleware/authenticate";
+import { sendTrackInstructorAssignedEmail } from "../lib/email";
 
 const router = Router();
 
@@ -105,6 +106,27 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: AuthRequest, res:
         instructor: { select: { id: true, name: true, email: true, track: true } },
       },
     });
+
+    // Email all students in this track about their new instructor
+    const students = await prisma.student.findMany({
+      where: { track },
+      include: { user: { select: { email: true } } },
+    });
+    const startDateStr = new Date(startDate).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
+    for (const student of students) {
+      if (student.user?.email) {
+        try {
+          await sendTrackInstructorAssignedEmail({
+            to: student.user.email,
+            studentName: student.name,
+            instructorName: assignment.instructor.name,
+            track,
+            startDate: startDateStr,
+          });
+        } catch { /* email failure should not break the response */ }
+      }
+    }
+
     return res.status(201).json(assignment);
   } catch (err) {
     console.error(err);

@@ -15,6 +15,7 @@ export interface AuthUser {
   role: Role;
   track?: string | null;
   profilePicture?: string | null;
+  createdAt?: string | null;
 }
 
 export interface AuthStudent {

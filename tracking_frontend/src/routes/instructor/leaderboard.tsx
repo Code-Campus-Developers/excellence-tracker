@@ -67,7 +67,7 @@ function Board({
                   #{globalRank + 1} {rankIcon(globalRank)}
                 </div>
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar name={s.name} color={s.avatarColor} size={36} />
+                  <Avatar name={s.name} color={s.avatarColor} size={36} photo={s.profilePicture} />
                   <div className="min-w-0">
                     <div className="font-medium truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground">{s.track}</div>

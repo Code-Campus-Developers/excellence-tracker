@@ -109,7 +109,7 @@ function Register() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Must contain: uppercase, lowercase, number, and symbol, e.g. <span className="font-mono">Abc@1234</span>
+                  Must contain: uppercase, lowercase, number, and symbol
                 </p>
               </div>
               <Button type="submit"
@@ -122,6 +122,11 @@ function Register() {
             <div className="mt-5 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link to="/login" className="text-brand font-medium hover:underline">Sign in</Link>
+            </div>
+            <div className="mt-3 text-center">
+              <Link to="/" className="text-sm text-muted-foreground hover:text-destructive font-medium transition-colors flex items-center justify-center gap-1">
+                ← Back to Home
+              </Link>
             </div>
           </CardContent>
         </Card>
