@@ -25,10 +25,11 @@ function ScannerPage() {
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("scanner_key") ?? "");
   const [keySaved, setKeySaved] = useState(!!sessionStorage.getItem("scanner_key"));
   const [scanning, setScanning] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
-  const scannerInstance = useRef<{ stop: () => void } | null>(null);
+  const scannerInstance = useRef<{ stop: () => Promise<void> } | null>(null);
 
   const saveKey = () => {
     sessionStorage.setItem("scanner_key", apiKey);
@@ -50,14 +51,14 @@ function ScannerPage() {
       setResult({ success: false, error: "Network error" });
     } finally {
       setProcessing(false);
-      // Auto-clear after 4s and resume scanning
-      setTimeout(() => setResult(null), 4000);
     }
   };
 
   const startScanner = async () => {
     setScanning(true);
     setResult(null);
+    // Clear any leftover html5-qrcode UI from previous session
+    if (scannerRef.current) scannerRef.current.innerHTML = "";
     const { Html5Qrcode } = await import("html5-qrcode");
     const scanner = new Html5Qrcode("qr-reader");
     scannerInstance.current = { stop: () => scanner.stop().catch(() => {}) };
@@ -72,10 +73,18 @@ function ScannerPage() {
     });
   };
 
-  const stopScanner = () => {
-    scannerInstance.current?.stop();
-    setScanning(false);
-    setResult(null);
+  const stopScanner = async () => {
+    setStopping(true);
+    try {
+      await scannerInstance.current?.stop();
+    } finally {
+      // Clear html5-qrcode injected DOM to prevent visual artifacts
+      if (scannerRef.current) scannerRef.current.innerHTML = "";
+      scannerInstance.current = null;
+      setScanning(false);
+      setStopping(false);
+      setResult(null);
+    }
   };
 
   useEffect(() => () => { scannerInstance.current?.stop(); }, []);
@@ -117,21 +126,32 @@ function ScannerPage() {
         {/* Scanner area */}
         {keySaved && (
           <>
-            <div
-              id="qr-reader"
-              ref={scannerRef}
-              className="w-full rounded-xl overflow-hidden bg-gray-900 mb-4"
-              style={{ minHeight: scanning ? 300 : 0 }}
-            />
+            {/* Scanner area — fixed height to prevent layout jump */}
+            <div className="relative w-full rounded-xl overflow-hidden bg-gray-900 mb-4" style={{ height: 300 }}>
+              <div
+                id="qr-reader"
+                ref={scannerRef}
+                className="w-full h-full"
+              />
+              {/* Idle / stopping placeholder shown when camera is off */}
+              {!scanning && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <ScanLine className="h-12 w-12 text-gray-600" />
+                  <p className="text-gray-500 text-sm">
+                    {stopping ? "Stopping camera…" : "Camera off — press Start to scan"}
+                  </p>
+                </div>
+              )}
+            </div>
 
             {!scanning ? (
-              <Button onClick={startScanner} className="w-full bg-green-600 hover:bg-green-700 h-14 text-base gap-2">
+              <Button onClick={startScanner} disabled={stopping} className="w-full bg-green-600 hover:bg-green-700 h-14 text-base gap-2">
                 <ScanLine className="h-5 w-5" />
-                Start Camera Scanner
+                {stopping ? "Stopping…" : "Start Camera Scanner"}
               </Button>
             ) : (
-              <Button onClick={stopScanner} variant="outline" className="w-full border-gray-600 text-white bg-gray-800 hover:bg-gray-700 gap-2">
-                Stop Scanner
+              <Button onClick={stopScanner} disabled={stopping} variant="outline" className="w-full border-gray-600 text-white bg-gray-800 hover:bg-gray-700 gap-2">
+                {stopping ? <><Loader2 className="h-4 w-4 animate-spin" />Stopping…</> : "Stop Scanner"}
               </Button>
             )}
 
@@ -141,20 +161,36 @@ function ScannerPage() {
                 {processing ? (
                   <div className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /><span>Processing…</span></div>
                 ) : result.success ? (
-                  <div className="flex items-start gap-3">
-                    {result.action === "clock_in" && <LogIn className="h-6 w-6 text-green-600 shrink-0 mt-0.5" />}
-                    {result.action === "clock_out" && <LogOut className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />}
-                    {result.action === "already_complete" && <Clock className="h-6 w-6 text-yellow-600 shrink-0 mt-0.5" />}
-                    <div>
-                      <p className="font-bold text-base">{result.student?.name}</p>
-                      <p className="text-sm text-muted-foreground">{result.student?.track} · {result.student?.code}</p>
-                      <p className="text-sm mt-1">{result.message}</p>
+                  <div>
+                    <div className="flex items-start gap-3 mb-4">
+                      {result.action === "clock_in" && <LogIn className="h-6 w-6 text-green-600 shrink-0 mt-0.5" />}
+                      {result.action === "clock_out" && <LogOut className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />}
+                      {result.action === "already_complete" && <Clock className="h-6 w-6 text-yellow-600 shrink-0 mt-0.5" />}
+                      <div>
+                        <p className="font-bold text-base">{result.student?.name}</p>
+                        <p className="text-sm text-muted-foreground">{result.student?.track} · {result.student?.code}</p>
+                        <p className="text-sm mt-1">{result.message}</p>
+                      </div>
                     </div>
+                    <Button
+                      onClick={() => setResult(null)}
+                      className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 gap-2"
+                    >
+                      <ScanLine className="h-4 w-4" /> Scan Next Student
+                    </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-red-700">
-                    <XCircle className="h-5 w-5 shrink-0" />
-                    <p className="text-sm">{result.error ?? "Failed"}</p>
+                  <div>
+                    <div className="flex items-center gap-2 text-red-700 mb-4">
+                      <XCircle className="h-5 w-5 shrink-0" />
+                      <p className="text-sm">{result.error ?? "Failed"}</p>
+                    </div>
+                    <Button
+                      onClick={() => setResult(null)}
+                      className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 gap-2"
+                    >
+                      <ScanLine className="h-4 w-4" /> Try Again
+                    </Button>
                   </div>
                 )}
               </div>

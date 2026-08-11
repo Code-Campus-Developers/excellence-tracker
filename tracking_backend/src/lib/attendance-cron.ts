@@ -3,12 +3,12 @@ import prisma from "../lib/prisma";
 import { sendMissedAttendanceEmail } from "./email";
 
 /**
- * Runs every day at 6:00 PM (18:00) server time.
+ * Runs every weekday (Mon–Fri) at 4:00 PM WAT.
  * Finds all active students who have NOT clocked in today,
  * then emails their linked parents.
  */
 export function startMissedAttendanceCron() {
-  cron.schedule("0 18 * * 1-6", async () => {
+  cron.schedule("0 16 * * 1-5", async () => {
     try {
       const now = new Date();
       const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

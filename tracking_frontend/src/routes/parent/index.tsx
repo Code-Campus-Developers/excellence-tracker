@@ -1,12 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Users, TrendingUp, CalendarCheck, ClipboardList,
-  ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock, QrCode, Download,
+  ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock,
 } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ParentShell } from "@/components/ParentShell";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
@@ -39,32 +37,12 @@ function StatusBadge({ status }: { status: Report["status"] }) {
 }
 
 function ChildDetail({ childId, childName, studentCode }: { childId: string; childName: string; studentCode: string }) {
-  const [tab, setTab] = useState<"progress" | "attendance" | "reports" | "qrcode">("progress");
+  const [tab, setTab] = useState<"progress" | "attendance" | "reports">("progress");
   const [evals, setEvals] = useState<Evaluation[]>([]);
   const [attendance, setAttendance] = useState<AttRecord[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
-  const [downloading, setDownloading] = useState(false);
-  const qrRef = useRef<HTMLDivElement>(null);
-
-  const handleDownloadQR = async () => {
-    if (!qrRef.current) return;
-    setDownloading(true);
-    try {
-      const { toPng } = await import("html-to-image");
-      const { jsPDF } = await import("jspdf");
-      const dataUrl = await toPng(qrRef.current, { pixelRatio: 4, backgroundColor: "#ffffff" });
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = 100;
-      const imgHeight = (imgProps.height / imgProps.width) * imgWidth;
-      pdf.addImage(dataUrl, "PNG", (pageWidth - imgWidth) / 2, (pageHeight - imgHeight) / 2, imgWidth, imgHeight);
-      pdf.save(`${childName}-qr-code.pdf`);
-    } catch { /* silent */ } finally { setDownloading(false); }
-  };
 
   const load = useCallback((t: typeof tab) => {
     if (loaded.has(t)) return;
@@ -88,7 +66,6 @@ function ChildDetail({ childId, childName, studentCode }: { childId: string; chi
     { key: "progress" as const, label: "Progress", icon: TrendingUp },
     { key: "attendance" as const, label: "Attendance", icon: CalendarCheck },
     { key: "reports" as const, label: "Reports", icon: ClipboardList },
-    { key: "qrcode" as const, label: "QR Code", icon: QrCode },
   ];
 
   return (
@@ -154,43 +131,6 @@ function ChildDetail({ childId, childName, studentCode }: { childId: string; chi
               </div>
             );
           })}
-        </div>
-      ) : tab === "qrcode" ? (
-        <div className="flex flex-col items-center py-4">
-          <p className="text-sm text-muted-foreground mb-4 text-center">
-            This is {childName.split(" ")[0]}'s QR code for clocking in and out at the facility.
-          </p>
-          <div ref={qrRef} className="bg-white rounded-2xl overflow-hidden shadow-xl border" style={{ fontFamily: "system-ui" }}>
-            <div style={{ background: "#15803d", padding: "16px 20px 12px" }}>
-              <div style={{ background: "#fff", borderRadius: 6, display: "inline-block", padding: "4px 10px" }}>
-                <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-16 w-auto" />
-              </div>
-              <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 9, letterSpacing: 2, marginTop: 6, textTransform: "uppercase", fontWeight: 600 }}>
-                Student Access QR Code
-              </div>
-            </div>
-            <div className="flex flex-col items-center px-8 py-6">
-              <QRCodeSVG
-                value={studentCode}
-                size={180}
-                level="H"
-                includeMargin={false}
-                style={{ border: "4px solid #e5e7eb", borderRadius: 8, padding: 8, background: "#fff" }}
-              />
-              <div className="mt-4 text-center">
-                <p className="font-bold text-lg">{childName}</p>
-                <p className="text-xs font-mono text-brand mt-1 bg-brand-soft px-3 py-1 rounded-full">{studentCode}</p>
-              </div>
-            </div>
-            <div style={{ background: "#f0fdf4", borderTop: "1px solid #bbf7d0", padding: "8px 20px", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 8, color: "#15803d", fontWeight: 700, letterSpacing: 1 }}>CODE CAMPUS INTERNATIONAL</span>
-              <span style={{ fontSize: 8, color: "#9ca3af" }}>codecampus.ng</span>
-            </div>
-          </div>
-          <Button onClick={handleDownloadQR} disabled={downloading} className="w-full mt-4 bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
-            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {downloading ? "Generating PDF…" : "Download QR Code as PDF"}
-          </Button>
         </div>
       ) : null}
     </div>

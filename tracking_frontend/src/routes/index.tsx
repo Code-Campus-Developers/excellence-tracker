@@ -1,10 +1,27 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, ClipboardCheck, Trophy, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TOTAL_WEEKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    try {
+      const raw = localStorage.getItem("excellence_auth");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { user?: { role?: string } };
+      const role = parsed?.user?.role;
+      if (!role) return;
+      throw redirect({
+        to: role === "ADMIN" ? "/admin"
+          : role === "MENTOR" ? "/instructor"
+          : role === "PARENT" ? "/parent"
+          : "/student",
+      });
+    } catch (e) {
+      // re-throw redirects; swallow JSON parse / missing data errors
+      if (e && typeof e === "object" && "to" in (e as Record<string, unknown>)) throw e;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Code Campus Excellence Tracker" },
@@ -15,21 +32,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("excellence_auth");
-      if (!raw) return;
-      const { user } = JSON.parse(raw) as { user: { role: string } };
-      if (user.role === "ADMIN") navigate({ to: "/admin" });
-      else if (user.role === "MENTOR") navigate({ to: "/instructor" });
-      else if (user.role === "PARENT") navigate({ to: "/parent" });
-      else navigate({ to: "/student" });
-    } catch {
-      // not logged in, stay on landing
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-white">

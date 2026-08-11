@@ -25,6 +25,7 @@ import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as ParentRouteImport } from './routes/parent'
 import { Route as ParentLoginRouteImport } from './routes/parent-login'
 import { Route as ParentRegisterRouteImport } from './routes/parent-register'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ScannerRouteImport } from './routes/scanner'
@@ -52,6 +53,7 @@ import { Route as InstructorStudentsRouteImport } from './routes/instructor/stud
 import { Route as ParentIndexRouteImport } from './routes/parent/index'
 import { Route as ParentCompleteProfileRouteImport } from './routes/parent/complete-profile'
 import { Route as ParentEditProfileRouteImport } from './routes/parent/edit-profile'
+import { Route as ParentQrCodesRouteImport } from './routes/parent/qr-codes'
 import { Route as ParentScanRouteImport } from './routes/parent/scan'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StudentAttendanceRouteImport } from './routes/student/attendance'
@@ -144,6 +146,11 @@ const ParentLoginRoute = ParentLoginRouteImport.update({
 const ParentRegisterRoute = ParentRegisterRouteImport.update({
   id: '/parent-register',
   path: '/parent-register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -282,6 +289,11 @@ const ParentEditProfileRoute = ParentEditProfileRouteImport.update({
   path: '/edit-profile',
   getParentRoute: () => ParentRoute,
 } as any)
+const ParentQrCodesRoute = ParentQrCodesRouteImport.update({
+  id: '/qr-codes',
+  path: '/qr-codes',
+  getParentRoute: () => ParentRoute,
+} as any)
 const ParentScanRoute = ParentScanRouteImport.update({
   id: '/scan',
   path: '/scan',
@@ -365,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scanner': typeof ScannerRoute
@@ -389,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/parent/complete-profile': typeof ParentCompleteProfileRoute
   '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/qr-codes': typeof ParentQrCodesRoute
   '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/complete-profile': typeof StudentCompleteProfileRoute
@@ -420,6 +434,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scanner': typeof ScannerRoute
@@ -443,6 +458,7 @@ export interface FileRoutesByTo {
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/parent/complete-profile': typeof ParentCompleteProfileRoute
   '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/qr-codes': typeof ParentQrCodesRoute
   '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/complete-profile': typeof StudentCompleteProfileRoute
@@ -478,6 +494,7 @@ export interface FileRoutesById {
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
+  '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scanner': typeof ScannerRoute
@@ -502,6 +519,7 @@ export interface FileRoutesById {
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
   '/parent/complete-profile': typeof ParentCompleteProfileRoute
   '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/qr-codes': typeof ParentQrCodesRoute
   '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
   '/student/complete-profile': typeof StudentCompleteProfileRoute
@@ -538,6 +556,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/parent-login'
     | '/parent-register'
+    | '/privacy'
     | '/register'
     | '/reset-password'
     | '/scanner'
@@ -562,6 +581,7 @@ export interface FileRouteTypes {
     | '/instructor/students'
     | '/parent/complete-profile'
     | '/parent/edit-profile'
+    | '/parent/qr-codes'
     | '/parent/scan'
     | '/student/attendance'
     | '/student/complete-profile'
@@ -593,6 +613,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/parent-login'
     | '/parent-register'
+    | '/privacy'
     | '/register'
     | '/reset-password'
     | '/scanner'
@@ -616,6 +637,7 @@ export interface FileRouteTypes {
     | '/instructor/students'
     | '/parent/complete-profile'
     | '/parent/edit-profile'
+    | '/parent/qr-codes'
     | '/parent/scan'
     | '/student/attendance'
     | '/student/complete-profile'
@@ -650,6 +672,7 @@ export interface FileRouteTypes {
     | '/parent'
     | '/parent-login'
     | '/parent-register'
+    | '/privacy'
     | '/register'
     | '/reset-password'
     | '/scanner'
@@ -674,6 +697,7 @@ export interface FileRouteTypes {
     | '/instructor/students'
     | '/parent/complete-profile'
     | '/parent/edit-profile'
+    | '/parent/qr-codes'
     | '/parent/scan'
     | '/student/attendance'
     | '/student/complete-profile'
@@ -709,6 +733,7 @@ export interface RootRouteChildren {
   ParentRoute: typeof ParentRouteWithChildren
   ParentLoginRoute: typeof ParentLoginRoute
   ParentRegisterRoute: typeof ParentRegisterRoute
+  PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ScannerRoute: typeof ScannerRoute
@@ -829,6 +854,13 @@ declare module '@tanstack/react-router' {
       path: '/parent-register'
       fullPath: '/parent-register'
       preLoaderRoute: typeof ParentRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -1020,6 +1052,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ParentEditProfileRouteImport
       parentRoute: typeof ParentRoute
     }
+    '/parent/qr-codes': {
+      id: '/parent/qr-codes'
+      path: '/qr-codes'
+      fullPath: '/parent/qr-codes'
+      preLoaderRoute: typeof ParentQrCodesRouteImport
+      parentRoute: typeof ParentRoute
+    }
     '/parent/scan': {
       id: '/parent/scan'
       path: '/scan'
@@ -1182,6 +1221,7 @@ const InstructorRouteWithChildren = InstructorRoute._addFileChildren(
 interface ParentRouteChildren {
   ParentCompleteProfileRoute: typeof ParentCompleteProfileRoute
   ParentEditProfileRoute: typeof ParentEditProfileRoute
+  ParentQrCodesRoute: typeof ParentQrCodesRoute
   ParentScanRoute: typeof ParentScanRoute
   ParentIndexRoute: typeof ParentIndexRoute
   ParentChildIdRoute: typeof ParentChildIdRoute
@@ -1190,6 +1230,7 @@ interface ParentRouteChildren {
 const ParentRouteChildren: ParentRouteChildren = {
   ParentCompleteProfileRoute: ParentCompleteProfileRoute,
   ParentEditProfileRoute: ParentEditProfileRoute,
+  ParentQrCodesRoute: ParentQrCodesRoute,
   ParentScanRoute: ParentScanRoute,
   ParentIndexRoute: ParentIndexRoute,
   ParentChildIdRoute: ParentChildIdRoute,
@@ -1244,6 +1285,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParentRoute: ParentRouteWithChildren,
   ParentLoginRoute: ParentLoginRoute,
   ParentRegisterRoute: ParentRegisterRoute,
+  PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ScannerRoute: ScannerRoute,

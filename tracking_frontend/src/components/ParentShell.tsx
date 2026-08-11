@@ -1,12 +1,12 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Menu, X, ScanLine, UserCog } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, X, QrCode, UserCog } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useAuth } from "@/lib/authStore";
 
 const NAV = [
-  { to: "/parent", label: "My Children", icon: LayoutDashboard, exact: true },
-  { to: "/parent/scan", label: "Scan QR Code", icon: ScanLine },
+  { to: "/parent", label: "My Child", icon: LayoutDashboard, exact: true },
+  { to: "/parent/qr-codes", label: "QR Code", icon: QrCode },
   { to: "/parent/edit-profile", label: "Edit Profile", icon: UserCog },
 ];
 

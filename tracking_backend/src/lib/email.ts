@@ -92,6 +92,7 @@ export async function sendMissedAttendanceEmail(opts: {
         <p>Hi <strong>${opts.parentName}</strong>,</p>
         <p>Our records show that <strong>${opts.studentName}</strong> did not clock in at Code Campus today (<strong>${opts.date}</strong>).</p>
         <p>If this was unplanned, please follow up with your child or contact the instructor.</p>
+        <p style="color:#6b7280;font-size:13px">📌 If your child is not scheduled to attend today, you can disregard this message.</p>
         <a href="${APP_URL}/parent-login" style="display:inline-block;background:#dc2626;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Attendance</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
