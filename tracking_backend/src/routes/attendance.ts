@@ -1,7 +1,7 @@
-import { Router, type Response } from "express";
+import { Router, type Response, type Request } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, notifyParentsAttendance } from "./notifications";
 
 const router = Router();
 
@@ -85,6 +85,14 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
       notifyTrackInstructor(student.id, msg, link),
     ]);
 
+    // Notify parents
+    notifyParentsAttendance({
+      studentId: student.id,
+      studentName: sInfo?.name ?? "Student",
+      action: "clock_in",
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }).catch(() => {/* silent */});
+
     return res.status(201).json(record);
   } catch (err) {
     console.error(err);
@@ -136,6 +144,15 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
       notifyAdmins(msg, link),
       notifyTrackInstructor(student.id, msg, link),
     ]);
+
+    // Notify parents
+    notifyParentsAttendance({
+      studentId: student.id,
+      studentName: sInfo?.name ?? "Student",
+      action: "clock_out",
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      durationMin: dur,
+    }).catch(() => {/* silent */});
 
     return res.json(updated);
   } catch (err) {
@@ -285,6 +302,198 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── POST /api/attendance/scan  (QR scanner app — API key auth) ──────────────
+// No JWT required. Scanner app sends SCANNER_API_KEY in Authorization header.
+router.post("/scan", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const expectedKey = process.env.SCANNER_API_KEY;
+    if (!expectedKey || authHeader !== `Bearer ${expectedKey}`) {
+      return res.status(401).json({ success: false, error: "Invalid scanner API key" });
+    }
+
+    const { studentCode } = req.body as { studentCode?: string };
+    if (!studentCode) {
+      return res.status(400).json({ success: false, error: "studentCode is required" });
+    }
+
+    // Find student by studentCode
+    const student = await prisma.student.findFirst({
+      where: { studentCode: studentCode.trim() },
+      select: { id: true, name: true, track: true, studentCode: true },
+    });
+    if (!student) {
+      return res.status(404).json({ success: false, error: `Student not found: ${studentCode}` });
+    }
+
+    const { start, end } = todayRange();
+    const existing = await prisma.attendance.findFirst({
+      where: { studentId: student.id, date: { gte: start, lt: end } },
+    });
+    const now = new Date();
+
+    // Already clocked out → done for today
+    if (existing?.clockOutAt) {
+      return res.json({
+        success: true,
+        action: "already_complete",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} has already completed attendance for today.`,
+        clockIn: existing.clockInAt,
+        clockOut: existing.clockOutAt,
+        durationMin: existing.durationMin,
+      });
+    }
+
+    // Currently clocked in → clock out
+    if (existing && !existing.clockOutAt) {
+      const updated = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: { clockOutAt: now, durationMin: minutesDiff(existing.clockInAt, now) },
+      });
+      const dur = minutesDiff(existing.clockInAt, now);
+      const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur/60)}h ${dur%60}m`;
+
+      // Notify
+      const msg = `${student.name} clocked out via QR. Session: ${durStr}.`;
+      const link = `/instructor/students/${student.id}`;
+      await Promise.all([notifyAdmins(msg, link), notifyTrackInstructor(student.id, msg, link)]).catch(() => {});
+
+      // Notify parents
+      notifyParentsAttendance({
+        studentId: student.id,
+        studentName: student.name,
+        action: "clock_out",
+        time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        durationMin: minutesDiff(existing.clockInAt, now),
+      }).catch(() => {/* silent */});
+
+      return res.json({
+        success: true,
+        action: "clock_out",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} clocked OUT. Duration: ${durStr}`,
+        clockIn: existing.clockInAt,
+        clockOut: updated.clockOutAt,
+        durationMin: updated.durationMin,
+        timestamp: now,
+      });
+    }
+
+    // Not clocked in yet → clock in
+    const record = await prisma.attendance.create({
+      data: { studentId: student.id, date: start, clockInAt: now },
+    });
+
+    // Notify
+    const msg = `${student.name} clocked in via QR at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+    const link = `/instructor/students/${student.id}`;
+    await Promise.all([notifyAdmins(msg, link), notifyTrackInstructor(student.id, msg, link)]).catch(() => {});
+
+    // Notify parents
+    notifyParentsAttendance({
+      studentId: student.id,
+      studentName: student.name,
+      action: "clock_in",
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }).catch(() => {/* silent */});
+
+    return res.status(201).json({
+      success: true,
+      action: "clock_in",
+      student: { name: student.name, code: student.studentCode, track: student.track },
+      message: `${student.name} clocked IN successfully.`,
+      clockIn: record.clockInAt,
+      timestamp: now,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ─── POST /api/attendance/scan-parent  (parent JWT auth — scan child's QR) ───
+router.post("/scan-parent", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "PARENT") {
+      return res.status(403).json({ success: false, error: "Parents only" });
+    }
+
+    const { studentCode } = req.body as { studentCode?: string };
+    if (!studentCode) {
+      return res.status(400).json({ success: false, error: "studentCode is required" });
+    }
+
+    // Find student by code
+    const student = await prisma.student.findFirst({
+      where: { studentCode: studentCode.trim() },
+      select: { id: true, name: true, track: true, studentCode: true },
+    });
+    if (!student) {
+      return res.status(404).json({ success: false, error: "Student not found" });
+    }
+
+    // Verify this student is linked to the parent
+    const link = await prisma.parentStudent.findUnique({
+      where: { parentId_studentId: { parentId: req.user!.userId, studentId: student.id } },
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, error: "This student is not linked to your account" });
+    }
+
+    const { start, end } = todayRange();
+    const existing = await prisma.attendance.findFirst({
+      where: { studentId: student.id, date: { gte: start, lt: end } },
+    });
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    if (existing?.clockOutAt) {
+      return res.json({
+        success: true,
+        action: "already_complete",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} has already completed attendance for today.`,
+        clockIn: existing.clockInAt,
+        clockOut: existing.clockOutAt,
+        durationMin: existing.durationMin,
+      });
+    }
+
+    if (existing && !existing.clockOutAt) {
+      const dur = minutesDiff(existing.clockInAt, now);
+      const updated = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: { clockOutAt: now, durationMin: dur },
+      });
+      const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur/60)}h ${dur%60}m`;
+      const msg = `${student.name} clocked out via parent QR scan. Session: ${durStr}.`;
+      await Promise.all([notifyAdmins(msg, `/instructor/students/${student.id}`), notifyTrackInstructor(student.id, msg)]).catch(() => {});
+      notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_out", time: timeStr, durationMin: dur }).catch(() => {});
+      return res.json({
+        success: true, action: "clock_out",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} clocked OUT. Duration: ${durStr}`,
+        clockIn: existing.clockInAt, clockOut: updated.clockOutAt, durationMin: updated.durationMin, timestamp: now,
+      });
+    }
+
+    const record = await prisma.attendance.create({ data: { studentId: student.id, date: start, clockInAt: now } });
+    const msg = `${student.name} clocked in via parent QR scan at ${timeStr}.`;
+    await Promise.all([notifyAdmins(msg, `/instructor/students/${student.id}`), notifyTrackInstructor(student.id, msg)]).catch(() => {});
+    notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_in", time: timeStr }).catch(() => {});
+    return res.status(201).json({
+      success: true, action: "clock_in",
+      student: { name: student.name, code: student.studentCode, track: student.track },
+      message: `${student.name} clocked IN successfully.`,
+      clockIn: record.clockInAt, timestamp: now,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 });
 

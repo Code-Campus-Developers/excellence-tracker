@@ -6,7 +6,7 @@ import {
   signToken,
   generateResetToken,
 } from "../lib/auth";
-import { sendPasswordResetEmail, sendStudentWelcomeEmail } from "../lib/email";
+import { sendPasswordResetEmail, sendStudentWelcomeEmail, sendParentSelfRegisterEmail } from "../lib/email";
 import { notifyAdmins } from "./notifications";
 import { audit } from "../lib/audit";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
@@ -15,11 +15,15 @@ const router = Router();
 
 // POST /auth/register  (students only)
 router.post("/register", async (req: Request, res: Response) => {
-  const { name, email, password, track } = req.body as {
-    name: string; email: string; password: string; track: string;
+  const { name, email, password, track, phone } = req.body as {
+    name: string; email: string; password: string; track: string; phone?: string;
   };
   if (!name || !email || !password || !track) {
     res.status(400).json({ error: "name, email, password and track are required" });
+    return;
+  }
+  if (!phone || !phone.trim()) {
+    res.status(400).json({ error: "Phone number is required" });
     return;
   }
   if (password.length < 8) {
@@ -44,7 +48,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
   const user = await prisma.user.create({
     data: {
-      name, email, passwordHash, role: "STUDENT",
+      name, email, passwordHash, role: "STUDENT", phone: phone?.trim() ?? null,
       student: { create: { id: studentId, studentCode, name, email, track, avatarColor: "#16a34a" } },
     },
     include: { student: true },
@@ -67,8 +71,50 @@ router.post("/register", async (req: Request, res: Response) => {
 
   res.status(201).json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, createdAt: user.createdAt?.toISOString() ?? null },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, phone: user.phone ?? null, createdAt: user.createdAt?.toISOString() ?? null },
     student: user.student,
+  });
+});
+
+// POST /auth/register-parent  (parent self-registration)
+router.post("/register-parent", async (req: Request, res: Response) => {
+  const { name, email, password, phone } = req.body as {
+    name: string; email: string; password: string; phone?: string;
+  };
+  if (!name || !email || !password) {
+    res.status(400).json({ error: "Name, email and password are required" });
+    return;
+  }
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+  const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])/.test(password);
+  if (!strongPassword) {
+    res.status(400).json({ error: "Password must contain uppercase, lowercase, a number, and a symbol (e.g. Abc@1234)" });
+    return;
+  }
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    res.status(409).json({ error: "Email already registered" });
+    return;
+  }
+  const passwordHash = await hashPassword(password);
+  const user = await prisma.user.create({
+    data: { name, email, passwordHash, role: "PARENT", phone: phone?.trim() ?? null },
+  });
+  const token = signToken({ userId: user.id, role: user.role });
+  // Notify admins
+  try {
+    await notifyAdmins(`New parent registered: ${name} (${email})`, "/admin/parents");
+    await sendParentSelfRegisterEmail({ to: email, name });
+  } catch { /* silent */ }
+  res.status(201).json({
+    token,
+    user: {
+      id: user.id, name: user.name, email: user.email, role: user.role,
+      track: user.track, profilePicture: user.profilePicture, phone: user.phone, createdAt: user.createdAt,
+    },
   });
 });
 
@@ -80,12 +126,19 @@ router.post("/login", async (req: Request, res: Response) => {
     return;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
+  // Allow login with either email or phone number
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email }, { phone: email }] },
     include: { student: true },
   });
   if (!user) {
     res.status(401).json({ error: "Invalid email or password" });
+    return;
+  }
+
+  // Account was created via Google — has no password
+  if (!user.passwordHash) {
+    res.status(401).json({ error: "This account uses Google sign-in. Please click \"Sign in with Google\" instead." });
     return;
   }
 
@@ -106,7 +159,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, createdAt: user.createdAt?.toISOString() ?? null },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, phone: user.phone ?? null, createdAt: user.createdAt?.toISOString() ?? null },
     student: user.student ?? null,
   });
 });
@@ -119,7 +172,7 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
   });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   res.json({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, createdAt: user.createdAt?.toISOString() ?? null },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, track: user.track ?? null, profilePicture: user.profilePicture ?? null, phone: user.phone ?? null, createdAt: user.createdAt?.toISOString() ?? null },
     student: user.student ?? null,
   });
 });
@@ -195,6 +248,10 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
   const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
+  if (!user.passwordHash) {
+    res.status(400).json({ error: "This account uses Google sign-in and has no password to change." }); return;
+  }
+
   const valid = await comparePassword(currentPassword, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Current password is incorrect" }); return; }
 
@@ -208,8 +265,8 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
 
 // PUT /auth/profile — update name, email, track, profilePicture
 router.put("/profile", authenticate, async (req: AuthRequest, res: Response) => {
-  const { name, email, track, profilePicture } = req.body as {
-    name?: string; email?: string; track?: string; profilePicture?: string;
+  const { name, email, track, profilePicture, phone } = req.body as {
+    name?: string; email?: string; track?: string; profilePicture?: string; phone?: string;
   };
   const userId = req.user!.userId;
 
@@ -219,6 +276,12 @@ router.put("/profile", authenticate, async (req: AuthRequest, res: Response) => 
     if (existing) { res.status(409).json({ error: "Email already in use" }); return; }
   }
 
+  // Fetch current user to detect first-time Google profile completion
+  const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+  const isFirstGoogleProfileCompletion = !!(
+    currentUser?.googleId && !currentUser.track && track
+  );
+
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -226,8 +289,9 @@ router.put("/profile", authenticate, async (req: AuthRequest, res: Response) => 
       ...(email && { email }),
       ...(track !== undefined && { track }),
       ...(profilePicture !== undefined && { profilePicture }),
+      ...(phone !== undefined && { phone: phone.trim() || null }),
     },
-    select: { id: true, name: true, email: true, role: true, track: true, profilePicture: true },
+    select: { id: true, name: true, email: true, role: true, track: true, profilePicture: true, phone: true },
   });
 
   // Also update student record if name/email/track changed
@@ -240,6 +304,13 @@ router.put("/profile", authenticate, async (req: AuthRequest, res: Response) => 
         ...(track && { track }),
       },
     }).catch(() => {});
+  }
+
+  // Send welcome email to Google users completing their profile for the first time
+  if (isFirstGoogleProfileCompletion && currentUser) {
+    try {
+      await sendStudentWelcomeEmail({ to: currentUser.email, name: currentUser.name, track: track! });
+    } catch { /* silent — don't block profile save */ }
   }
 
   res.json({ user: updated });

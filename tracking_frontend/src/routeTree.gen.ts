@@ -17,18 +17,25 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditProfileRouteImport } from './routes/edit-profile'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GoogleCallbackRouteImport } from './routes/google-callback'
 import { Route as InstructorRouteImport } from './routes/instructor'
 import { Route as InstructorLoginRouteImport } from './routes/instructor-login'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as ParentRouteImport } from './routes/parent'
+import { Route as ParentLoginRouteImport } from './routes/parent-login'
+import { Route as ParentRegisterRouteImport } from './routes/parent-register'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ScannerRouteImport } from './routes/scanner'
 import { Route as SelfReportRouteImport } from './routes/self-report'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAttendanceOverviewRouteImport } from './routes/admin/attendance-overview'
+import { Route as AdminBulkImportRouteImport } from './routes/admin/bulk-import'
 import { Route as AdminManageRouteImport } from './routes/admin/manage'
+import { Route as AdminParentsRouteImport } from './routes/admin/parents'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminTrackAssignmentsRouteImport } from './routes/admin/track-assignments'
@@ -42,15 +49,22 @@ import { Route as InstructorMessagesRouteImport } from './routes/instructor/mess
 import { Route as InstructorReportsRouteImport } from './routes/instructor/reports'
 import { Route as InstructorSettingsRouteImport } from './routes/instructor/settings'
 import { Route as InstructorStudentsRouteImport } from './routes/instructor/students'
+import { Route as ParentIndexRouteImport } from './routes/parent/index'
+import { Route as ParentCompleteProfileRouteImport } from './routes/parent/complete-profile'
+import { Route as ParentEditProfileRouteImport } from './routes/parent/edit-profile'
+import { Route as ParentScanRouteImport } from './routes/parent/scan'
 import { Route as StudentIndexRouteImport } from './routes/student/index'
 import { Route as StudentAttendanceRouteImport } from './routes/student/attendance'
+import { Route as StudentCompleteProfileRouteImport } from './routes/student/complete-profile'
 import { Route as StudentEditProfileRouteImport } from './routes/student/edit-profile'
 import { Route as StudentIdCardRouteImport } from './routes/student/id-card'
 import { Route as StudentLeaderboardRouteImport } from './routes/student/leaderboard'
 import { Route as StudentMessagesRouteImport } from './routes/student/messages'
 import { Route as StudentProgressRouteImport } from './routes/student/progress'
+import { Route as StudentQrCodeRouteImport } from './routes/student/qr-code'
 import { Route as StudentSelfReportRouteImport } from './routes/student/self-report'
 import { Route as InstructorStudentsIdRouteImport } from './routes/instructor/students.$id'
+import { Route as ParentChildIdRouteImport } from './routes/parent/child.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -92,6 +106,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GoogleCallbackRoute = GoogleCallbackRouteImport.update({
+  id: '/google-callback',
+  path: '/google-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InstructorRoute = InstructorRouteImport.update({
   id: '/instructor',
   path: '/instructor',
@@ -112,6 +131,21 @@ const MessagesRoute = MessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParentRoute = ParentRouteImport.update({
+  id: '/parent',
+  path: '/parent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentLoginRoute = ParentLoginRouteImport.update({
+  id: '/parent-login',
+  path: '/parent-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentRegisterRoute = ParentRegisterRouteImport.update({
+  id: '/parent-register',
+  path: '/parent-register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -120,6 +154,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScannerRoute = ScannerRouteImport.update({
+  id: '/scanner',
+  path: '/scanner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SelfReportRoute = SelfReportRouteImport.update({
@@ -147,9 +186,19 @@ const AdminAttendanceOverviewRoute = AdminAttendanceOverviewRouteImport.update({
   path: '/attendance-overview',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBulkImportRoute = AdminBulkImportRouteImport.update({
+  id: '/bulk-import',
+  path: '/bulk-import',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminManageRoute = AdminManageRouteImport.update({
   id: '/manage',
   path: '/manage',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminParentsRoute = AdminParentsRouteImport.update({
+  id: '/parents',
+  path: '/parents',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
@@ -218,6 +267,26 @@ const InstructorStudentsRoute = InstructorStudentsRouteImport.update({
   path: '/students',
   getParentRoute: () => InstructorRoute,
 } as any)
+const ParentIndexRoute = ParentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ParentRoute,
+} as any)
+const ParentCompleteProfileRoute = ParentCompleteProfileRouteImport.update({
+  id: '/complete-profile',
+  path: '/complete-profile',
+  getParentRoute: () => ParentRoute,
+} as any)
+const ParentEditProfileRoute = ParentEditProfileRouteImport.update({
+  id: '/edit-profile',
+  path: '/edit-profile',
+  getParentRoute: () => ParentRoute,
+} as any)
+const ParentScanRoute = ParentScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => ParentRoute,
+} as any)
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -226,6 +295,11 @@ const StudentIndexRoute = StudentIndexRouteImport.update({
 const StudentAttendanceRoute = StudentAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentCompleteProfileRoute = StudentCompleteProfileRouteImport.update({
+  id: '/complete-profile',
+  path: '/complete-profile',
   getParentRoute: () => StudentRoute,
 } as any)
 const StudentEditProfileRoute = StudentEditProfileRouteImport.update({
@@ -253,6 +327,11 @@ const StudentProgressRoute = StudentProgressRouteImport.update({
   path: '/progress',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentQrCodeRoute = StudentQrCodeRouteImport.update({
+  id: '/qr-code',
+  path: '/qr-code',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentSelfReportRoute = StudentSelfReportRouteImport.update({
   id: '/self-report',
   path: '/self-report',
@@ -262,6 +341,11 @@ const InstructorStudentsIdRoute = InstructorStudentsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => InstructorStudentsRoute,
+} as any)
+const ParentChildIdRoute = ParentChildIdRouteImport.update({
+  id: '/child/$id',
+  path: '/child/$id',
+  getParentRoute: () => ParentRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -273,17 +357,24 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/google-callback': typeof GoogleCallbackRoute
   '/instructor': typeof InstructorRouteWithChildren
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/parent': typeof ParentRouteWithChildren
+  '/parent-login': typeof ParentLoginRoute
+  '/parent-register': typeof ParentRegisterRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scanner': typeof ScannerRoute
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student': typeof StudentRouteWithChildren
   '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
+  '/admin/bulk-import': typeof AdminBulkImportRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/parents': typeof AdminParentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
@@ -296,17 +387,24 @@ export interface FileRoutesByFullPath {
   '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/parent/complete-profile': typeof ParentCompleteProfileRoute
+  '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/complete-profile': typeof StudentCompleteProfileRoute
   '/student/edit-profile': typeof StudentEditProfileRoute
   '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/qr-code': typeof StudentQrCodeRoute
   '/student/self-report': typeof StudentSelfReportRoute
   '/admin/': typeof AdminIndexRoute
   '/instructor/': typeof InstructorIndexRoute
+  '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
+  '/parent/child/$id': typeof ParentChildIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -316,15 +414,21 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/google-callback': typeof GoogleCallbackRoute
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/parent-login': typeof ParentLoginRoute
+  '/parent-register': typeof ParentRegisterRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scanner': typeof ScannerRoute
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
+  '/admin/bulk-import': typeof AdminBulkImportRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/parents': typeof AdminParentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
@@ -337,17 +441,24 @@ export interface FileRoutesByTo {
   '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/parent/complete-profile': typeof ParentCompleteProfileRoute
+  '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/complete-profile': typeof StudentCompleteProfileRoute
   '/student/edit-profile': typeof StudentEditProfileRoute
   '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/qr-code': typeof StudentQrCodeRoute
   '/student/self-report': typeof StudentSelfReportRoute
   '/admin': typeof AdminIndexRoute
   '/instructor': typeof InstructorIndexRoute
+  '/parent': typeof ParentIndexRoute
   '/student': typeof StudentIndexRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
+  '/parent/child/$id': typeof ParentChildIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -359,17 +470,24 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/edit-profile': typeof EditProfileRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/google-callback': typeof GoogleCallbackRoute
   '/instructor': typeof InstructorRouteWithChildren
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/parent': typeof ParentRouteWithChildren
+  '/parent-login': typeof ParentLoginRoute
+  '/parent-register': typeof ParentRegisterRoute
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scanner': typeof ScannerRoute
   '/self-report': typeof SelfReportRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student': typeof StudentRouteWithChildren
   '/admin/attendance-overview': typeof AdminAttendanceOverviewRoute
+  '/admin/bulk-import': typeof AdminBulkImportRoute
   '/admin/manage': typeof AdminManageRoute
+  '/admin/parents': typeof AdminParentsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/track-assignments': typeof AdminTrackAssignmentsRoute
@@ -382,17 +500,24 @@ export interface FileRoutesById {
   '/instructor/reports': typeof InstructorReportsRoute
   '/instructor/settings': typeof InstructorSettingsRoute
   '/instructor/students': typeof InstructorStudentsRouteWithChildren
+  '/parent/complete-profile': typeof ParentCompleteProfileRoute
+  '/parent/edit-profile': typeof ParentEditProfileRoute
+  '/parent/scan': typeof ParentScanRoute
   '/student/attendance': typeof StudentAttendanceRoute
+  '/student/complete-profile': typeof StudentCompleteProfileRoute
   '/student/edit-profile': typeof StudentEditProfileRoute
   '/student/id-card': typeof StudentIdCardRoute
   '/student/leaderboard': typeof StudentLeaderboardRoute
   '/student/messages': typeof StudentMessagesRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/qr-code': typeof StudentQrCodeRoute
   '/student/self-report': typeof StudentSelfReportRoute
   '/admin/': typeof AdminIndexRoute
   '/instructor/': typeof InstructorIndexRoute
+  '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
+  '/parent/child/$id': typeof ParentChildIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -405,17 +530,24 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit-profile'
     | '/forgot-password'
+    | '/google-callback'
     | '/instructor'
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/parent'
+    | '/parent-login'
+    | '/parent-register'
     | '/register'
     | '/reset-password'
+    | '/scanner'
     | '/self-report'
     | '/sitemap.xml'
     | '/student'
     | '/admin/attendance-overview'
+    | '/admin/bulk-import'
     | '/admin/manage'
+    | '/admin/parents'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/track-assignments'
@@ -428,17 +560,24 @@ export interface FileRouteTypes {
     | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
+    | '/parent/complete-profile'
+    | '/parent/edit-profile'
+    | '/parent/scan'
     | '/student/attendance'
+    | '/student/complete-profile'
     | '/student/edit-profile'
     | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
+    | '/student/qr-code'
     | '/student/self-report'
     | '/admin/'
     | '/instructor/'
+    | '/parent/'
     | '/student/'
     | '/instructor/students/$id'
+    | '/parent/child/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -448,15 +587,21 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit-profile'
     | '/forgot-password'
+    | '/google-callback'
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/parent-login'
+    | '/parent-register'
     | '/register'
     | '/reset-password'
+    | '/scanner'
     | '/self-report'
     | '/sitemap.xml'
     | '/admin/attendance-overview'
+    | '/admin/bulk-import'
     | '/admin/manage'
+    | '/admin/parents'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/track-assignments'
@@ -469,17 +614,24 @@ export interface FileRouteTypes {
     | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
+    | '/parent/complete-profile'
+    | '/parent/edit-profile'
+    | '/parent/scan'
     | '/student/attendance'
+    | '/student/complete-profile'
     | '/student/edit-profile'
     | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
+    | '/student/qr-code'
     | '/student/self-report'
     | '/admin'
     | '/instructor'
+    | '/parent'
     | '/student'
     | '/instructor/students/$id'
+    | '/parent/child/$id'
   id:
     | '__root__'
     | '/'
@@ -490,17 +642,24 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit-profile'
     | '/forgot-password'
+    | '/google-callback'
     | '/instructor'
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/parent'
+    | '/parent-login'
+    | '/parent-register'
     | '/register'
     | '/reset-password'
+    | '/scanner'
     | '/self-report'
     | '/sitemap.xml'
     | '/student'
     | '/admin/attendance-overview'
+    | '/admin/bulk-import'
     | '/admin/manage'
+    | '/admin/parents'
     | '/admin/reports'
     | '/admin/settings'
     | '/admin/track-assignments'
@@ -513,17 +672,24 @@ export interface FileRouteTypes {
     | '/instructor/reports'
     | '/instructor/settings'
     | '/instructor/students'
+    | '/parent/complete-profile'
+    | '/parent/edit-profile'
+    | '/parent/scan'
     | '/student/attendance'
+    | '/student/complete-profile'
     | '/student/edit-profile'
     | '/student/id-card'
     | '/student/leaderboard'
     | '/student/messages'
     | '/student/progress'
+    | '/student/qr-code'
     | '/student/self-report'
     | '/admin/'
     | '/instructor/'
+    | '/parent/'
     | '/student/'
     | '/instructor/students/$id'
+    | '/parent/child/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -535,12 +701,17 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EditProfileRoute: typeof EditProfileRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GoogleCallbackRoute: typeof GoogleCallbackRoute
   InstructorRoute: typeof InstructorRouteWithChildren
   InstructorLoginRoute: typeof InstructorLoginRoute
   LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
+  ParentRoute: typeof ParentRouteWithChildren
+  ParentLoginRoute: typeof ParentLoginRoute
+  ParentRegisterRoute: typeof ParentRegisterRoute
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ScannerRoute: typeof ScannerRoute
   SelfReportRoute: typeof SelfReportRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudentRoute: typeof StudentRouteWithChildren
@@ -604,6 +775,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/google-callback': {
+      id: '/google-callback'
+      path: '/google-callback'
+      fullPath: '/google-callback'
+      preLoaderRoute: typeof GoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/instructor': {
       id: '/instructor'
       path: '/instructor'
@@ -632,6 +810,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/parent': {
+      id: '/parent'
+      path: '/parent'
+      fullPath: '/parent'
+      preLoaderRoute: typeof ParentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent-login': {
+      id: '/parent-login'
+      path: '/parent-login'
+      fullPath: '/parent-login'
+      preLoaderRoute: typeof ParentLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent-register': {
+      id: '/parent-register'
+      path: '/parent-register'
+      fullPath: '/parent-register'
+      preLoaderRoute: typeof ParentRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -644,6 +843,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scanner': {
+      id: '/scanner'
+      path: '/scanner'
+      fullPath: '/scanner'
+      preLoaderRoute: typeof ScannerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/self-report': {
@@ -681,11 +887,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAttendanceOverviewRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/bulk-import': {
+      id: '/admin/bulk-import'
+      path: '/bulk-import'
+      fullPath: '/admin/bulk-import'
+      preLoaderRoute: typeof AdminBulkImportRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/manage': {
       id: '/admin/manage'
       path: '/manage'
       fullPath: '/admin/manage'
       preLoaderRoute: typeof AdminManageRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/parents': {
+      id: '/admin/parents'
+      path: '/parents'
+      fullPath: '/admin/parents'
+      preLoaderRoute: typeof AdminParentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/reports': {
@@ -779,6 +999,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstructorStudentsRouteImport
       parentRoute: typeof InstructorRoute
     }
+    '/parent/': {
+      id: '/parent/'
+      path: '/'
+      fullPath: '/parent/'
+      preLoaderRoute: typeof ParentIndexRouteImport
+      parentRoute: typeof ParentRoute
+    }
+    '/parent/complete-profile': {
+      id: '/parent/complete-profile'
+      path: '/complete-profile'
+      fullPath: '/parent/complete-profile'
+      preLoaderRoute: typeof ParentCompleteProfileRouteImport
+      parentRoute: typeof ParentRoute
+    }
+    '/parent/edit-profile': {
+      id: '/parent/edit-profile'
+      path: '/edit-profile'
+      fullPath: '/parent/edit-profile'
+      preLoaderRoute: typeof ParentEditProfileRouteImport
+      parentRoute: typeof ParentRoute
+    }
+    '/parent/scan': {
+      id: '/parent/scan'
+      path: '/scan'
+      fullPath: '/parent/scan'
+      preLoaderRoute: typeof ParentScanRouteImport
+      parentRoute: typeof ParentRoute
+    }
     '/student/': {
       id: '/student/'
       path: '/'
@@ -791,6 +1039,13 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/student/attendance'
       preLoaderRoute: typeof StudentAttendanceRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/complete-profile': {
+      id: '/student/complete-profile'
+      path: '/complete-profile'
+      fullPath: '/student/complete-profile'
+      preLoaderRoute: typeof StudentCompleteProfileRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/edit-profile': {
@@ -828,6 +1083,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentProgressRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/qr-code': {
+      id: '/student/qr-code'
+      path: '/qr-code'
+      fullPath: '/student/qr-code'
+      preLoaderRoute: typeof StudentQrCodeRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/self-report': {
       id: '/student/self-report'
       path: '/self-report'
@@ -842,12 +1104,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstructorStudentsIdRouteImport
       parentRoute: typeof InstructorStudentsRoute
     }
+    '/parent/child/$id': {
+      id: '/parent/child/$id'
+      path: '/child/$id'
+      fullPath: '/parent/child/$id'
+      preLoaderRoute: typeof ParentChildIdRouteImport
+      parentRoute: typeof ParentRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminAttendanceOverviewRoute: typeof AdminAttendanceOverviewRoute
+  AdminBulkImportRoute: typeof AdminBulkImportRoute
   AdminManageRoute: typeof AdminManageRoute
+  AdminParentsRoute: typeof AdminParentsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTrackAssignmentsRoute: typeof AdminTrackAssignmentsRoute
@@ -856,7 +1127,9 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAttendanceOverviewRoute: AdminAttendanceOverviewRoute,
+  AdminBulkImportRoute: AdminBulkImportRoute,
   AdminManageRoute: AdminManageRoute,
+  AdminParentsRoute: AdminParentsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTrackAssignmentsRoute: AdminTrackAssignmentsRoute,
@@ -906,24 +1179,47 @@ const InstructorRouteWithChildren = InstructorRoute._addFileChildren(
   InstructorRouteChildren,
 )
 
+interface ParentRouteChildren {
+  ParentCompleteProfileRoute: typeof ParentCompleteProfileRoute
+  ParentEditProfileRoute: typeof ParentEditProfileRoute
+  ParentScanRoute: typeof ParentScanRoute
+  ParentIndexRoute: typeof ParentIndexRoute
+  ParentChildIdRoute: typeof ParentChildIdRoute
+}
+
+const ParentRouteChildren: ParentRouteChildren = {
+  ParentCompleteProfileRoute: ParentCompleteProfileRoute,
+  ParentEditProfileRoute: ParentEditProfileRoute,
+  ParentScanRoute: ParentScanRoute,
+  ParentIndexRoute: ParentIndexRoute,
+  ParentChildIdRoute: ParentChildIdRoute,
+}
+
+const ParentRouteWithChildren =
+  ParentRoute._addFileChildren(ParentRouteChildren)
+
 interface StudentRouteChildren {
   StudentAttendanceRoute: typeof StudentAttendanceRoute
+  StudentCompleteProfileRoute: typeof StudentCompleteProfileRoute
   StudentEditProfileRoute: typeof StudentEditProfileRoute
   StudentIdCardRoute: typeof StudentIdCardRoute
   StudentLeaderboardRoute: typeof StudentLeaderboardRoute
   StudentMessagesRoute: typeof StudentMessagesRoute
   StudentProgressRoute: typeof StudentProgressRoute
+  StudentQrCodeRoute: typeof StudentQrCodeRoute
   StudentSelfReportRoute: typeof StudentSelfReportRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentAttendanceRoute: StudentAttendanceRoute,
+  StudentCompleteProfileRoute: StudentCompleteProfileRoute,
   StudentEditProfileRoute: StudentEditProfileRoute,
   StudentIdCardRoute: StudentIdCardRoute,
   StudentLeaderboardRoute: StudentLeaderboardRoute,
   StudentMessagesRoute: StudentMessagesRoute,
   StudentProgressRoute: StudentProgressRoute,
+  StudentQrCodeRoute: StudentQrCodeRoute,
   StudentSelfReportRoute: StudentSelfReportRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
@@ -940,12 +1236,17 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EditProfileRoute: EditProfileRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GoogleCallbackRoute: GoogleCallbackRoute,
   InstructorRoute: InstructorRouteWithChildren,
   InstructorLoginRoute: InstructorLoginRoute,
   LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
+  ParentRoute: ParentRouteWithChildren,
+  ParentLoginRoute: ParentLoginRoute,
+  ParentRegisterRoute: ParentRegisterRoute,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ScannerRoute: ScannerRoute,
   SelfReportRoute: SelfReportRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudentRoute: StudentRouteWithChildren,

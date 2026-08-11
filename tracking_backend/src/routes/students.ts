@@ -30,7 +30,7 @@ router.post("/enroll", authorize("MENTOR", "ADMIN"), async (req: Request, res: R
     include: { student: true },
   });
 
-  try { await sendStudentWelcomeEmail({ to: email, name, track }); }
+  try { await sendStudentWelcomeEmail({ to: email, name, track, tempPassword }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
   try {

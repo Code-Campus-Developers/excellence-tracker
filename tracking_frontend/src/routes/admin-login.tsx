@@ -62,7 +62,7 @@ function AdminLogin() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
+          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto" />
         </div>
         <Card>
           <CardHeader>

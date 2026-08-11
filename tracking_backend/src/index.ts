@@ -17,6 +17,10 @@ import messagesRouter from "./routes/messages";
 import attendanceRouter from "./routes/attendance";
 import uploadRouter from "./routes/upload";
 import trackAssignmentsRouter from "./routes/track-assignments";
+import bulkImportRouter from "./routes/bulk-import";
+import parentsRouter from "./routes/parents";
+import googleAuthRouter from "./routes/google-auth";
+import { startMissedAttendanceCron } from "./lib/attendance-cron";
 import prisma from "./lib/prisma";
 import { authenticate } from "./middleware/authenticate";
 
@@ -50,6 +54,7 @@ app.get("/health", (_req, res) => {
 
 // Routes
 app.use("/auth", authRouter);
+app.use("/auth/google", googleAuthRouter);
 app.use("/admin", adminRouter);
 app.use("/admin/settings", adminSettingsRouter);
 app.use("/api/students", studentsRouter);
@@ -62,6 +67,9 @@ app.use("/api/messages", messagesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/admin/track-assignments", trackAssignmentsRouter);
+app.use("/admin/bulk-import", bulkImportRouter);
+app.use("/admin/parents", parentsRouter);
+app.use("/api/parent", parentsRouter);
 
 // GET /api/instructors — list instructors, accessible to any authenticated user
 app.get("/api/instructors", authenticate, async (_req, res) => {
@@ -84,6 +92,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
+  startMissedAttendanceCron();
 });
 
 export default app;

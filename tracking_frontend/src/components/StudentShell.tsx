@@ -1,7 +1,7 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, TrendingUp, ClipboardCheck, MessageCircle,
-  CalendarClock, Trophy, Bell, LogOut, UserCog, Menu, CreditCard,
+  CalendarClock, Trophy, Bell, LogOut, UserCog, Menu, CreditCard, QrCode,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -13,6 +13,7 @@ import { useStore, getCurrentWeek } from "@/lib/store";
 const NAV = [
   { to: "/student",             label: "Dashboard",   icon: LayoutDashboard, exact: true },
   { to: "/student/id-card",     label: "ID Card",     icon: CreditCard },
+  { to: "/student/qr-code",     label: "My QR Code",  icon: QrCode },
   { to: "/student/progress",    label: "My Progress", icon: TrendingUp },
   { to: "/student/self-report", label: "Self-Report", icon: ClipboardCheck },
   { to: "/student/messages",    label: "Messages",    icon: MessageCircle },

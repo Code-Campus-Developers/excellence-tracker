@@ -162,6 +162,7 @@ export const STUDENTS: Student[] = [
 export const CURRENT_WEEK = 4;
 export const TOTAL_WEEKS = 16;
 export const TRACKS = [
+  "Kids Summer Coding",
   "Software Engineering",
   "Data Analytics",
   "Cloud Engineering",

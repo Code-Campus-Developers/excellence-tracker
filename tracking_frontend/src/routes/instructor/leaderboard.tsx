@@ -32,7 +32,7 @@ function Board({
   scoreLabel,
   getScore,
 }: {
-  rows: { id: string; name: string; avatarColor: string; track: string }[];
+  rows: { id: string; name: string; avatarColor: string; track: string; profilePicture?: string | null }[];
   scoreLabel: string;
   getScore: (id: string) => number;
 }) {
@@ -70,7 +70,6 @@ function Board({
                   <Avatar name={s.name} color={s.avatarColor} size={36} photo={s.profilePicture} />
                   <div className="min-w-0">
                     <div className="font-medium truncate">{s.name}</div>
-                    <div className="text-xs text-muted-foreground">{s.track}</div>
                   </div>
                 </div>
                 <div className="text-right font-bold tabular-nums">{score}</div>

@@ -2,6 +2,11 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { getCurrentInstructorForTrack } from "./track-assignments";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
+import {
+  sendParentEvaluationEmail,
+  sendParentReportStatusEmail,
+  sendParentAttendanceEmail,
+} from "../lib/email";
 
 const router = Router();
 router.use(authenticate);
@@ -77,3 +82,106 @@ export async function notifyTrackInstructor(studentId: string, message: string, 
   const instructor = await getCurrentInstructorForTrack(student.track);
   if (instructor) await createNotification({ userId: instructor.id, message, link });
 }
+
+// Helper — generic: call a callback for each parent linked to a student
+export async function notifyParentsOfStudent(
+  studentId: string,
+  callback: (parent: { id: string; name: string; email: string }) => Promise<void>
+) {
+  const links = await prisma.parentStudent.findMany({
+    where: { studentId },
+    include: { parent: { select: { id: true, name: true, email: true } } },
+  });
+  await Promise.all(links.map((l) => callback(l.parent)));
+}
+
+// ─── Parent Notification Helpers ──────────────────────────────────────────────
+
+/** Fetch all parents linked to a student */
+async function getParentsOfStudent(studentId: string) {
+  const links = await prisma.parentStudent.findMany({
+    where: { studentId },
+    include: { parent: { select: { id: true, name: true, email: true } } },
+  });
+  return links.map((l) => l.parent);
+}
+
+/** Email all parents when their child gets a new evaluation */
+export async function notifyParentsEvaluation(opts: {
+  studentId: string;
+  studentName: string;
+  week: number;
+  total: number;
+  evaluator: string;
+}) {
+  try {
+    const parents = await getParentsOfStudent(opts.studentId);
+    await Promise.all(
+      parents.map((p) =>
+        sendParentEvaluationEmail({
+          to: p.email,
+          parentName: p.name,
+          studentName: opts.studentName,
+          week: opts.week,
+          total: opts.total,
+          evaluator: opts.evaluator,
+        })
+      )
+    );
+  } catch (err) {
+    console.error("notifyParentsEvaluation failed:", err);
+  }
+}
+
+/** Email all parents when their child's self-report is verified/rejected */
+export async function notifyParentsReportStatus(opts: {
+  studentId: string;
+  studentName: string;
+  week: number;
+  status: "VERIFIED" | "REJECTED";
+}) {
+  try {
+    const parents = await getParentsOfStudent(opts.studentId);
+    await Promise.all(
+      parents.map((p) =>
+        sendParentReportStatusEmail({
+          to: p.email,
+          parentName: p.name,
+          studentName: opts.studentName,
+          week: opts.week,
+          status: opts.status,
+        })
+      )
+    );
+  } catch (err) {
+    console.error("notifyParentsReportStatus failed:", err);
+  }
+}
+
+/** Email all parents when their child clocks in or out */
+export async function notifyParentsAttendance(opts: {
+  studentId: string;
+  studentName: string;
+  action: "clock_in" | "clock_out";
+  time: string;
+  durationMin?: number | null;
+}) {
+  try {
+    const parents = await getParentsOfStudent(opts.studentId);
+    await Promise.all(
+      parents.map((p) =>
+        sendParentAttendanceEmail({
+          to: p.email,
+          parentName: p.name,
+          studentName: opts.studentName,
+          action: opts.action,
+          time: opts.time,
+          durationMin: opts.durationMin,
+        })
+      )
+    );
+  } catch (err) {
+    console.error("notifyParentsAttendance failed:", err);
+  }
+}
+

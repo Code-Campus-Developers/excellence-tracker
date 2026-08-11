@@ -1,7 +1,8 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, notifyParentsOfStudent } from "./notifications";
+import { sendDailyEventParentEmail } from "../lib/email";
 
 const router = Router();
 
@@ -68,6 +69,17 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
     const msg = `${student.name} submitted a daily event.`;
     const link = `/instructor/students/${student.id}`;
     await Promise.all([notifyAdmins(msg, link), notifyTrackInstructor(student.id, msg, link)]).catch(() => {/* silent */});
+
+    // Notify parents
+    notifyParentsOfStudent(student.id, async (parent) => {
+      await sendDailyEventParentEmail({
+        to: parent.email,
+        parentName: parent.name,
+        studentName: student.name,
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        description: description ?? null,
+      });
+    }).catch(() => {/* silent */});
 
     return res.status(201).json(event);
   } catch (err) { console.error(err); return res.status(500).json({ error: "Server error" }); }

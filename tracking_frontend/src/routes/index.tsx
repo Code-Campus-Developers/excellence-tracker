@@ -24,6 +24,7 @@ function Landing() {
       const { user } = JSON.parse(raw) as { user: { role: string } };
       if (user.role === "ADMIN") navigate({ to: "/admin" });
       else if (user.role === "MENTOR") navigate({ to: "/instructor" });
+      else if (user.role === "PARENT") navigate({ to: "/parent" });
       else navigate({ to: "/student" });
     } catch {
       // not logged in, stay on landing
@@ -77,6 +78,12 @@ function Landing() {
               </Button>
             </Link>
           </div>
+          <p className="mt-6 text-white/60 text-sm">
+            Are you a parent?{" "}
+            <Link to="/parent-login" className="text-white underline underline-offset-4 hover:text-white/80 transition-colors">
+              Access Parent Portal →
+            </Link>
+          </p>
         </div>
       </section>
 

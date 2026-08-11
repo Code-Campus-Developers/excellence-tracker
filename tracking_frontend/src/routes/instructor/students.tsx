@@ -151,7 +151,7 @@ function StudentsList() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold">{s.name}</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {s.email} · {s.track}
+                  {s.email}
                 </div>
                 {s.studentCode && (
                   <span className="text-[10px] font-mono text-brand">{s.studentCode}</span>

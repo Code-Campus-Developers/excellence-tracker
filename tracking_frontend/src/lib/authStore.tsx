@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
-export type Role = "ADMIN" | "MENTOR" | "STUDENT";
+export type Role = "ADMIN" | "MENTOR" | "STUDENT" | "PARENT";
 
 export interface AuthUser {
   id: string;
@@ -15,6 +15,7 @@ export interface AuthUser {
   role: Role;
   track?: string | null;
   profilePicture?: string | null;
+  phone?: string | null;
   createdAt?: string | null;
 }
 

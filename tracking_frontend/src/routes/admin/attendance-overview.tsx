@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { Loader2, CalendarDays, Plus, Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, CalendarDays, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,19 +37,25 @@ function AdminAttendanceOverview() {
   const { students } = useStore();
   const [records, setRecords] = useState<AttRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"today" | "all">("today");
   const [showForm, setShowForm] = useState(false);
   const [editRecord, setEditRecord] = useState<AttRecord | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ studentId: "", date: "", clockIn: "", clockOut: "" });
 
-  const fetchAll = () => {
+  const fetchAll = useCallback(() => {
     api.get<AttRecord[]>("/api/attendance/all")
       .then((d) => setRecords(d ?? []))
       .catch(() => {/* silent */})
       .finally(() => setLoading(false));
-  };
-  useEffect(() => { fetchAll(); }, []);
+  }, []);
+  useEffect(() => {
+    fetchAll();
+    // Auto-refresh every 15 seconds for live QR scan updates
+    const interval = setInterval(fetchAll, 15000);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
 
   const today = records.filter((r) => {
     const d = new Date(r.date); const now = new Date();
@@ -115,14 +121,29 @@ function AdminAttendanceOverview() {
   return (
     <AppShell>
       <PageHeader
-        title="Attendance Overview"
-        subtitle={`All students\' attendance · ${today.length} present today`}
+        title="Attendance"
+        subtitle={activeTab === "today" ? `${today.length} present today · auto-refreshes every 15s` : `All attendance records`}
         actions={
-          <Button onClick={openAdd} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
-            <Plus className="h-4 w-4" /> Add Entry
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={fetchAll} className="gap-1"><RefreshCw className="h-4 w-4" /></Button>
+            <Button onClick={openAdd} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
+              <Plus className="h-4 w-4" /> Add Entry
+            </Button>
+          </div>
         }
       />
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 border-b">
+        <button onClick={() => setActiveTab("today")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "today" ? "border-brand text-brand" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          Today {today.length > 0 && <span className="ml-1 bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{today.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab("all")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "all" ? "border-brand text-brand" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          All Records
+        </button>
+      </div>
 
       {/* Form */}
       {showForm && (
@@ -167,13 +188,13 @@ function AdminAttendanceOverview() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : records.length === 0 ? (
+      ) : (activeTab === "today" ? today : records).length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No attendance records yet.</CardContent></Card>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="divide-y">
-              {records.map((r) => (
+              {(activeTab === "today" ? today : records).map((r) => (
                 <div key={r.id} className="flex items-center justify-between px-5 py-3 gap-3">
                   <div className="flex items-center gap-3">
                     <div className={`h-2 w-2 rounded-full shrink-0 ${r.clockOutAt ? "bg-green-500" : "bg-brand animate-pulse"}`} />

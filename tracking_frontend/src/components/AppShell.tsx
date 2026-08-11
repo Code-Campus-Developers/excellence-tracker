@@ -1,7 +1,7 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardCheck, Users, Trophy,
-  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap, MessageCircle, CreditCard, FileText, CalendarDays,
+  Search, Bell, Menu, LogOut, Shield, UserCog, GraduationCap, MessageCircle, CreditCard, FileText, CalendarDays, Users2, ScanLine,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { ReactNode } from "react";
@@ -21,6 +21,7 @@ interface Notification {
 
 const ADMIN_EXTRA_NAV = [
   { to: "/admin/manage", label: "User Management", icon: Shield },
+  { to: "/admin/bulk-import", label: "Bulk Import", icon: FileText },
   { to: "/admin/track-assignments", label: "Track Assignments", icon: GraduationCap },
   { to: "/admin/settings", label: "Settings", icon: UserCog },
 ];
@@ -108,10 +109,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/instructor/evaluate", label: "New Evaluation", icon: ClipboardCheck },
     { to: "/instructor/students", label: "Students", icon: Users },
     { to: "/instructor/instructors", label: "Instructors", icon: GraduationCap },
+    // Parent Portal — admin only
+    ...(user?.role === "ADMIN" ? [{ to: "/admin/parents", label: "Parent Portal", icon: Users2 }] : []),
     { to: "/instructor/leaderboard", label: "Leaderboard", icon: Trophy },
     { to: "/instructor/messages", label: "Messages", icon: MessageCircle },
     { to: user?.role === "ADMIN" ? "/admin/reports" : "/instructor/reports", label: "Self-Reports", icon: FileText },
     { to: user?.role === "ADMIN" ? "/admin/attendance-overview" : "/instructor/attendance-overview", label: "Attendance", icon: CalendarDays },
+    { to: "/scanner", label: "QR Scanner", icon: ScanLine },
     // ID Card only for instructors, not admins
     ...(user?.role === "MENTOR" ? [{ to: "/instructor/id-card", label: "ID Card", icon: CreditCard }] : []),
     // Only show instructor settings for MENTOR role | admins use /admin/settings

@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor, createNotification } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, createNotification, notifyParentsReportStatus } from "./notifications";
 import { sendSelfReportVerifiedEmail, sendEditRequestEmail, sendEditApprovalEmail } from "../lib/email";
 
 const router = Router();
@@ -173,6 +173,16 @@ router.patch("/:id/verify", authenticate, async (req: AuthRequest, res: Response
         } catch { /* email failure should not break the response */ }
       }
     }
+
+    // Notify parents
+    try {
+      await notifyParentsReportStatus({
+        studentId: report.studentId,
+        studentName: report.student.name,
+        week: report.weekNumber,
+        status,
+      });
+    } catch { /* silent */ }
 
     return res.json(report);
   } catch (err) {

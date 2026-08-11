@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Camera, Loader2, KeyRound, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, Loader2, KeyRound, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth, type AuthUser } from "@/lib/authStore";
 import { TRACKS } from "@/lib/tracking";
+import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/edit-profile")({
   head: () => ({ meta: [{ title: "Edit Profile | CodeCampus" }] }),
@@ -127,16 +128,11 @@ function EditProfile() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center mb-8">
-          <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
-        </div>
-
+    <AppShell>
+      <div className="max-w-md space-y-4">
+        <h1 className="text-2xl font-bold">Edit Profile</h1>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-xl text-center">Edit Profile</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-lg">Profile Information</CardTitle></CardHeader>
           <CardContent>
             {/* Profile Picture */}
             <div className="flex flex-col items-center mb-6">
@@ -259,15 +255,9 @@ function EditProfile() {
                 </form>
               )}
             </div>
-
-            <div className="mt-4 text-center">
-              <Link to={backTo} className="text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1">
-                <ArrowLeft className="h-3 w-3" /> Back
-              </Link>
-            </div>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 }

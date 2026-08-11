@@ -67,7 +67,6 @@ function StudentLeaderboard() {
                         <p className={`text-sm font-medium truncate ${isMe ? "text-brand font-semibold" : ""}`}>
                           {s.name}{isMe && <span className="ml-1 text-[10px] font-normal">(you)</span>}
                         </p>
-                        <p className="text-xs text-muted-foreground">{s.track} Track</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="font-bold tabular-nums text-sm">{s.avg}/100</span>
