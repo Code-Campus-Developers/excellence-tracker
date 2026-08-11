@@ -1,6 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../lib/auth";
 
+// Extend Express.User (added by @types/passport) so it's compatible with our auth payload
+declare global {
+  namespace Express {
+    interface User {
+      userId: string;
+      role: string;
+    }
+  }
+}
+
 export interface AuthRequest extends Request {
   user?: { userId: string; role: string };
 }
