@@ -98,7 +98,7 @@ export function StudentShell({ children, title }: StudentShellProps) {
     <>
       {/* Logo */}
       <div className="flex items-center px-4 h-16 border-b shrink-0">
-        <img src="/image-1785130765553.png" alt="Code Campus" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
+        <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-14 w-auto max-w-full object-contain" />
       </div>
 
       {/* Student info */}

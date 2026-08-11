@@ -31,7 +31,7 @@ export function ParentShell({ children }: ParentShellProps) {
     <>
       {/* Logo */}
       <div className="flex items-center px-4 h-16 border-b shrink-0">
-        <img src="/image-1785130765553.png" alt="Code Campus" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
+        <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-14 w-auto max-w-full object-contain" />
       </div>
 
       {/* Nav */}
@@ -109,7 +109,7 @@ export function ParentShell({ children }: ParentShellProps) {
           <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-md text-muted-foreground hover:bg-muted">
             <Menu className="h-5 w-5" />
           </button>
-          <img src="/image-1785130765553.png" alt="Code Campus" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-14 w-auto max-w-full object-contain" />
           <span className="font-semibold text-sm">Parent Portal</span>
         </div>
 

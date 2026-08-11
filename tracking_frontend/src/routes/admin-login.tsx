@@ -49,8 +49,8 @@ function AdminLogin() {
       }
 
       login(data.token, data.user, data.student);
-      await refresh();
       navigate({ to: "/admin" });
+      refresh().catch(() => {});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -62,7 +62,7 @@ function AdminLogin() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
-          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto" />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus International" className="h-20 w-auto" />
         </div>
         <Card>
           <CardHeader>

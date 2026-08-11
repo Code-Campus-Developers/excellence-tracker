@@ -163,7 +163,7 @@ function ChildDetail({ childId, childName, studentCode }: { childId: string; chi
           <div ref={qrRef} className="bg-white rounded-2xl overflow-hidden shadow-xl border" style={{ fontFamily: "system-ui" }}>
             <div style={{ background: "#15803d", padding: "16px 20px 12px" }}>
               <div style={{ background: "#fff", borderRadius: 6, display: "inline-block", padding: "4px 10px" }}>
-                <img src="/image-1785130765553.png" alt="Code Campus" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
+                <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-16 w-auto" />
               </div>
               <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 9, letterSpacing: 2, marginTop: 6, textTransform: "uppercase", fontWeight: 600 }}>
                 Student Access QR Code

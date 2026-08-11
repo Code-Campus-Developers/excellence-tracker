@@ -145,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col border-r bg-sidebar sticky top-0 h-screen">
         <div className="flex items-center px-4 h-16 border-b">
-          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus International" className="h-14 w-auto max-w-full object-contain" />
         </div>
 
         <div className="px-4 py-4">
@@ -227,7 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ].join(" ")}
       >
         <div className="flex items-center px-4 h-16 border-b">
-          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto max-w-full" style={{ mixBlendMode: "multiply" }} />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus International" className="h-14 w-auto max-w-full object-contain" />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">

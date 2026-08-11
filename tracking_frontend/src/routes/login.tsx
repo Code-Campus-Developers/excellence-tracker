@@ -79,16 +79,17 @@ function Login() {
       }>("/auth/login", { email, password });
 
       login(data.token, data.user, data.student);
-      await refresh();
 
       if (data.user.role === "PARENT") {
         toast.error("This login is for students only. Please use the Parent Portal login.");
         logout();
         return;
       }
+
       if (data.user.role === "ADMIN") navigate({ to: "/admin" });
       else if (data.user.role === "MENTOR") navigate({ to: "/instructor" });
       else navigate({ to: "/student" });
+      refresh().catch(() => {});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -102,7 +103,7 @@ function Login() {
     <div className="min-h-screen bg-muted/40 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
-          <img src="/image-1785130765553.png" alt="Code Campus International" className="h-20 w-auto" />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus International" className="h-20 w-auto" />
         </div>
 
         <Card>

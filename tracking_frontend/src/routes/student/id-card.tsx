@@ -105,7 +105,7 @@ function StudentIdCard() {
         <div style={cardStyle}>
           <div style={{ background: "#15803d", padding: "12px 16px 10px" }}>
             <div style={{ background: "#fff", borderRadius: 6, display: "inline-block", padding: "3px 8px" }}>
-              <img src="/image-1785130765553.png" alt="Code Campus" style={{ height: 26, width: "auto", display: "block" }} />
+              <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" style={{ height: 26, width: "auto", display: "block" }} />
             </div>
             <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 8, letterSpacing: 2, marginTop: 5, textTransform: "uppercase", fontWeight: 600 }}>Student Identity Card</div>
           </div>
@@ -146,7 +146,7 @@ function StudentIdCard() {
           <div style={{ padding: "12px 16px" }}>
             <div style={{ textAlign: "center", marginBottom: 8 }}>
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6, display: "inline-block", padding: "3px 8px" }}>
-                <img src="/image-1785130765553.png" alt="Code Campus" style={{ height: 22, width: "auto", display: "block" }} />
+                <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" style={{ height: 22, width: "auto", display: "block" }} />
               </div>
             </div>
             <div style={{ fontSize: 8, color: "#374151", textAlign: "center", lineHeight: 1.7 }}>

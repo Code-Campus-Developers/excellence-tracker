@@ -36,7 +36,7 @@ function Landing() {
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur w-full">
         <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between w-full">
-        <img src="/image-1785130765553.png" alt="Code Campus International" className="h-16 w-auto" style={{ mixBlendMode: "multiply" }} />
+        <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus International" className="h-16 w-auto" />
         <Link to="/login">
           <Button variant="outline" size="sm">Sign In</Button>
         </Link>

@@ -90,7 +90,7 @@ function ScannerPage() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-6">
-          <img src="/image-1785130765553.png" alt="Code Campus" className="h-12 w-auto mx-auto mb-3" style={{ mixBlendMode: "multiply", filter: "brightness(0) invert(1)" }} />
+          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-12 w-auto mx-auto mb-3" style={{ mixBlendMode: "multiply", filter: "brightness(0) invert(1)" }} />
           <h1 className="text-white text-xl font-bold">QR Attendance Scanner</h1>
           <p className="text-gray-400 text-sm mt-1">Point camera at student's QR code</p>
         </div>
