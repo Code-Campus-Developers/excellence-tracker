@@ -226,3 +226,5 @@ function BulkImportPage() {
         </Card>
       )}
     </AppShell>
+  );
+}
