@@ -2,8 +2,9 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { hashPassword } from "../lib/auth";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
-import { sendParentWelcomeEmail } from "../lib/email";
+import { sendParentWelcomeEmail, sendChildLinkedEmail } from "../lib/email";
 import { audit } from "../lib/audit";
+import { createNotification } from "./notifications";
 
 const router = Router();
 
@@ -145,6 +146,25 @@ router.post("/:id/link/:studentId", authenticate, async (req: AuthRequest, res: 
     create: { parentId, studentId },
     update: {},
   });
+
+  // Notify the parent in-app
+  try {
+    await createNotification({
+      userId: parentId,
+      message: `You've been linked to ${student.name}. You can now monitor their progress.`,
+      link: "/parent",
+    });
+  } catch { /* silent */ }
+
+  // Send email to parent
+  try {
+    await sendChildLinkedEmail({
+      to: parent.email,
+      parentName: parent.name,
+      studentName: student.name,
+      track: student.track,
+    });
+  } catch { /* silent */ }
 
   res.json({ success: true, message: `${student.name} linked to ${parent.name}` });
 });

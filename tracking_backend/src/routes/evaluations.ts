@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate } from "../middleware/authenticate";
-import { createNotification, notifyAdmins, notifyParentsEvaluation } from "./notifications";
+import { createNotification, notifyAdmins, notifyParentsEvaluation, notifyParentsInApp } from "./notifications";
 import { sendEvaluationEmail } from "../lib/email";
 import { audit } from "../lib/audit";
 
@@ -70,7 +70,7 @@ router.post("/", async (req: Request, res: Response) => {
         `${student?.name ?? "A student"} scored ${total}/100 in Week ${week} evaluation`,
         "/admin"
       );
-      // Notify parents
+      // Notify parents (email + in-app)
       if (student) {
         await notifyParentsEvaluation({
           studentId: student.id,
@@ -79,6 +79,7 @@ router.post("/", async (req: Request, res: Response) => {
           total,
           evaluator: evaluator ?? "Mentor",
         });
+        await notifyParentsInApp(student.id, `${student.name}'s Week ${week} evaluation: ${total}/100`);
       }
     } catch (err) {
       console.error("Notification/email after eval failed:", err);

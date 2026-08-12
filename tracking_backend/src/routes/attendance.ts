@@ -1,7 +1,7 @@
 import { Router, type Response, type Request } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor, notifyParentsAttendance } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, notifyParentsAttendance, notifyParentsInApp } from "./notifications";
 
 const router = Router();
 
@@ -85,13 +85,15 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
       notifyTrackInstructor(student.id, msg, link),
     ]);
 
-    // Notify parents
+    // Notify parents (email + in-app)
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     notifyParentsAttendance({
       studentId: student.id,
       studentName: sInfo?.name ?? "Student",
       action: "clock_in",
-      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: timeStr,
     }).catch(() => {/* silent */});
+    notifyParentsInApp(student.id, `${sInfo?.name ?? "Your child"} clocked in at ${timeStr}.`).catch(() => {});
 
     return res.status(201).json(record);
   } catch (err) {
@@ -145,14 +147,16 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
       notifyTrackInstructor(student.id, msg, link),
     ]);
 
-    // Notify parents
+    // Notify parents (email + in-app)
+    const clockOutTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     notifyParentsAttendance({
       studentId: student.id,
       studentName: sInfo?.name ?? "Student",
       action: "clock_out",
-      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: clockOutTimeStr,
       durationMin: dur,
     }).catch(() => {/* silent */});
+    notifyParentsInApp(student.id, `${sInfo?.name ?? "Your child"} clocked out. Session: ${durStr}.`).catch(() => {});
 
     return res.json(updated);
   } catch (err) {
@@ -408,6 +412,80 @@ router.post("/scan", async (req: Request, res: Response) => {
       message: `${student.name} clocked IN successfully.`,
       clockIn: record.clockInAt,
       timestamp: now,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ─── POST /api/attendance/scan-staff  (admin/instructor JWT auth — no API key needed) ─
+router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const role = req.user!.role;
+    if (role !== "ADMIN" && role !== "MENTOR") {
+      return res.status(403).json({ success: false, error: "Admin or instructor access only" });
+    }
+
+    const { studentCode } = req.body as { studentCode?: string };
+    if (!studentCode) {
+      return res.status(400).json({ success: false, error: "studentCode is required" });
+    }
+
+    const student = await prisma.student.findFirst({
+      where: { studentCode: studentCode.trim() },
+      select: { id: true, name: true, track: true, studentCode: true },
+    });
+    if (!student) {
+      return res.status(404).json({ success: false, error: `Student not found: ${studentCode}` });
+    }
+
+    const { start, end } = todayRange();
+    const existing = await prisma.attendance.findFirst({
+      where: { studentId: student.id, date: { gte: start, lt: end } },
+    });
+    const now = new Date();
+
+    if (existing?.clockOutAt) {
+      return res.json({
+        success: true, action: "already_complete",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} has already completed attendance for today.`,
+        durationMin: existing.durationMin,
+      });
+    }
+
+    if (existing && !existing.clockOutAt) {
+      const updated = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: { clockOutAt: now, durationMin: minutesDiff(existing.clockInAt, now) },
+      });
+      const dur = minutesDiff(existing.clockInAt, now);
+      const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur / 60)}h ${dur % 60}m`;
+      const link = `/instructor/students/${student.id}`;
+      await Promise.all([notifyAdmins(`${student.name} clocked out. Session: ${durStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked out. Session: ${durStr}.`, link)]).catch(() => {});
+      notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_out", time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), durationMin: dur }).catch(() => {});
+      notifyParentsInApp(student.id, `${student.name} clocked out. Session: ${durStr}.`).catch(() => {});
+      return res.json({
+        success: true, action: "clock_out",
+        student: { name: student.name, code: student.studentCode, track: student.track },
+        message: `${student.name} clocked OUT. Duration: ${durStr}`,
+        durationMin: updated.durationMin,
+      });
+    }
+
+    const record = await prisma.attendance.create({
+      data: { studentId: student.id, date: start, clockInAt: now },
+    });
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const link = `/instructor/students/${student.id}`;
+    await Promise.all([notifyAdmins(`${student.name} clocked in at ${timeStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked in at ${timeStr}.`, link)]).catch(() => {});
+    notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_in", time: timeStr }).catch(() => {});
+    notifyParentsInApp(student.id, `${student.name} clocked in at ${timeStr}.`).catch(() => {});
+    return res.status(201).json({
+      success: true, action: "clock_in",
+      student: { name: student.name, code: student.studentCode, track: student.track },
+      message: `${student.name} clocked IN successfully.`,
     });
   } catch (err) {
     console.error(err);

@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
-import { notifyAdmins, notifyTrackInstructor, createNotification, notifyParentsReportStatus } from "./notifications";
+import { notifyAdmins, notifyTrackInstructor, createNotification, notifyParentsReportStatus, notifyParentsInApp } from "./notifications";
 import { sendSelfReportVerifiedEmail, sendEditRequestEmail, sendEditApprovalEmail } from "../lib/email";
 
 const router = Router();
@@ -174,7 +174,7 @@ router.patch("/:id/verify", authenticate, async (req: AuthRequest, res: Response
       }
     }
 
-    // Notify parents
+    // Notify parents (email + in-app)
     try {
       await notifyParentsReportStatus({
         studentId: report.studentId,
@@ -182,6 +182,10 @@ router.patch("/:id/verify", authenticate, async (req: AuthRequest, res: Response
         week: report.weekNumber,
         status,
       });
+      const parentMsg = status === "VERIFIED"
+        ? `${report.student.name}'s Week ${report.weekNumber} self-report was verified ✅`
+        : `${report.student.name}'s Week ${report.weekNumber} self-report was rejected ❌`;
+      await notifyParentsInApp(report.studentId, parentMsg);
     } catch { /* silent */ }
 
     return res.json(report);

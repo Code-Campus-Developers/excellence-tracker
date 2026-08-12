@@ -185,3 +185,13 @@ export async function notifyParentsAttendance(opts: {
   }
 }
 
+/** In-app notification to all parents linked to a student */
+export async function notifyParentsInApp(studentId: string, message: string, link = "/parent") {
+  try {
+    const parents = await getParentsOfStudent(studentId);
+    await Promise.all(parents.map((p) => createNotification({ userId: p.id, message, link })));
+  } catch (err) {
+    console.error("notifyParentsInApp failed:", err);
+  }
+}
+

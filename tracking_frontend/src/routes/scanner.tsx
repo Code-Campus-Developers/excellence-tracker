@@ -22,8 +22,20 @@ interface ScanResult {
 }
 
 function ScannerPage() {
+  // Detect if a staff member (admin/instructor) is already logged in
+  const staffAuth = (() => {
+    try {
+      const raw = localStorage.getItem("excellence_auth");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { token: string; user: { role: string } };
+      if (parsed.user.role === "ADMIN" || parsed.user.role === "MENTOR") return parsed.token;
+      return null;
+    } catch { return null; }
+  })();
+  const isStaffMode = !!staffAuth;
+
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("scanner_key") ?? "");
-  const [keySaved, setKeySaved] = useState(!!sessionStorage.getItem("scanner_key"));
+  const [keySaved, setKeySaved] = useState(isStaffMode || !!sessionStorage.getItem("scanner_key"));
   const [scanning, setScanning] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -40,9 +52,11 @@ function ScannerPage() {
     if (processing) return;
     setProcessing(true);
     try {
-      const res = await fetch(`${API_BASE}/api/attendance/scan`, {
+      const endpoint = isStaffMode ? "/api/attendance/scan-staff" : "/api/attendance/scan";
+      const authHeader = isStaffMode ? `Bearer ${staffAuth}` : `Bearer ${apiKey}`;
+      const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: { "Content-Type": "application/json", Authorization: authHeader },
         body: JSON.stringify({ studentCode: code }),
       });
       const data: ScanResult = await res.json();
@@ -101,7 +115,9 @@ function ScannerPage() {
         <div className="text-center mb-6">
           <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-12 w-auto mx-auto mb-3" style={{ mixBlendMode: "multiply", filter: "brightness(0) invert(1)" }} />
           <h1 className="text-white text-xl font-bold">QR Attendance Scanner</h1>
-          <p className="text-gray-400 text-sm mt-1">Point camera at student's QR code</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {isStaffMode ? "Logged in as staff — ready to scan" : "Point camera at student's QR code"}
+          </p>
         </div>
 
         {/* API Key setup */}

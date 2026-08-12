@@ -124,8 +124,30 @@ export async function sendParentWelcomeEmail(opts: {
   });
 }
 
-export async function sendInstructorWelcomeEmail(opts: {
+export async function sendChildLinkedEmail(opts: {
   to: string;
+  parentName: string;
+  studentName: string;
+  track: string;
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `${opts.studentName} has been linked to your Parent Portal account`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#16a34a">Child Linked to Your Account</h2>
+        <p>Hi <strong>${opts.parentName}</strong>,</p>
+        <p><strong>${opts.studentName}</strong> (${opts.track}) has been linked to your Code Campus Parent Portal account by the admin team.</p>
+        <p>You can now view their weekly evaluation scores, attendance records, self-reports, and download their QR code directly from your dashboard.</p>
+        <a href="${APP_URL}/parent-login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Parent Portal</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendInstructorWelcomeEmail(opts: {  to: string;
   name: string;
   tempPassword: string;
   loginUrl?: string;
