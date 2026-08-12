@@ -30,7 +30,7 @@ function StudentsList() {
   const { evaluations, students, refresh } = useStore();
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", track: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 20;
@@ -56,15 +56,16 @@ function StudentsList() {
     setForm((prev) => ({ ...prev, [k]: v }));
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { toast.error("Please enter the student's full name"); return; }
+    if (!form.firstName.trim() || !form.lastName.trim()) { toast.error("Please enter the student's first and last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter the student's email"); return; }
     if (!form.track) { toast.error("Please select a track"); return; }
     setSaving(true);
     try {
-      await api.post("/api/students/enroll", form);
-      toast.success(`${form.name} added | welcome email sent`);
+      const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
+      await api.post("/api/students/enroll", { ...form, name: fullName });
+      toast.success(`${fullName} added | welcome email sent`);
       setDialogOpen(false);
-      setForm({ name: "", email: "", track: "" });
+      setForm({ firstName: "", lastName: "", email: "", track: "" });
       await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create student");
@@ -90,9 +91,14 @@ function StudentsList() {
           <DialogHeader><DialogTitle>Add New Student</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="mb-1.5 block">Full Name</Label>
-              <Input placeholder="enter full name" value={form.name}
-                onChange={(e) => set("name")(e.target.value)} />
+              <Label className="mb-1.5 block">First Name</Label>
+              <Input placeholder="enter first name" value={form.firstName}
+                onChange={(e) => set("firstName")(e.target.value)} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Last Name</Label>
+              <Input placeholder="enter last name" value={form.lastName}
+                onChange={(e) => set("lastName")(e.target.value)} />
             </div>
             <div>
               <Label className="mb-1.5 block">Email</Label>

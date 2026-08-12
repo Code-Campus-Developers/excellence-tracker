@@ -20,12 +20,59 @@ interface ImportResponse {
   total: number; success: number; failed: number; results: ImportResult[];
 }
 
+type ImportType = "students" | "instructors" | "admins" | "parents";
+
+const TYPE_CONFIG: Record<ImportType, {
+  label: string;
+  endpoint: string;
+  columns: string[];
+  template: string;
+  filename: string;
+  maxRows: number;
+}> = {
+  students: {
+    label: "Students",
+    endpoint: "/admin/bulk-import/students",
+    columns: ["First Name", "Last Name", "Email", "Phone", "Track"],
+    template: "First Name,Last Name,Email,Phone,Track\nJohn,Doe,john@example.com,08012345678,Software Engineering\nJane,Smith,jane@example.com,08087654321,Data Analytics",
+    filename: "student-import-template.csv",
+    maxRows: 200,
+  },
+  instructors: {
+    label: "Instructors",
+    endpoint: "/admin/bulk-import/instructors",
+    columns: ["First Name", "Last Name", "Email", "Phone", "Track (optional)"],
+    template: "First Name,Last Name,Email,Phone,Track\nAde,Adeyemi,ade@example.com,08011111111,Software Engineering\nChidi,Okonkwo,chidi@example.com,08022222222,",
+    filename: "instructor-import-template.csv",
+    maxRows: 100,
+  },
+  admins: {
+    label: "Admins",
+    endpoint: "/admin/bulk-import/admins",
+    columns: ["First Name", "Last Name", "Email", "Phone"],
+    template: "First Name,Last Name,Email,Phone\nSarah,Johnson,sarah@example.com,08033333333",
+    filename: "admin-import-template.csv",
+    maxRows: 50,
+  },
+  parents: {
+    label: "Parents",
+    endpoint: "/admin/bulk-import/parents",
+    columns: ["First Name", "Last Name", "Email", "Phone"],
+    template: "First Name,Last Name,Email,Phone\nEmeka,Obi,emeka@example.com,08044444444",
+    filename: "parent-import-template.csv",
+    maxRows: 100,
+  },
+};
+
 function BulkImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importType, setImportType] = useState<ImportType>("students");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResponse | null>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  const config = TYPE_CONFIG[importType];
 
   const handleFile = (f: File) => {
     if (!f.name.match(/\.(csv|xls|xlsx)$/i)) {
@@ -50,7 +97,7 @@ function BulkImportPage() {
       formData.append("file", file);
       const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
       const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } })();
-      const res = await fetch(`${BASE}/admin/bulk-import/students`, {
+      const res = await fetch(`${BASE}${config.endpoint}`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -58,25 +105,24 @@ function BulkImportPage() {
       if (!res.ok) { const err = await res.json().catch(() => ({ error: "Upload failed" })) as { error?: string }; throw new Error(err.error ?? "Upload failed"); }
       const data = await res.json() as ImportResponse;
       setResult(data);
-      if (data.success > 0) toast.success(`${data.success} student(s) created successfully!`);
+      if (data.success > 0) toast.success(`${data.success} ${config.label.toLowerCase()} created successfully!`);
       if (data.failed > 0) toast.error(`${data.failed} row(s) failed — see details below`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Upload failed"); }
     finally { setUploading(false); }
   };
 
   const downloadTemplate = () => {
-    const csv = "Name,Email,Track,Phone\nJohn Doe,john@example.com,Software Engineering,+2348012345678\nJane Smith,jane@example.com,Data Analytics,+2348087654321";
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([config.template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "bulk-import-template.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = config.filename; a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <AppShell>
       <PageHeader
-        title="Bulk Import Students"
-        subtitle="Upload a CSV, XLS, or XLSX file to create multiple student accounts at once."
+        title="Bulk Import"
+        subtitle="Upload a CSV, XLS, or XLSX file to create multiple accounts at once."
         actions={
           <Button variant="outline" onClick={downloadTemplate} className="gap-2">
             <Download className="h-4 w-4" /> Download Template
@@ -84,17 +130,29 @@ function BulkImportPage() {
         }
       />
 
+      {/* Type selector */}
+      <div className="flex rounded-xl overflow-hidden border mb-6">
+        {(Object.keys(TYPE_CONFIG) as ImportType[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setImportType(t); setFile(null); setResult(null); }}
+            className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${importType === t ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+          >
+            {TYPE_CONFIG[t].label}
+          </button>
+        ))}
+      </div>
+
       {/* Instructions */}
       <Card className="mb-6">
-        <CardHeader><CardTitle className="text-sm">File Format</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-sm">Required Columns — {config.label}</CardTitle></CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p>Your file must have these columns (exact names, case-insensitive):</p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {["Name", "Email", "Track", "Phone (optional)"].map((c) => (
+          <div className="flex flex-wrap gap-2 mt-1">
+            {config.columns.map((c) => (
               <span key={c} className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{c}</span>
             ))}
           </div>
-          <p className="mt-2">Each student will receive a <strong>randomly generated password</strong> via email and will be prompted to change it on first login. Max 200 rows per upload.</p>
+          <p className="mt-2">Each account will receive a <strong>randomly generated password</strong> via email. Max {config.maxRows} rows per upload.</p>
         </CardContent>
       </Card>
 
@@ -130,7 +188,7 @@ function BulkImportPage() {
             className="w-full mt-4 bg-brand text-brand-foreground hover:bg-brand/90 gap-2"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {uploading ? "Creating accounts..." : "Upload & Create Accounts"}
+            {uploading ? "Creating accounts..." : `Upload & Create ${config.label}`}
           </Button>
         </CardContent>
       </Card>
@@ -168,5 +226,3 @@ function BulkImportPage() {
         </Card>
       )}
     </AppShell>
-  );
-}

@@ -33,8 +33,8 @@ function AdminPanel() {
 
   const [instructorDialog, setInstructorDialog] = useState(false);
   const [studentDialog, setStudentDialog] = useState(false);
-  const [newInstructor, setNewInstructor] = useState({ name: "", email: "", track: "" });
-  const [newStudent, setNewStudent] = useState({ name: "", email: "", track: "" });
+  const [newInstructor, setNewInstructor] = useState({ firstName: "", lastName: "", email: "", track: "" });
+  const [newStudent, setNewStudent] = useState({ firstName: "", lastName: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);  const [studentPage, setStudentPage] = useState(1);
   const [auditPage, setAuditPage] = useState(1);
   const STUDENTS_PER_PAGE = 20;
@@ -61,26 +61,26 @@ function AdminPanel() {
   const auditTotalPages = Math.ceil(auditLogs.length / AUDIT_PER_PAGE);
 
   const createInstructor = async () => {
-    if (!newInstructor.name || !newInstructor.email) { toast.error("Name and email required"); return; }
+    if (!newInstructor.firstName || !newInstructor.lastName || !newInstructor.email) { toast.error("First name, last name and email required"); return; }
     setSaving(true);
     try {
-      await api.post("/admin/instructors", newInstructor);
+      await api.post("/admin/instructors", { ...newInstructor, name: `${newInstructor.firstName.trim()} ${newInstructor.lastName.trim()}` });
       toast.success(`Instructor created | welcome email sent to ${newInstructor.email}`);
       setInstructorDialog(false);
-      setNewInstructor({ name: "", email: "", track: "" });
+      setNewInstructor({ firstName: "", lastName: "", email: "", track: "" });
       load();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
     finally { setSaving(false); }
   };
 
   const createStudent = async () => {
-    if (!newStudent.name || !newStudent.email || !newStudent.track) { toast.error("All fields required"); return; }
+    if (!newStudent.firstName || !newStudent.lastName || !newStudent.email || !newStudent.track) { toast.error("All fields required"); return; }
     setSaving(true);
     try {
-      await api.post("/admin/students", newStudent);
+      await api.post("/admin/students", { ...newStudent, name: `${newStudent.firstName.trim()} ${newStudent.lastName.trim()}` });
       toast.success(`Student created | welcome email sent to ${newStudent.email}`);
       setStudentDialog(false);
-      setNewStudent({ name: "", email: "", track: "" });
+      setNewStudent({ firstName: "", lastName: "", email: "", track: "" });
       load();
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
     finally { setSaving(false); }
@@ -318,9 +318,14 @@ function AdminPanel() {
           <DialogHeader><DialogTitle>Add New Instructor</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="mb-1.5 block">Full Name</Label>
-              <Input placeholder="enter full name" value={newInstructor.name}
-                onChange={(e) => setNewInstructor((p) => ({ ...p, name: e.target.value }))} />
+              <Label className="mb-1.5 block">First Name</Label>
+              <Input placeholder="enter first name" value={newInstructor.firstName}
+                onChange={(e) => setNewInstructor((p) => ({ ...p, firstName: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Last Name</Label>
+              <Input placeholder="enter last name" value={newInstructor.lastName}
+                onChange={(e) => setNewInstructor((p) => ({ ...p, lastName: e.target.value }))} />
             </div>
             <div>
               <Label className="mb-1.5 block">Email</Label>
@@ -353,9 +358,14 @@ function AdminPanel() {
           <DialogHeader><DialogTitle>Add New Student</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="mb-1.5 block">Full Name</Label>
-              <Input placeholder="enter full name" value={newStudent.name}
-                onChange={(e) => setNewStudent((p) => ({ ...p, name: e.target.value }))} />
+              <Label className="mb-1.5 block">First Name</Label>
+              <Input placeholder="enter first name" value={newStudent.firstName}
+                onChange={(e) => setNewStudent((p) => ({ ...p, firstName: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Last Name</Label>
+              <Input placeholder="enter last name" value={newStudent.lastName}
+                onChange={(e) => setNewStudent((p) => ({ ...p, lastName: e.target.value }))} />
             </div>
             <div>
               <Label className="mb-1.5 block">Email</Label>

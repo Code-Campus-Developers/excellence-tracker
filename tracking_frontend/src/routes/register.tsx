@@ -46,7 +46,7 @@ function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { refresh } = useStore();
-  const [form, setForm] = useState({ name: "", email: "", password: "", track: "", phone: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", track: "", phone: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -55,7 +55,8 @@ function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error("Please enter your full name"); return; }
+    if (!form.firstName.trim()) { toast.error("Please enter your first name"); return; }
+    if (!form.lastName.trim()) { toast.error("Please enter your last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter your email address"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Please enter a valid email address"); return; }
     if (!form.track) { toast.error("Please select your track"); return; }
@@ -72,7 +73,7 @@ function Register() {
         token: string;
         user: AuthUser;
         student: AuthStudent;
-      }>("/auth/register", form);
+      }>("/auth/register", { ...form, name: `${form.firstName.trim()} ${form.lastName.trim()}` });
       login(data.token, data.user, data.student);
       toast.success("Account created! Welcome to Code Campus.");
       navigate({ to: "/student" });
@@ -106,9 +107,14 @@ function Register() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label className="mb-1.5 block">Full Name</Label>
-                <Input placeholder="enter your full name" value={form.name}
-                  onChange={(e) => set("name")(e.target.value)} required autoFocus />
+                <Label className="mb-1.5 block">First Name</Label>
+                <Input placeholder="enter your first name" value={form.firstName}
+                  onChange={(e) => set("firstName")(e.target.value)} required autoFocus />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Last Name</Label>
+                <Input placeholder="enter your last name" value={form.lastName}
+                  onChange={(e) => set("lastName")(e.target.value)} required />
               </div>
               <div>
                 <Label className="mb-1.5 block">Email</Label>

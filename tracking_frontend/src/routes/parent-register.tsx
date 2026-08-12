@@ -19,7 +19,7 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http:/
 function ParentRegister() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,8 @@ function ParentRegister() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast.error("Please enter your full name"); return; }
+    if (!form.firstName.trim()) { toast.error("Please enter your first name"); return; }
+    if (!form.lastName.trim()) { toast.error("Please enter your last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter your email"); return; }
     if (!form.password) { toast.error("Please enter a password"); return; }
     if (form.password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
@@ -37,7 +38,7 @@ function ParentRegister() {
 
     setLoading(true);
     try {
-      const data = await api.post<{ token: string; user: AuthUser }>("/auth/register-parent", form);
+      const data = await api.post<{ token: string; user: AuthUser }>("/auth/register-parent", { ...form, name: `${form.firstName.trim()} ${form.lastName.trim()}` });
       login(data.token, data.user);
       toast.success("Account created! Welcome to the Parent Portal.");
       navigate({ to: "/parent" });
@@ -83,9 +84,14 @@ function ParentRegister() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label className="mb-1.5 block">Full Name</Label>
-                <Input placeholder="Enter your full name" value={form.name}
-                  onChange={(e) => set("name")(e.target.value)} required autoFocus />
+                <Label className="mb-1.5 block">First Name</Label>
+                <Input placeholder="enter your first name" value={form.firstName}
+                  onChange={(e) => set("firstName")(e.target.value)} required autoFocus />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Last Name</Label>
+                <Input placeholder="enter your last name" value={form.lastName}
+                  onChange={(e) => set("lastName")(e.target.value)} required />
               </div>
               <div>
                 <Label className="mb-1.5 block">Email</Label>

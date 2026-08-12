@@ -34,7 +34,7 @@ function AdminParents() {
 
   const [createDialog, setCreateDialog] = useState(false);
   const [linkDialog, setLinkDialog] = useState<string | null>(null); // parentId
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "" });
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -51,17 +51,19 @@ function AdminParents() {
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    if (!form.name || !form.email) { toast.error("Name and email are required"); return; }
+    if (!form.firstName || !form.lastName || !form.email) { toast.error("First name, last name and email are required"); return; }
     setSaving(true);
     try {
       const res = await api.post<ParentRow & { tempPassword: string }>("/admin/parents", {
-        name: form.name,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        name: `${form.firstName.trim()} ${form.lastName.trim()}`,
         email: form.email,
         phone: form.phone || undefined,
       });
       toast.success(`Parent account created! Temp password: ${res.tempPassword}`, { duration: 10000 });
       setCreateDialog(false);
-      setForm({ name: "", email: "", phone: "" });
+      setForm({ firstName: "", lastName: "", email: "", phone: "" });
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to create parent");
@@ -203,8 +205,12 @@ function AdminParents() {
           <DialogHeader><DialogTitle>Add Parent Account</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="mb-1.5 block">Full Name</Label>
-              <Input placeholder="Enter parent name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              <Label className="mb-1.5 block">First Name</Label>
+              <Input placeholder="enter first name" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} />
+            </div>
+            <div>
+              <Label className="mb-1.5 block">Last Name</Label>
+              <Input placeholder="enter last name" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} />
             </div>
             <div>
               <Label className="mb-1.5 block">Email</Label>

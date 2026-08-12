@@ -37,7 +37,7 @@ function InstructorsList() {
   const [instructors, setInstructors] = useState<InstructorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", track: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -56,14 +56,14 @@ function InstructorsList() {
   useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { toast.error("Please enter the instructor's full name"); return; }
+    if (!form.firstName.trim() || !form.lastName.trim()) { toast.error("Please enter the instructor's first and last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter the instructor's email"); return; }
     setSaving(true);
     try {
-      await api.post("/admin/instructors", form);
+      await api.post("/admin/instructors", { ...form, name: `${form.firstName.trim()} ${form.lastName.trim()}` });
       toast.success(`Instructor created | welcome email sent to ${form.email}`);
       setDialogOpen(false);
-      setForm({ name: "", email: "", track: "" });
+      setForm({ firstName: "", lastName: "", email: "", track: "" });
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create instructor");
@@ -158,9 +158,14 @@ function InstructorsList() {
             <DialogHeader><DialogTitle>Add New Instructor</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div>
-                <Label className="mb-1.5 block">Full Name</Label>
-                <Input placeholder="enter full name" value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+                <Label className="mb-1.5 block">First Name</Label>
+                <Input placeholder="enter first name" value={form.firstName}
+                  onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="mb-1.5 block">Last Name</Label>
+                <Input placeholder="enter last name" value={form.lastName}
+                  onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} />
               </div>
               <div>
                 <Label className="mb-1.5 block">Email</Label>

@@ -15,10 +15,12 @@ const router = Router();
 
 // POST /auth/register  (students only)
 router.post("/register", async (req: Request, res: Response) => {
-  const { name, email, password, track, phone } = req.body as {
-    name: string; email: string; password: string; track: string; phone?: string;
+  const { name, firstName, lastName, email, password, track, phone } = req.body as {
+    name?: string; firstName?: string; lastName?: string; email: string; password: string; track: string; phone?: string;
   };
-  if (!name || !email || !password || !track) {
+  // Accept either combined name OR firstName+lastName
+  const fullName = name?.trim() || (firstName && lastName ? `${firstName.trim()} ${lastName.trim()}` : "");
+  if (!fullName || !email || !password || !track) {
     res.status(400).json({ error: "name, email, password and track are required" });
     return;
   }
@@ -48,8 +50,8 @@ router.post("/register", async (req: Request, res: Response) => {
 
   const user = await prisma.user.create({
     data: {
-      name, email, passwordHash, role: "STUDENT", phone: phone?.trim() ?? null,
-      student: { create: { id: studentId, studentCode, name, email, track, avatarColor: "#16a34a" } },
+      name: fullName, email, passwordHash, role: "STUDENT", phone: phone?.trim() ?? null,
+      student: { create: { id: studentId, studentCode, name: fullName, email, track, avatarColor: "#16a34a" } },
     },
     include: { student: true },
   });
@@ -57,17 +59,17 @@ router.post("/register", async (req: Request, res: Response) => {
   const token = signToken({ userId: user.id, role: user.role });
 
   try {
-    await sendStudentWelcomeEmail({ to: email, name, track });
+    await sendStudentWelcomeEmail({ to: email, name: fullName, track });
   } catch (err) {
     console.error("Welcome email failed:", err);
   }
 
   // Notify admins about new registration
   try {
-    await notifyAdmins(`New student registered: ${name} (${track})`, "/admin/manage");
+    await notifyAdmins(`New student registered: ${fullName} (${track})`, "/admin/manage");
   } catch { /* silent */ }
 
-  await audit(req, "STUDENT_REGISTERED", { name, email, track });
+  await audit(req, "STUDENT_REGISTERED", { name: fullName, email, track });
 
   res.status(201).json({
     token,
@@ -78,10 +80,11 @@ router.post("/register", async (req: Request, res: Response) => {
 
 // POST /auth/register-parent  (parent self-registration)
 router.post("/register-parent", async (req: Request, res: Response) => {
-  const { name, email, password, phone } = req.body as {
-    name: string; email: string; password: string; phone?: string;
+  const { name, firstName, lastName, email, password, phone } = req.body as {
+    name?: string; firstName?: string; lastName?: string; email: string; password: string; phone?: string;
   };
-  if (!name || !email || !password) {
+  const fullName = name?.trim() || (firstName && lastName ? `${firstName.trim()} ${lastName.trim()}` : "");
+  if (!fullName || !email || !password) {
     res.status(400).json({ error: "Name, email and password are required" });
     return;
   }
@@ -101,13 +104,13 @@ router.post("/register-parent", async (req: Request, res: Response) => {
   }
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
-    data: { name, email, passwordHash, role: "PARENT", phone: phone?.trim() ?? null },
+    data: { name: fullName, email, passwordHash, role: "PARENT", phone: phone?.trim() ?? null },
   });
   const token = signToken({ userId: user.id, role: user.role });
   // Notify admins
   try {
-    await notifyAdmins(`New parent registered: ${name} (${email})`, "/admin/parents");
-    await sendParentSelfRegisterEmail({ to: email, name });
+    await notifyAdmins(`New parent registered: ${fullName} (${email})`, "/admin/parents");
+    await sendParentSelfRegisterEmail({ to: email, name: fullName });
   } catch { /* silent */ }
   res.status(201).json({
     token,

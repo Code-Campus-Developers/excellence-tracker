@@ -36,6 +36,7 @@ function ScannerPage() {
   const isStaffMode = !!staffAuth;
 
   const [scanMode, setScanMode] = useState<ScanMode>("clock_in");
+  const scanModeRef = useRef<ScanMode>("clock_in"); // ref so camera callback always reads latest mode
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("scanner_key") ?? "");
   const [keySaved, setKeySaved] = useState(isStaffMode || !!sessionStorage.getItem("scanner_key"));
   const [scanning, setScanning] = useState(false);
@@ -61,7 +62,7 @@ function ScannerPage() {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: authHeader },
-        body: JSON.stringify({ studentCode: code, mode: isStaffMode ? scanMode : undefined }),
+        body: JSON.stringify({ studentCode: code, mode: isStaffMode ? scanModeRef.current : undefined }),
       });
       const data: ScanResult = await res.json();
       setResult(data);
@@ -89,10 +90,7 @@ function ScannerPage() {
       { facingMode: "environment" },
       {
         fps: 5,
-        qrbox: (viewW: number, viewH: number) => {
-          const size = Math.floor(Math.min(viewW, viewH) * 0.8);
-          return { width: size, height: size };
-        },
+        qrbox: (viewW: number, viewH: number) => ({ width: viewW, height: viewH }),
       },
       (code) => { processCode(code.trim()); },
       () => {}
@@ -174,13 +172,13 @@ function ScannerPage() {
           {isStaffMode && (
             <div className="flex rounded-xl overflow-hidden border border-gray-700">
               <button
-                onClick={() => { setScanMode("clock_in"); clearResult(); }}
+                onClick={() => { setScanMode("clock_in"); scanModeRef.current = "clock_in"; clearResult(); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${scanMode === "clock_in" ? "bg-green-600 text-white" : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
               >
                 <LogIn className="h-4 w-4" /> Clock In
               </button>
               <button
-                onClick={() => { setScanMode("clock_out"); clearResult(); }}
+                onClick={() => { setScanMode("clock_out"); scanModeRef.current = "clock_out"; clearResult(); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${scanMode === "clock_out" ? "bg-blue-600 text-white" : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
               >
                 <LogOut className="h-4 w-4" /> Clock Out
