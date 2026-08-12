@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ScanLine, CheckCircle2, XCircle, Clock, LogIn, LogOut, Loader2 } from "lucide-react";
+import { ScanLine, XCircle, Clock, LogIn, LogOut, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +21,9 @@ interface ScanResult {
   error?: string;
 }
 
+type ScanMode = "clock_in" | "clock_out";
+
 function ScannerPage() {
-  // Detect if a staff member (admin/instructor) is already logged in
   const staffAuth = (() => {
     try {
       const raw = localStorage.getItem("excellence_auth");
@@ -34,6 +35,7 @@ function ScannerPage() {
   })();
   const isStaffMode = !!staffAuth;
 
+  const [scanMode, setScanMode] = useState<ScanMode>("clock_in");
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("scanner_key") ?? "");
   const [keySaved, setKeySaved] = useState(isStaffMode || !!sessionStorage.getItem("scanner_key"));
   const [scanning, setScanning] = useState(false);
@@ -42,6 +44,7 @@ function ScannerPage() {
   const [processing, setProcessing] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const scannerInstance = useRef<{ stop: () => Promise<void> } | null>(null);
+  const scanLocked = useRef(false);
 
   const saveKey = () => {
     sessionStorage.setItem("scanner_key", apiKey);
@@ -49,7 +52,8 @@ function ScannerPage() {
   };
 
   const processCode = async (code: string) => {
-    if (processing) return;
+    if (scanLocked.current || processing) return;
+    scanLocked.current = true;
     setProcessing(true);
     try {
       const endpoint = isStaffMode ? "/api/attendance/scan-staff" : "/api/attendance/scan";
@@ -57,7 +61,7 @@ function ScannerPage() {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: authHeader },
-        body: JSON.stringify({ studentCode: code }),
+        body: JSON.stringify({ studentCode: code, mode: isStaffMode ? scanMode : undefined }),
       });
       const data: ScanResult = await res.json();
       setResult(data);
@@ -68,17 +72,28 @@ function ScannerPage() {
     }
   };
 
+  const clearResult = () => {
+    scanLocked.current = false;
+    setResult(null);
+  };
+
   const startScanner = async () => {
     setScanning(true);
     setResult(null);
-    // Clear any leftover html5-qrcode UI from previous session
+    scanLocked.current = false;
     if (scannerRef.current) scannerRef.current.innerHTML = "";
     const { Html5Qrcode } = await import("html5-qrcode");
     const scanner = new Html5Qrcode("qr-reader");
     scannerInstance.current = { stop: () => scanner.stop().catch(() => {}) };
     scanner.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      {
+        fps: 5,
+        qrbox: (viewW: number, viewH: number) => {
+          const size = Math.floor(Math.min(viewW, viewH) * 0.8);
+          return { width: size, height: size };
+        },
+      },
       (code) => { processCode(code.trim()); },
       () => {}
     ).catch(() => {
@@ -92,9 +107,9 @@ function ScannerPage() {
     try {
       await scannerInstance.current?.stop();
     } finally {
-      // Clear html5-qrcode injected DOM to prevent visual artifacts
       if (scannerRef.current) scannerRef.current.innerHTML = "";
       scannerInstance.current = null;
+      scanLocked.current = false;
       setScanning(false);
       setStopping(false);
       setResult(null);
@@ -103,26 +118,39 @@ function ScannerPage() {
 
   useEffect(() => () => { scannerInstance.current?.stop(); }, []);
 
-  const resultColor = result?.action === "clock_in" ? "bg-green-50 border-green-300" :
-    result?.action === "clock_out" ? "bg-blue-50 border-blue-300" :
-    result?.action === "already_complete" ? "bg-yellow-50 border-yellow-300" :
-    "bg-red-50 border-red-300";
+  const modeColor = scanMode === "clock_in" ? "bg-green-600" : "bg-blue-600";
+  const resultBg =
+    result?.action === "clock_in" ? "bg-green-900/90 border-green-500" :
+    result?.action === "clock_out" ? "bg-blue-900/90 border-blue-500" :
+    result?.action === "already_complete" ? "bg-yellow-900/90 border-yellow-500" :
+    "bg-red-900/90 border-red-500";
+
+  const resultTextColor =
+    result?.action === "clock_in" ? "text-green-100" :
+    result?.action === "clock_out" ? "text-blue-100" :
+    result?.action === "already_complete" ? "text-yellow-100" :
+    "text-red-100";
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-start p-4 pt-8">
-      <div className="w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-12 w-auto mx-auto mb-3" style={{ mixBlendMode: "multiply", filter: "brightness(0) invert(1)" }} />
-          <h1 className="text-white text-xl font-bold">QR Attendance Scanner</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {isStaffMode ? "Logged in as staff — ready to scan" : "Point camera at student's QR code"}
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      {/* Header */}
+      <div className="text-center pt-6 pb-4 px-4">
+        <img
+          src="/Code%20CampusLogo%20(1).png"
+          alt="Code Campus"
+          className="h-10 w-auto mx-auto mb-3"
+          style={{ filter: "brightness(0) invert(1)" }}
+        />
+        <h1 className="text-white text-xl font-bold">QR Attendance Scanner</h1>
+        <p className="text-gray-400 text-sm mt-1">
+          {isStaffMode ? "Logged in as staff — ready to scan" : "Point camera at student's QR code"}
+        </p>
+      </div>
 
-        {/* API Key setup */}
-        {!keySaved && (
-          <Card className="mb-4 bg-gray-900 border-gray-700">
+      {/* API Key setup (tablet/standalone mode) */}
+      {!keySaved && (
+        <div className="px-4 pb-4">
+          <Card className="bg-gray-900 border-gray-700">
             <CardContent className="p-4">
               <p className="text-white text-sm font-medium mb-2">Enter Scanner API Key</p>
               <Input
@@ -137,90 +165,109 @@ function ScannerPage() {
               </Button>
             </CardContent>
           </Card>
-        )}
+        </div>
+      )}
 
-        {/* Scanner area */}
-        {keySaved && (
-          <>
-            {/* Scanner area — fixed height to prevent layout jump */}
-            <div className="relative w-full rounded-xl overflow-hidden bg-gray-900 mb-4" style={{ height: 300 }}>
-              <div
-                id="qr-reader"
-                ref={scannerRef}
-                className="w-full h-full"
-              />
-              {/* Idle / stopping placeholder shown when camera is off */}
-              {!scanning && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <ScanLine className="h-12 w-12 text-gray-600" />
-                  <p className="text-gray-500 text-sm">
-                    {stopping ? "Stopping camera…" : "Camera off — press Start to scan"}
-                  </p>
+      {keySaved && (
+        <div className="flex flex-col flex-1 px-4 pb-6 gap-3">
+          {/* Mode toggle — Clock In / Clock Out */}
+          {isStaffMode && (
+            <div className="flex rounded-xl overflow-hidden border border-gray-700">
+              <button
+                onClick={() => { setScanMode("clock_in"); clearResult(); }}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${scanMode === "clock_in" ? "bg-green-600 text-white" : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
+              >
+                <LogIn className="h-4 w-4" /> Clock In
+              </button>
+              <button
+                onClick={() => { setScanMode("clock_out"); clearResult(); }}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors ${scanMode === "clock_out" ? "bg-blue-600 text-white" : "bg-gray-900 text-gray-400 hover:bg-gray-800"}`}
+              >
+                <LogOut className="h-4 w-4" /> Clock Out
+              </button>
+            </div>
+          )}
+
+          {/* Camera — responsive square container */}
+          <div
+            className={`relative w-full rounded-2xl overflow-hidden border-2 ${scanMode === "clock_in" ? "border-green-700" : "border-blue-700"} bg-gray-900`}
+            style={{ aspectRatio: "1 / 1", maxHeight: "70vw" }}
+          >
+            <div id="qr-reader" ref={scannerRef} className="w-full h-full" />
+            {!scanning && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <ScanLine className="h-16 w-16 text-gray-600" />
+                <p className="text-gray-500 text-sm">
+                  {stopping ? "Stopping camera…" : "Camera off — press Start to scan"}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Start / Stop button */}
+          {!scanning ? (
+            <Button
+              onClick={startScanner}
+              disabled={stopping}
+              className={`w-full h-14 text-base gap-2 ${modeColor} hover:opacity-90`}
+            >
+              <ScanLine className="h-5 w-5" />
+              {stopping ? "Stopping…" : `Start Scanner — ${scanMode === "clock_in" ? "Clock In" : "Clock Out"}`}
+            </Button>
+          ) : (
+            <Button
+              onClick={stopScanner}
+              disabled={stopping}
+              variant="outline"
+              className="w-full border-gray-600 text-white bg-gray-800 hover:bg-gray-700 h-12 gap-2"
+            >
+              {stopping
+                ? <><Loader2 className="h-4 w-4 animate-spin" />Stopping…</>
+                : "Stop Scanner"}
+            </Button>
+          )}
+
+          {/* Result card */}
+          {(result || processing) && (
+            <div className={`rounded-2xl border p-5 ${result ? resultBg : "bg-gray-800 border-gray-600"}`}>
+              {processing ? (
+                <div className="flex items-center justify-center gap-3 py-3">
+                  <Loader2 className="h-7 w-7 animate-spin text-white" />
+                  <span className="text-white text-base font-medium">Processing…</span>
+                </div>
+              ) : result?.success ? (
+                <div>
+                  <div className={`flex items-start gap-4 mb-5 ${resultTextColor}`}>
+                    <div className="h-14 w-14 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                      {result.action === "clock_in" && <LogIn className="h-7 w-7" />}
+                      {result.action === "clock_out" && <LogOut className="h-7 w-7" />}
+                      {result.action === "already_complete" && <Clock className="h-7 w-7" />}
+                    </div>
+                    <div>
+                      <p className="font-bold text-xl">{result.student?.name}</p>
+                      <p className="text-sm opacity-75 mt-0.5">{result.student?.track} · {result.student?.code}</p>
+                      <p className="text-base font-semibold mt-2">{result.message}</p>
+                    </div>
+                  </div>
+                  <Button onClick={clearResult} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 h-12 text-base font-semibold">
+                    Done
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center gap-3 text-red-200 mb-4">
+                    <XCircle className="h-6 w-6 shrink-0" />
+                    <p className="text-base font-medium">{result?.error ?? "Failed"}</p>
+                  </div>
+                  <Button onClick={clearResult} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 h-12 text-base font-semibold">
+                    Try Again
+                  </Button>
                 </div>
               )}
             </div>
-
-            {!scanning ? (
-              <Button onClick={startScanner} disabled={stopping} className="w-full bg-green-600 hover:bg-green-700 h-14 text-base gap-2">
-                <ScanLine className="h-5 w-5" />
-                {stopping ? "Stopping…" : "Start Camera Scanner"}
-              </Button>
-            ) : (
-              <Button onClick={stopScanner} disabled={stopping} variant="outline" className="w-full border-gray-600 text-white bg-gray-800 hover:bg-gray-700 gap-2">
-                {stopping ? <><Loader2 className="h-4 w-4 animate-spin" />Stopping…</> : "Stop Scanner"}
-              </Button>
-            )}
-
-            {/* Result */}
-            {result && (
-              <div className={`mt-4 p-4 rounded-xl border ${resultColor}`}>
-                {processing ? (
-                  <div className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /><span>Processing…</span></div>
-                ) : result.success ? (
-                  <div>
-                    <div className="flex items-start gap-3 mb-4">
-                      {result.action === "clock_in" && <LogIn className="h-6 w-6 text-green-600 shrink-0 mt-0.5" />}
-                      {result.action === "clock_out" && <LogOut className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />}
-                      {result.action === "already_complete" && <Clock className="h-6 w-6 text-yellow-600 shrink-0 mt-0.5" />}
-                      <div>
-                        <p className="font-bold text-base">{result.student?.name}</p>
-                        <p className="text-sm text-muted-foreground">{result.student?.track} · {result.student?.code}</p>
-                        <p className="text-sm mt-1">{result.message}</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => setResult(null)}
-                      className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 gap-2"
-                    >
-                      <ScanLine className="h-4 w-4" /> Scan Next Student
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center gap-2 text-red-700 mb-4">
-                      <XCircle className="h-5 w-5 shrink-0" />
-                      <p className="text-sm">{result.error ?? "Failed"}</p>
-                    </div>
-                    <Button
-                      onClick={() => setResult(null)}
-                      className="w-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 gap-2"
-                    >
-                      <ScanLine className="h-4 w-4" /> Try Again
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={() => { setKeySaved(false); sessionStorage.removeItem("scanner_key"); stopScanner(); }}
-              className="mt-4 text-xs text-gray-500 hover:text-gray-400 transition-colors w-full text-center"
-            >
-              Change API Key
-            </button>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
