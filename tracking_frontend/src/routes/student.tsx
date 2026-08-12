@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/student")({
   component: StudentLayout,
@@ -7,20 +7,19 @@ export const Route = createFileRoute("/student")({
 
 function StudentLayout() {
   const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
+  const authorized = (() => {
+    if (typeof window === "undefined") return false;
     try {
       const raw = localStorage.getItem("excellence_auth");
-      if (!raw) { navigate({ to: "/login" }); return; }
-      const { user } = JSON.parse(raw) as { user: { role: string } };
-      if (user.role !== "STUDENT") { navigate({ to: "/login" }); return; }
-      setReady(true);
-    } catch {
-      navigate({ to: "/login" });
-    }
-  }, []);
+      if (!raw) return false;
+      return JSON.parse(raw).user?.role === "STUDENT";
+    } catch { return false; }
+  })();
 
-  if (!ready) return null;
+  useEffect(() => {
+    if (!authorized) navigate({ to: "/login", replace: true });
+  }, [authorized, navigate]);
+
+  if (!authorized) return null;
   return <Outlet />;
 }

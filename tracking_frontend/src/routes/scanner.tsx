@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ScanLine, XCircle, Clock, LogIn, LogOut, Loader2 } from "lucide-react";
+import { ScanLine, XCircle, Clock, LogIn, LogOut, Loader2, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ interface ScanResult {
 type ScanMode = "clock_in" | "clock_out";
 
 function ScannerPage() {
+  const navigate = useNavigate();
   const staffAuth = (() => {
     try {
       const raw = localStorage.getItem("excellence_auth");
@@ -132,7 +133,21 @@ function ScannerPage() {
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
       {/* Header */}
-      <div className="text-center pt-6 pb-4 px-4">
+      <div className="relative text-center pt-6 pb-4 px-4">
+        {isStaffMode && (
+          <button
+            onClick={() => {
+              try {
+                const raw = localStorage.getItem("excellence_auth");
+                const role = raw ? JSON.parse(raw).user?.role : null;
+                navigate({ to: role === "ADMIN" ? "/admin" : "/instructor" });
+              } catch { navigate({ to: "/instructor" }); }
+            }}
+            className="absolute left-4 top-6 h-9 w-9 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         <img
           src="/Code%20CampusLogo%20(1).png"
           alt="Code Campus"

@@ -22,6 +22,7 @@ import { Route as InstructorRouteImport } from './routes/instructor'
 import { Route as InstructorLoginRouteImport } from './routes/instructor-login'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ParentRouteImport } from './routes/parent'
 import { Route as ParentLoginRouteImport } from './routes/parent-login'
 import { Route as ParentRegisterRouteImport } from './routes/parent-register'
@@ -131,6 +132,11 @@ const LoginRoute = LoginRouteImport.update({
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParentRoute = ParentRouteImport.update({
@@ -374,6 +380,7 @@ export interface FileRoutesByFullPath {
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/notifications': typeof NotificationsRoute
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
@@ -432,6 +439,7 @@ export interface FileRoutesByTo {
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/notifications': typeof NotificationsRoute
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
   '/privacy': typeof PrivacyRoute
@@ -491,6 +499,7 @@ export interface FileRoutesById {
   '/instructor-login': typeof InstructorLoginRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/notifications': typeof NotificationsRoute
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
   '/parent-register': typeof ParentRegisterRoute
@@ -553,6 +562,7 @@ export interface FileRouteTypes {
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/notifications'
     | '/parent'
     | '/parent-login'
     | '/parent-register'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/notifications'
     | '/parent-login'
     | '/parent-register'
     | '/privacy'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/instructor-login'
     | '/login'
     | '/messages'
+    | '/notifications'
     | '/parent'
     | '/parent-login'
     | '/parent-register'
@@ -730,6 +742,7 @@ export interface RootRouteChildren {
   InstructorLoginRoute: typeof InstructorLoginRoute
   LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
+  NotificationsRoute: typeof NotificationsRoute
   ParentRoute: typeof ParentRouteWithChildren
   ParentLoginRoute: typeof ParentLoginRoute
   ParentRegisterRoute: typeof ParentRegisterRoute
@@ -833,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parent': {
@@ -1282,6 +1302,7 @@ const rootRouteChildren: RootRouteChildren = {
   InstructorLoginRoute: InstructorLoginRoute,
   LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
+  NotificationsRoute: NotificationsRoute,
   ParentRoute: ParentRouteWithChildren,
   ParentLoginRoute: ParentLoginRoute,
   ParentRegisterRoute: ParentRegisterRoute,

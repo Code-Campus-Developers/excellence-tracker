@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,11 @@ import { useAuth } from "@/lib/authStore";
 
 export const Route = createFileRoute("/change-password")({
   head: () => ({ meta: [{ title: "Change Password | CodeCampus" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem("excellence_auth");
+    if (!raw) throw redirect({ to: "/login" });
+  },
   component: ChangePassword,
 });
 
@@ -21,12 +26,6 @@ function ChangePassword() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Auth guard
-  useEffect(() => {
-    const raw = localStorage.getItem("excellence_auth");
-    if (!raw) { navigate({ to: "/login" }); }
-  }, []);
 
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((p) => ({ ...p, [k]: v }));

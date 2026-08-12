@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Menu, X, QrCode, UserCog } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, X, QrCode, UserCog, Bell } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useAuth } from "@/lib/authStore";
@@ -111,6 +111,9 @@ export function ParentShell({ children }: ParentShellProps) {
           </button>
           <img src="/Code%20CampusLogo%20(1).png" alt="Code Campus" className="h-14 w-auto max-w-full object-contain" />
           <span className="font-semibold text-sm">Parent Portal</span>
+          <Link to="/notifications" className="ml-auto h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center">
+            <Bell className="h-4 w-4" />
+          </Link>
         </div>
 
         <main className="flex-1 overflow-y-auto">

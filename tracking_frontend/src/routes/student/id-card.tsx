@@ -15,7 +15,7 @@ export const Route = createFileRoute("/student/id-card")({
   component: StudentIdCard,
 });
 
-const CARD_W = 380;
+const CARD_W = 360;
 
 function StudentIdCard() {
   const { user, student: authStudent } = useAuth();
@@ -93,13 +93,14 @@ function StudentIdCard() {
     : "—";
 
   const qrValue = `${code} | ${name}`;
-  const cardStyle: React.CSSProperties = { width: CARD_W, fontFamily: "system-ui, sans-serif", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" };
+  const cardStyle: React.CSSProperties = { width: CARD_W, maxWidth: "100%", fontFamily: "system-ui, sans-serif", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" };
 
   return (
     <StudentShell title="ID Card">
       <p className="text-sm text-muted-foreground mb-5">Your official Code Campus International student ID card.</p>
 
-      <div ref={cardRef} style={{ display: "inline-flex", flexDirection: "column", gap: 12, background: "#f5f5f5", padding: 16, borderRadius: 16 }}>
+      <div className="overflow-x-auto pb-2">
+        <div ref={cardRef} style={{ display: "inline-flex", flexDirection: "column", gap: 12, background: "#f5f5f5", padding: 16, borderRadius: 16, maxWidth: "100%" }}>
 
         {/* FRONT */}
         <div style={cardStyle}>
@@ -142,7 +143,7 @@ function StudentIdCard() {
         {/* BACK */}
         <div style={cardStyle}>
           <div style={{ background: "#15803d", height: 16 }} />
-          <div style={{ background: "#1a1a1a", height: 30 }} />
+          <div style={{ background: "#374151", height: 12 }} />
           <div style={{ padding: "12px 16px" }}>
             <div style={{ textAlign: "center", marginBottom: 8 }}>
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6, display: "inline-block", padding: "3px 8px" }}>
@@ -161,9 +162,10 @@ function StudentIdCard() {
           </div>
           <div style={{ background: "#15803d", height: 16 }} />
         </div>
+        </div>
       </div>
 
-      <div style={{ width: CARD_W + 32, marginTop: 10 }}>
+      <div style={{ width: "100%", maxWidth: CARD_W + 32, marginTop: 10 }}>
         <Button onClick={handleDownload} disabled={downloading} className="w-full bg-brand text-brand-foreground hover:bg-brand/90 gap-2 h-9 text-sm">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {downloading ? "Generating..." : "Download as PDF"}

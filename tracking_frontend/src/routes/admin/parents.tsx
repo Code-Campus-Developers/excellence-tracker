@@ -141,20 +141,20 @@ function AdminParents() {
                   className="flex items-center justify-between cursor-pointer"
                   onClick={() => setExpanded(expanded === parent.id ? null : parent.id)}
                 >
-                  <div className="min-w-0">
-                    <p className="font-medium">{parent.name}</p>
-                    <p className="text-sm text-muted-foreground">{parent.email}{parent.phone ? ` · ${parent.phone}` : ""}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{parent.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{parent.email}{parent.phone ? ` · ${parent.phone}` : ""}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {parent.children.length} linked child{parent.children.length !== 1 ? "ren" : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <Button size="sm" variant="outline" className="gap-1" onClick={(e) => {
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <Button size="sm" variant="outline" className="gap-1 px-2 sm:px-3" onClick={(e) => {
                       e.stopPropagation();
                       setLinkDialog(parent.id);
                       setSelectedStudentId("");
                     }}>
-                      <Link2 className="h-3.5 w-3.5" /> Link Student
+                      <Link2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Link Student</span>
                     </Button>
                     <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={(e) => {
                       e.stopPropagation();

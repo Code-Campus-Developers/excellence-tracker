@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import prisma, { generateStudentCode } from "../lib/prisma";
 import { signToken } from "../lib/auth";
-import { sendParentSelfRegisterEmail } from "../lib/email";
+import { sendParentSelfRegisterEmail, sendAdminNewParentEmail, sendAdminNewStudentEmail } from "../lib/email";
+import { notifyAdmins } from "./notifications";
 
 const router = Router();
 
@@ -74,6 +75,10 @@ router.get("/callback", async (req: Request, res: Response) => {
           include: { student: true },
         });
         try { await sendParentSelfRegisterEmail({ to: profile.email, name: profile.name }); } catch { /* silent */ }
+        try {
+          await notifyAdmins(`New parent registered via Google: ${profile.name} (${profile.email})`, "/admin/parents");
+          await sendAdminNewParentEmail({ parentName: profile.name, parentEmail: profile.email });
+        } catch { /* silent */ }
       } else {
         const studentCode = await generateStudentCode();
         user = await prisma.user.create({
@@ -84,6 +89,10 @@ router.get("/callback", async (req: Request, res: Response) => {
           },
           include: { student: true },
         });
+        try {
+          await notifyAdmins(`New student registered via Google: ${profile.name} (${profile.email})`, "/admin/manage");
+          await sendAdminNewStudentEmail({ studentName: profile.name, studentEmail: profile.email, track: "Software Engineering" });
+        } catch { /* silent */ }
       }
     }
     const token = signToken({ userId: user.id, role: user.role });

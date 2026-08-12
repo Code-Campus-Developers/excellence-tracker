@@ -1,24 +1,26 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/instructor")({
-  component: MentorLayout,
+  component: InstructorLayout,
 });
 
-function MentorLayout() {
+function InstructorLayout() {
   const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
+  const authorized = (() => {
+    if (typeof window === "undefined") return false;
     try {
       const raw = localStorage.getItem("excellence_auth");
-      if (!raw) { navigate({ to: "/instructor-login" }); return; }
-      const { user } = JSON.parse(raw) as { user: { role: string } };
-      if (user.role !== "MENTOR" && user.role !== "ADMIN") { navigate({ to: "/instructor-login" }); return; }
-      setReady(true);
-    } catch {
-      navigate({ to: "/instructor-login" });
-    }
-  }, []);
-  if (!ready) return null;
+      if (!raw) return false;
+      const role = JSON.parse(raw).user?.role;
+      return role === "MENTOR" || role === "ADMIN";
+    } catch { return false; }
+  })();
+
+  useEffect(() => {
+    if (!authorized) navigate({ to: "/instructor-login", replace: true });
+  }, [authorized, navigate]);
+
+  if (!authorized) return null;
   return <Outlet />;
 }

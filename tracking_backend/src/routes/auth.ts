@@ -6,7 +6,7 @@ import {
   signToken,
   generateResetToken,
 } from "../lib/auth";
-import { sendPasswordResetEmail, sendStudentWelcomeEmail, sendParentSelfRegisterEmail } from "../lib/email";
+import { sendPasswordResetEmail, sendStudentWelcomeEmail, sendParentSelfRegisterEmail, sendAdminNewParentEmail, sendAdminNewStudentEmail } from "../lib/email";
 import { notifyAdmins } from "./notifications";
 import { audit } from "../lib/audit";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
@@ -67,6 +67,7 @@ router.post("/register", async (req: Request, res: Response) => {
   // Notify admins about new registration
   try {
     await notifyAdmins(`New student registered: ${fullName} (${track})`, "/admin/manage");
+    await sendAdminNewStudentEmail({ studentName: fullName, studentEmail: email, track });
   } catch { /* silent */ }
 
   await audit(req, "STUDENT_REGISTERED", { name: fullName, email, track });
@@ -111,6 +112,7 @@ router.post("/register-parent", async (req: Request, res: Response) => {
   try {
     await notifyAdmins(`New parent registered: ${fullName} (${email})`, "/admin/parents");
     await sendParentSelfRegisterEmail({ to: email, name: fullName });
+    await sendAdminNewParentEmail({ parentName: fullName, parentEmail: email });
   } catch { /* silent */ }
   res.status(201).json({
     token,

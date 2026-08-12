@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { Camera, Loader2, KeyRound, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,11 @@ import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/edit-profile")({
   head: () => ({ meta: [{ title: "Edit Profile | CodeCampus" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem("excellence_auth");
+    if (!raw) throw redirect({ to: "/login" });
+  },
   component: EditProfile,
 });
 
@@ -39,11 +44,6 @@ function EditProfile() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
-
-  useEffect(() => {
-    const raw = localStorage.getItem("excellence_auth");
-    if (!raw) { navigate({ to: "/login" }); return; }
-  }, []);
 
   const backTo = user?.role === "ADMIN" ? "/admin" : user?.role === "MENTOR" ? "/instructor" : "/student";
 

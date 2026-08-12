@@ -334,7 +334,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               </button>
               {showNotifications && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-background border rounded-xl shadow-lg z-50 overflow-hidden">
+                <>
+                  {/* backdrop – closes on tap */}
+                  <div className="fixed inset-0 z-[59] md:hidden" onClick={() => setShowNotifications(false)} />
+                  <div className="fixed left-1/2 -translate-x-1/2 top-14 w-80 max-h-[70vh] md:absolute md:left-auto md:translate-x-0 md:right-0 md:top-full md:mt-2 md:w-80 md:max-h-none bg-background border rounded-xl shadow-xl z-[60] overflow-hidden flex flex-col">
                   <div className="px-4 py-3 border-b flex items-center justify-between">
                     <span className="font-semibold text-sm">Notifications</span>
                     {notifications.length > 0 && (
@@ -354,7 +357,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <div key={n.id}
                           className={`flex items-start gap-3 px-4 py-3 group ${!n.isRead ? "bg-brand-soft" : ""}`}>
                           <Link
-                            to={n.link as "/dashboard"}
+                            to="/notifications"
                             onClick={() => setShowNotifications(false)}
                             className="flex items-start gap-3 flex-1 min-w-0"
                           >
@@ -377,7 +380,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                       ))}
                     </div>
                   )}
+                  <div className="border-t px-4 py-2.5">
+                    <Link
+                      to="/notifications"
+                      onClick={() => setShowNotifications(false)}
+                      className="text-xs text-brand hover:underline font-medium"
+                    >
+                      View all notifications →
+                    </Link>
+                  </div>
                 </div>
+                </>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -407,6 +420,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 p-4 md:p-8">{children}</main>
+
+        {/* FAB — Scanner shortcut (mobile only, admin/instructor) */}
+        <Link
+          to="/scanner"
+          className="fixed bottom-6 right-5 z-50 flex md:hidden h-14 w-14 items-center justify-center rounded-full bg-brand text-brand-foreground shadow-lg hover:bg-brand/90 active:scale-95 transition-all"
+          title="Open Scanner"
+        >
+          <ScanLine className="h-6 w-6" />
+        </Link>
       </div>
     </div>
   );
