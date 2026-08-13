@@ -44,8 +44,10 @@ function Board({
 
   return (
     <>
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent className="p-0">
+        <div className="overflow-x-auto">
+        <div style={{ minWidth: 380 }}>
         <div className="grid grid-cols-[60px_1fr_100px_120px] items-center px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b">
           <div>Rank</div>
           <div>Student</div>
@@ -79,6 +81,8 @@ function Board({
               </Link>
             );
           })}
+        </div>
+        </div>
         </div>
       </CardContent>
     </Card>
@@ -117,12 +121,14 @@ function Leaderboard() {
       </div>
 
       <Tabs defaultValue="current">
-        <TabsList className="mb-4">
-          <TabsTrigger value="current">Current Week</TabsTrigger>
-          <TabsTrigger value="avg">Overall Average</TabsTrigger>
-          <TabsTrigger value="high">Highest Score</TabsTrigger>
-          <TabsTrigger value="low">Lowest Score</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1 mb-4">
+          <TabsList className="w-max">
+            <TabsTrigger value="current">Current Week</TabsTrigger>
+            <TabsTrigger value="avg">Overall Average</TabsTrigger>
+            <TabsTrigger value="high">Highest Score</TabsTrigger>
+            <TabsTrigger value="low">Lowest Score</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="current">
           <Board rows={byCurrent} scoreLabel={`Week ${CURRENT_WEEK}`} getScore={(id) => byCurrent.find((r) => r.id === id)!.current} />

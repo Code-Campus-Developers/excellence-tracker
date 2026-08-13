@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,7 +98,9 @@ function MentorLogin() {
               </div>
               <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
                 disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Signing in...</>
+                ) : "Sign In"}
               </Button>
             </form>
           
