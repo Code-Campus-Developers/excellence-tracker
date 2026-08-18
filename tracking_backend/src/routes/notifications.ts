@@ -7,6 +7,7 @@ import {
   sendParentReportStatusEmail,
   sendParentAttendanceEmail,
 } from "../lib/email";
+import { sendSMSToMany } from "../lib/sms";
 
 const router = Router();
 router.use(authenticate);
@@ -101,7 +102,7 @@ export async function notifyParentsOfStudent(
 async function getParentsOfStudent(studentId: string) {
   const links = await prisma.parentStudent.findMany({
     where: { studentId },
-    include: { parent: { select: { id: true, name: true, email: true } } },
+    include: { parent: { select: { id: true, name: true, email: true, phone: true } } },
   });
   return links.map((l) => l.parent);
 }
@@ -128,6 +129,9 @@ export async function notifyParentsEvaluation(opts: {
         })
       )
     );
+    // SMS
+    const phones = parents.map((p) => p.phone);
+    await sendSMSToMany(phones, `Code Campus: ${opts.studentName}'s Week ${opts.week} evaluation is ready. Score: ${opts.total}/100. Log in to view details.`);
   } catch (err) {
     console.error("notifyParentsEvaluation failed:", err);
   }
@@ -153,6 +157,10 @@ export async function notifyParentsReportStatus(opts: {
         })
       )
     );
+    // SMS
+    const phones = parents.map((p) => p.phone);
+    const statusWord = opts.status === "VERIFIED" ? "approved ✅" : "needs revision ❌";
+    await sendSMSToMany(phones, `Code Campus: ${opts.studentName}'s Week ${opts.week} self-report has been ${statusWord}. Log in to view.`);
   } catch (err) {
     console.error("notifyParentsReportStatus failed:", err);
   }
@@ -180,6 +188,12 @@ export async function notifyParentsAttendance(opts: {
         })
       )
     );
+    // SMS
+    const phones = parents.map((p) => p.phone);
+    const msg = opts.action === "clock_in"
+      ? `Code Campus: ${opts.studentName} clocked IN at ${opts.time}.`
+      : `Code Campus: ${opts.studentName} clocked OUT at ${opts.time}${opts.durationMin ? ` (${opts.durationMin} mins)` : ""}.`;
+    await sendSMSToMany(phones, msg);
   } catch (err) {
     console.error("notifyParentsAttendance failed:", err);
   }

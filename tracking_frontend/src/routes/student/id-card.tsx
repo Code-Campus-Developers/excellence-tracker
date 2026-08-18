@@ -92,7 +92,7 @@ function StudentIdCard() {
     ? (() => { const d = new Date(studentRecord!.createdAt!); d.setFullYear(d.getFullYear() + 1); return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }); })()
     : "—";
 
-  const qrValue = `${code} | ${name}`;
+  const qrValue = code; // encode student code only — matches scanner lookup
   const cardStyle: React.CSSProperties = { width: CARD_W, maxWidth: "100%", fontFamily: "system-ui, sans-serif", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" };
 
   return (

@@ -1,16 +1,15 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-export const Route = createFileRoute("/dashboard")({
+
+export const Route = createFileRoute("/parent-portal")({
   beforeLoad: () => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("excellence_auth") : null;
       if (raw) {
         const role = (JSON.parse(raw) as { user?: { role?: string } }).user?.role;
         if (role === "PARENT") throw redirect({ to: "/parent" });
-        if (role === "ADMIN") throw redirect({ to: "/admin" });
-        if (role === "MENTOR") throw redirect({ to: "/instructor" });
       }
     } catch (e) { throw e; }
-    throw redirect({ to: "/student" });
+    throw redirect({ to: "/parent-login" });
   },
   component: () => null,
 });

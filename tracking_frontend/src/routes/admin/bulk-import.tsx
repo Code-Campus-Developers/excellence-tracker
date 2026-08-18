@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, Loader2, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, Loader2, Download, PlusCircle, Trash2, ClipboardList } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { TRACKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/admin/bulk-import")({
   head: () => ({ meta: [{ title: "Bulk Import | CodeCampus" }] }),
@@ -64,9 +67,104 @@ const TYPE_CONFIG: Record<ImportType, {
   },
 };
 
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+function getToken() { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } }
+
+type ManualRow = { firstName: string; lastName: string; email: string; phone: string; track: string };
+const emptyRow = (): ManualRow => ({ firstName: "", lastName: "", email: "", phone: "", track: "" });
+
+function ManualEntryForm({ importType, onResult }: { importType: ImportType; onResult: (r: ImportResponse) => void }) {
+  const hasTrack = importType === "students" || importType === "instructors";
+  const [rows, setRows] = useState<ManualRow[]>([emptyRow()]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const update = (idx: number, field: keyof ManualRow, val: string) =>
+    setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+  const addRow = () => setRows((prev) => [...prev, emptyRow()]);
+  const removeRow = (idx: number) => setRows((prev) => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+
+  const handleSubmit = async () => {
+    const filled = rows.filter((r) => r.firstName || r.lastName || r.email);
+    if (filled.length === 0) { toast.error("Add at least one row"); return; }
+    setSubmitting(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/admin/bulk-import/${importType}/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ rows: filled }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: "Failed" })) as { error?: string }; throw new Error(e.error ?? "Failed"); }
+      const data = await res.json() as ImportResponse;
+      onResult(data);
+      if (data.success > 0) { toast.success(`${data.success} account(s) created!`); setRows([emptyRow()]); }
+      if (data.failed > 0) toast.error(`${data.failed} row(s) failed — see results below`);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-2 pr-2 font-medium text-muted-foreground w-8">#</th>
+              <th className="text-left py-2 pr-2 font-medium text-muted-foreground">First Name *</th>
+              <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Last Name *</th>
+              <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Email *</th>
+              <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Phone *</th>
+              {hasTrack && <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Track {importType === "students" ? "*" : ""}</th>}
+              <th className="w-8" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={idx} className="border-b last:border-0">
+                <td className="py-1.5 pr-2 text-muted-foreground text-xs">{idx + 1}</td>
+                <td className="py-1.5 pr-2"><Input value={row.firstName} onChange={(e) => update(idx, "firstName", e.target.value)} placeholder="John" className="h-8 text-sm" /></td>
+                <td className="py-1.5 pr-2"><Input value={row.lastName} onChange={(e) => update(idx, "lastName", e.target.value)} placeholder="Doe" className="h-8 text-sm" /></td>
+                <td className="py-1.5 pr-2"><Input type="email" value={row.email} onChange={(e) => update(idx, "email", e.target.value)} placeholder="john@example.com" className="h-8 text-sm" /></td>
+                <td className="py-1.5 pr-2"><Input value={row.phone} onChange={(e) => update(idx, "phone", e.target.value)} placeholder="08012345678" className="h-8 text-sm" /></td>
+                {hasTrack && (
+                  <td className="py-1.5 pr-2">
+                    {importType === "students" ? (
+                      <Select value={row.track} onValueChange={(v) => update(idx, "track", v)}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select track" /></SelectTrigger>
+                        <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Input value={row.track} onChange={(e) => update(idx, "track", e.target.value)} placeholder="Optional" className="h-8 text-sm" />
+                    )}
+                  </td>
+                )}
+                <td className="py-1.5">
+                  <button onClick={() => removeRow(idx)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remove row">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between pt-2">
+        <Button type="button" variant="outline" size="sm" onClick={addRow} className="gap-2">
+          <PlusCircle className="h-4 w-4" /> Add Row
+        </Button>
+        <Button onClick={handleSubmit} disabled={submitting} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}
+          {submitting ? "Creating accounts..." : `Create ${rows.filter(r => r.firstName || r.email).length || rows.length} Account(s)`}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function BulkImportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importType, setImportType] = useState<ImportType>("students");
+  const [mode, setMode] = useState<"csv" | "manual">("csv");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResponse | null>(null);
@@ -122,16 +220,18 @@ function BulkImportPage() {
     <AppShell>
       <PageHeader
         title="Bulk Import"
-        subtitle="Upload a CSV, XLS, or XLSX file to create multiple accounts at once."
+        subtitle="Upload a CSV/Excel file or manually enter users to create multiple accounts at once."
         actions={
-          <Button variant="outline" onClick={downloadTemplate} className="gap-2">
-            <Download className="h-4 w-4" /> Download Template
-          </Button>
+          mode === "csv" ? (
+            <Button variant="outline" onClick={downloadTemplate} className="gap-2">
+              <Download className="h-4 w-4" /> Download Template
+            </Button>
+          ) : null
         }
       />
 
       {/* Type selector */}
-      <div className="flex rounded-xl overflow-hidden border mb-6">
+      <div className="flex rounded-xl overflow-hidden border mb-4">
         {(Object.keys(TYPE_CONFIG) as ImportType[]).map((t) => (
           <button
             key={t}
@@ -143,62 +243,83 @@ function BulkImportPage() {
         ))}
       </div>
 
-      {/* Instructions */}
-      <Card className="mb-6">
-        <CardHeader><CardTitle className="text-sm">Required Columns — {config.label}</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-1">
-          <div className="flex flex-wrap gap-2 mt-1">
-            {config.columns.map((c) => (
-              <span key={c} className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{c}</span>
-            ))}
-          </div>
-          <p className="mt-2">Each account will receive a <strong>randomly generated password</strong> via email. Max {config.maxRows} rows per upload.</p>
-        </CardContent>
-      </Card>
+      {/* Mode toggle */}
+      <div className="flex rounded-lg overflow-hidden border mb-6 w-fit">
+        <button onClick={() => { setMode("csv"); setResult(null); }} className={`px-5 py-2 text-sm font-medium transition-colors ${mode === "csv" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <FileSpreadsheet className="h-3.5 w-3.5 inline mr-1.5" />CSV / Excel Upload
+        </button>
+        <button onClick={() => { setMode("manual"); setResult(null); }} className={`px-5 py-2 text-sm font-medium transition-colors ${mode === "manual" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <ClipboardList className="h-3.5 w-3.5 inline mr-1.5" />Manual Entry
+        </button>
+      </div>
 
-      {/* Upload area */}
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragOver ? "border-brand bg-brand-soft" : "border-muted-foreground/30 hover:border-brand hover:bg-brand-soft/30"}`}
-          >
-            <FileSpreadsheet className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-            {file ? (
-              <div>
-                <p className="font-semibold text-brand">{file.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024).toFixed(1)} KB · Click to change</p>
+      {mode === "manual" ? (
+        <Card className="mb-6">
+          <CardHeader><CardTitle className="text-sm">Manual Entry — {config.label}</CardTitle></CardHeader>
+          <CardContent>
+            <ManualEntryForm importType={importType} onResult={(r) => setResult(r)} />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Instructions */}
+          <Card className="mb-6">
+            <CardHeader><CardTitle className="text-sm">Required Columns — {config.label}</CardTitle></CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              <div className="flex flex-wrap gap-2 mt-1">
+                {config.columns.map((c) => (
+                  <span key={c} className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{c}</span>
+                ))}
               </div>
-            ) : (
-              <div>
-                <p className="font-medium">Drop your file here or click to browse</p>
-                <p className="text-xs text-muted-foreground mt-1">Supports .csv, .xls, .xlsx</p>
-              </div>
-            )}
-          </div>
-          <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+              <p className="mt-2">Each account will receive a <strong>randomly generated password</strong> via email. Max {config.maxRows} rows per upload.</p>
+            </CardContent>
+          </Card>
 
-          <Button
-            onClick={handleUpload}
-            disabled={!file || uploading}
-            className="w-full mt-4 bg-brand text-brand-foreground hover:bg-brand/90 gap-2"
-          >
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {uploading ? "Creating accounts..." : `Upload & Create ${config.label}`}
-          </Button>
-        </CardContent>
-      </Card>
+          {/* Upload area */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${dragOver ? "border-brand bg-brand-soft" : "border-muted-foreground/30 hover:border-brand hover:bg-brand-soft/30"}`}
+              >
+                <FileSpreadsheet className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                {file ? (
+                  <div>
+                    <p className="font-semibold text-brand">{file.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024).toFixed(1)} KB · Click to change</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-medium">Drop your file here or click to browse</p>
+                    <p className="text-xs text-muted-foreground mt-1">Supports .csv, .xls, .xlsx</p>
+                  </div>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+              <Button
+                onClick={handleUpload}
+                disabled={!file || uploading}
+                className="w-full mt-4 bg-brand text-brand-foreground hover:bg-brand/90 gap-2"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {uploading ? "Creating accounts..." : `Upload & Create ${config.label}`}
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Results */}
       {result && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-3">
-              Import Results
+              Results
               <Badge className="bg-green-100 text-green-700 border-green-200">{result.success} created</Badge>
               {result.failed > 0 && <Badge className="bg-red-100 text-red-700 border-red-200">{result.failed} failed</Badge>}
             </CardTitle>

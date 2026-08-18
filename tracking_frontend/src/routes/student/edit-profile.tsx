@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth, type AuthUser } from "@/lib/authStore";
-import { TRACKS } from "@/lib/tracking";
 import { StudentShell } from "@/components/StudentShell";
 import { KeyRound, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -59,7 +57,7 @@ function StudentEditProfile() {
     if (!form.email.trim()) { toast.error("Email is required"); return; }
     setSaving(true);
     try {
-      const res = await api.put<{ user: AuthUser }>("/auth/profile", { name: form.name, email: form.email, track: form.track || null, profilePicture: profilePicture || null });
+      const res = await api.put<{ user: AuthUser }>("/auth/profile", { name: form.name, email: form.email, profilePicture: profilePicture || null });
       updateUser(res.user);
       toast.success("Profile updated successfully");
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to save"); }
@@ -114,10 +112,8 @@ function StudentEditProfile() {
               <div><Label className="mb-1.5 block">Email</Label><Input type="email" value={form.email} onChange={(e) => set("email")(e.target.value)} required /></div>
               <div>
                 <Label className="mb-1.5 block">Track</Label>
-                <Select value={form.track} onValueChange={set("track")}>
-                  <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
-                  <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">{form.track || "—"}</div>
+                <p className="text-xs text-muted-foreground mt-1">Track can only be changed by an admin.</p>
               </div>
               <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={saving || uploading}>
                 {saving ? "Saving..." : "Save Changes"}

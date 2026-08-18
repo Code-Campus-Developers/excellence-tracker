@@ -107,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const MENTOR_NAV = [
     { to: primaryDashboard, label: "Dashboard", icon: LayoutDashboard },
     { to: "/instructor/evaluate", label: "New Evaluation", icon: ClipboardCheck },
+    { to: user?.role === "ADMIN" ? "/admin/attendance-overview" : "/instructor/attendance-overview", label: "Attendance", icon: CalendarDays },
     { to: "/instructor/students", label: "Students", icon: Users },
     { to: "/instructor/instructors", label: "Instructors", icon: GraduationCap },
     // Parent Portal — admin only
@@ -114,7 +115,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/instructor/leaderboard", label: "Leaderboard", icon: Trophy },
     { to: "/instructor/messages", label: "Messages", icon: MessageCircle },
     { to: user?.role === "ADMIN" ? "/admin/reports" : "/instructor/reports", label: "Self-Reports", icon: FileText },
-    { to: user?.role === "ADMIN" ? "/admin/attendance-overview" : "/instructor/attendance-overview", label: "Attendance", icon: CalendarDays },
     { to: "/scanner", label: "QR Scanner", icon: ScanLine },
     // ID Card only for instructors, not admins
     ...(user?.role === "MENTOR" ? [{ to: "/instructor/id-card", label: "ID Card", icon: CreditCard }] : []),

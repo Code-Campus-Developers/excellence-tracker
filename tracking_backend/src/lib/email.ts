@@ -68,7 +68,7 @@ export async function sendParentSelfRegisterEmail(opts: { to: string; name: stri
         <p>Your Code Campus Parent Portal account has been created successfully.</p>
         <p>You can now log in and monitor your child's progress, attendance, and weekly reports.</p>
         <p style="color:#d97706;font-size:13px">⚠️ Your child's profile has not been linked yet. Please contact the Code Campus admin team to have your child linked to your account.</p>
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Access Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">Access Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -115,7 +115,7 @@ export async function sendDailyEventParentEmail(opts: {
         <p>Hi <strong>${opts.parentName}</strong>,</p>
         <p><strong>${opts.studentName}</strong> submitted their daily activity report for <strong>${opts.date}</strong>.</p>
         ${opts.description ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin:12px 0;font-size:14px">${opts.description}</div>` : ""}
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -139,7 +139,7 @@ export async function sendMissedAttendanceEmail(opts: {
         <p>Our records show that <strong>${opts.studentName}</strong> did not clock in at Code Campus today (<strong>${opts.date}</strong>).</p>
         <p>If this was unplanned, please follow up with your child or contact the instructor.</p>
         <p style="color:#6b7280;font-size:13px">📌 If your child is not scheduled to attend today, you can disregard this message.</p>
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:#dc2626;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Attendance</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#dc2626;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Attendance</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -151,7 +151,7 @@ export async function sendParentWelcomeEmail(opts: {
   name: string;
   tempPassword: string;
 }) {
-  const url = `${FRONTEND_URL}/parent-login`;
+  const url = `${FRONTEND_URL}/parent-portal`;
   await resend.emails.send({
     from: FROM,
     to: opts.to,
@@ -186,7 +186,7 @@ export async function sendChildLinkedEmail(opts: {
         <p>Hi <strong>${opts.parentName}</strong>,</p>
         <p><strong>${opts.studentName}</strong> (${opts.track}) has been linked to your Code Campus Parent Portal account by the admin team.</p>
         <p>You can now view their weekly evaluation scores, attendance records, self-reports, and download their QR code directly from your dashboard.</p>
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -388,6 +388,35 @@ export async function sendEditApprovalEmail(opts: {
   });
 }
 
+export async function sendStudentAttendanceEmail(opts: {
+  to: string;
+  studentName: string;
+  action: "clock_in" | "clock_out";
+  time: string;
+  durationMin?: number | null;
+}) {
+  const isIn = opts.action === "clock_in";
+  const color = isIn ? "#16a34a" : "#2563eb";
+  const durText = opts.durationMin
+    ? `<p>Time at campus: <strong>${Math.floor(opts.durationMin / 60)}h ${opts.durationMin % 60}m</strong></p>`
+    : "";
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `You ${isIn ? "clocked in at" : "clocked out of"} Code Campus — ${opts.time}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:${color}">${isIn ? "Clocked In 🟢" : "Clocked Out 🔴"}</h2>
+        <p>Hi <strong>${opts.studentName}</strong>,</p>
+        <p>You have <strong>${isIn ? "clocked in at" : "clocked out at"}</strong> <strong>${opts.time}</strong> today at Code Campus.</p>
+        ${durText}
+        <a href="${FRONTEND_URL}/student/attendance" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View My Attendance</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}
+
 // ─── Parent Notification Emails ───────────────────────────────────────────────
 
 export async function sendParentEvaluationEmail(opts: {
@@ -412,7 +441,7 @@ export async function sendParentEvaluationEmail(opts: {
           <div style="font-size:48px;font-weight:bold;color:${color}">${opts.total}<span style="font-size:20px;color:#6b7280">/100</span></div>
           <div style="color:#6b7280;font-size:14px;margin-top:4px">Week ${opts.week} Score</div>
         </div>
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -439,7 +468,7 @@ export async function sendParentReportStatusEmail(opts: {
         <p>Hi <strong>${opts.parentName}</strong>,</p>
         <p><strong>${opts.studentName}</strong>'s Week ${opts.week} self-report has been <strong>${isVerified ? "verified" : "rejected"}</strong> by their instructor.</p>
         ${!isVerified ? `<p style="color:#dc2626">They may need to resubmit or request an edit.</p>` : ""}
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,
@@ -469,7 +498,30 @@ export async function sendParentAttendanceEmail(opts: {
         <p>Hi <strong>${opts.parentName}</strong>,</p>
         <p><strong>${opts.studentName}</strong> has <strong>${isIn ? "clocked in at" : "clocked out at"}</strong> <strong>${opts.time}</strong> today.</p>
         ${durText ? `<p>${durText}</p>` : ""}
-        <a href="${FRONTEND_URL}/parent-login" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:${color};color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendParentReportSharedEmail(opts: {
+  to: string;
+  parentName: string;
+  studentName: string;
+  week: number;
+  cohortYear: number;
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: `${opts.studentName}'s Week ${opts.week} Self-Report is available — Code Campus`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#16a34a">Report Available 📋</h2>
+        <p>Hi <strong>${opts.parentName}</strong>,</p>
+        <p>Your child <strong>${opts.studentName}</strong>'s <strong>Week ${opts.week}</strong> self-report has been reviewed and is now available for you to view in the Parent Portal.</p>
+        <a href="${FRONTEND_URL}/parent-portal" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:12px">View in Parent Portal</a>
         <p style="margin-top:24px;color:#6b7280;font-size:13px">Code Campus International</p>
       </div>
     `,

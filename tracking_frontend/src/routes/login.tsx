@@ -177,13 +177,6 @@ function Login() {
               )}
             </form>
 
-            <div className="mt-5 text-center text-sm text-muted-foreground">
-              New student?{" "}
-              <Link to="/register" className="text-brand font-medium hover:underline">
-                Create an account
-              </Link>
-            </div>
-
             <div className="mt-4 pt-3 border-t text-center">
               <Link to="/" className="text-sm text-muted-foreground hover:text-destructive font-medium transition-colors flex items-center justify-center gap-1">
                 ← Back to Home

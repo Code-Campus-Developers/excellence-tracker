@@ -148,10 +148,11 @@ model SelfReport {
 
   notes           String?
 
-  status          ReportStatus @default(PENDING)
-  editRequested   Boolean      @default(false) @map("edit_requested")
-  verifiedById    String?      @map("verified_by_id")
-  verifiedAt      DateTime?    @map("verified_at")
+  status            ReportStatus @default(PENDING)
+  editRequested     Boolean      @default(false) @map("edit_requested")
+  verifiedById      String?      @map("verified_by_id")
+  verifiedAt        DateTime?    @map("verified_at")
+  sharedWithParent  Boolean      @default(false) @map("shared_with_parent")
 
   submittedAt     DateTime     @default(now()) @map("submitted_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")

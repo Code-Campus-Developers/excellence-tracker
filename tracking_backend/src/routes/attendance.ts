@@ -2,6 +2,7 @@ import { Router, type Response, type Request } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
 import { notifyAdmins, notifyTrackInstructor, notifyParentsAttendance, notifyParentsInApp } from "./notifications";
+import { sendStudentAttendanceEmail } from "../lib/email";
 
 const router = Router();
 
@@ -95,6 +96,12 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
     }).catch(() => {/* silent */});
     notifyParentsInApp(student.id, `${sInfo?.name ?? "Your child"} clocked in at ${timeStr}.`).catch(() => {});
 
+    // Email the student
+    const studentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
+    if (studentUser?.email) {
+      sendStudentAttendanceEmail({ to: studentUser.email, studentName: sInfo?.name ?? "Student", action: "clock_in", time: timeStr }).catch(() => {});
+    }
+
     return res.status(201).json(record);
   } catch (err) {
     console.error(err);
@@ -157,6 +164,12 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
       durationMin: dur,
     }).catch(() => {/* silent */});
     notifyParentsInApp(student.id, `${sInfo?.name ?? "Your child"} clocked out. Session: ${durStr}.`).catch(() => {});
+
+    // Email the student
+    const studentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
+    if (studentUser?.email) {
+      sendStudentAttendanceEmail({ to: studentUser.email, studentName: sInfo?.name ?? "Student", action: "clock_out", time: clockOutTimeStr, durationMin: dur }).catch(() => {});
+    }
 
     return res.json(updated);
   } catch (err) {
@@ -398,12 +411,19 @@ router.post("/scan", async (req: Request, res: Response) => {
     await Promise.all([notifyAdmins(msg, link), notifyTrackInstructor(student.id, msg, link)]).catch(() => {});
 
     // Notify parents
+    const scanTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     notifyParentsAttendance({
       studentId: student.id,
       studentName: student.name,
       action: "clock_in",
-      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: scanTimeStr,
     }).catch(() => {/* silent */});
+
+    // Email the student
+    const scanStudentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
+    if (scanStudentUser?.email) {
+      sendStudentAttendanceEmail({ to: scanStudentUser.email, studentName: student.name, action: "clock_in", time: scanTimeStr }).catch(() => {});
+    }
 
     return res.status(201).json({
       success: true,
@@ -467,6 +487,10 @@ router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response)
       await Promise.all([notifyAdmins(`${student.name} clocked in at ${timeStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked in at ${timeStr}.`, link)]).catch(() => {});
       notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_in", time: timeStr }).catch(() => {});
       notifyParentsInApp(student.id, `${student.name} clocked in at ${timeStr}.`).catch(() => {});
+      const staffScanStudentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
+      if (staffScanStudentUser?.email) {
+        sendStudentAttendanceEmail({ to: staffScanStudentUser.email, studentName: student.name, action: "clock_in", time: timeStr }).catch(() => {});
+      }
       return res.status(201).json({
         success: true, action: "clock_in",
         student: { name: student.name, code: student.studentCode, track: student.track },
@@ -498,8 +522,13 @@ router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response)
     const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur / 60)}h ${dur % 60}m`;
     const link = `/instructor/students/${student.id}`;
     await Promise.all([notifyAdmins(`${student.name} clocked out. Session: ${durStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked out. Session: ${durStr}.`, link)]).catch(() => {});
-    notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_out", time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), durationMin: dur }).catch(() => {});
+    const staffClockOutTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_out", time: staffClockOutTimeStr, durationMin: dur }).catch(() => {});
     notifyParentsInApp(student.id, `${student.name} clocked out. Session: ${durStr}.`).catch(() => {});
+    const staffClockOutStudentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
+    if (staffClockOutStudentUser?.email) {
+      sendStudentAttendanceEmail({ to: staffClockOutStudentUser.email, studentName: student.name, action: "clock_out", time: staffClockOutTimeStr, durationMin: dur }).catch(() => {});
+    }
     return res.json({
       success: true, action: "clock_out",
       student: { name: student.name, code: student.studentCode, track: student.track },

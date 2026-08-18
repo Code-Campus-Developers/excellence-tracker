@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import prisma from "../lib/prisma";
 import { sendMissedAttendanceEmail } from "./email";
+import { sendSMS } from "./sms";
 
 /**
  * Runs every weekday (Mon–Fri) at 4:00 PM WAT.
@@ -34,7 +35,7 @@ export function startMissedAttendanceCron() {
           id: true,
           name: true,
           parentLinks: {
-            include: { parent: { select: { name: true, email: true } } },
+            include: { parent: { select: { name: true, email: true, phone: true } } },
           },
         },
       });
@@ -47,6 +48,9 @@ export function startMissedAttendanceCron() {
             studentName: student.name,
             date: dateStr,
           }).catch((e) => console.error(`Missed attendance email failed for ${link.parent.email}:`, e));
+          if (link.parent.phone) {
+            await sendSMS(link.parent.phone, `Code Campus: ${student.name} did not clock in today (${dateStr}). Please follow up.`).catch(() => {});
+          }
         }
       }
 

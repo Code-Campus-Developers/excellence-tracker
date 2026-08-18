@@ -14,10 +14,10 @@ const NAV = [
   { to: "/student",             label: "Dashboard",   icon: LayoutDashboard, exact: true },
   { to: "/student/id-card",     label: "ID Card",     icon: CreditCard },
   { to: "/student/qr-code",     label: "My QR Code",  icon: QrCode },
+  { to: "/student/attendance",  label: "Attendance",  icon: CalendarClock },
   { to: "/student/progress",    label: "My Progress", icon: TrendingUp },
   { to: "/student/self-report", label: "Self-Report", icon: ClipboardCheck },
   { to: "/student/messages",    label: "Messages",    icon: MessageCircle },
-  { to: "/student/attendance",  label: "Attendance",  icon: CalendarClock },
   { to: "/student/leaderboard", label: "Leaderboard", icon: Trophy },
 ];
 

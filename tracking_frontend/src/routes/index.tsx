@@ -68,15 +68,10 @@ function Landing() {
             Weekly evaluations, live dashboards, and personalised score reports for every student.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/register">
-              <Button size="lg" className="bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand)]/90 px-8">
-                Register as Student
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
             <Link to="/login">
-              <Button size="lg" variant="outline" className="px-8 bg-white/10 text-white border-white/30 hover:bg-white/20">
+              <Button size="lg" className="bg-[color:var(--brand)] text-white hover:bg-[color:var(--brand)]/90 px-8">
                 Sign In
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
@@ -141,10 +136,10 @@ function Landing() {
       {/* CTA */}
       <section className="bg-[color:var(--brand)] py-16 text-center text-white">
         <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
-        <p className="text-white/80 mb-8 max-w-md mx-auto">Join the Code Campus bootcamp tracking system and take control of your learning journey.</p>
-        <Link to="/register">
+        <p className="text-white/80 mb-8 max-w-md mx-auto">Log in to your Code Campus account and take control of your learning journey.</p>
+        <Link to="/login">
           <Button size="lg" className="bg-white text-[color:var(--brand)] hover:bg-white/90 px-10 font-semibold">
-            Create Your Account
+            Sign In
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>

@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { hashPassword } from "../lib/auth";
 import { authenticate, AuthRequest } from "../middleware/authenticate";
-import { sendParentWelcomeEmail, sendChildLinkedEmail } from "../lib/email";
+import { sendParentWelcomeEmail, sendChildLinkedEmail, sendParentReportSharedEmail } from "../lib/email";
 import { audit } from "../lib/audit";
 import { createNotification } from "./notifications";
 
@@ -210,7 +210,7 @@ router.get("/children", authenticate, async (req: AuthRequest, res: Response) =>
           _count: {
             select: {
               attendance: true,
-              selfReports: true,
+              selfReports: { where: { sharedWithParent: true } },
             },
           },
           user: {
@@ -287,7 +287,7 @@ router.get("/child/:studentId/attendance", authenticate, async (req: AuthRequest
   res.json(records);
 });
 
-// ─── Parent: Child's Self Reports ─────────────────────────────────────────────
+// ─── Parent: Child's Self Reports (only admin-shared ones) ────────────────────
 // GET /api/parent/child/:studentId/reports
 router.get("/child/:studentId/reports", authenticate, async (req: AuthRequest, res: Response) => {
   if (!requireParent(req, res)) return;
@@ -303,11 +303,50 @@ router.get("/child/:studentId/reports", authenticate, async (req: AuthRequest, r
   if (!link) { res.status(403).json({ error: "Access denied" }); return; }
 
   const reports = await prisma.selfReport.findMany({
-    where: { studentId: req.params.studentId },
+    where: { studentId: req.params.studentId, sharedWithParent: true },
     orderBy: { weekNumber: "desc" },
   });
 
   res.json(reports);
+});
+
+// ─── Admin: Share a Self Report with Parent ───────────────────────────────────
+// PATCH /admin/parents/reports/:reportId/share
+router.patch("/reports/:reportId/share", authenticate, async (req: AuthRequest, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { reportId } = req.params;
+  const { share } = req.body as { share?: boolean };
+
+  const report = await prisma.selfReport.findUnique({ where: { id: reportId } });
+  if (!report) { res.status(404).json({ error: "Report not found" }); return; }
+
+  const updated = await prisma.selfReport.update({
+    where: { id: reportId },
+    data: { sharedWithParent: share !== false },
+  });
+
+  // If sharing (not unsharing), email all parents linked to this student
+  if (share !== false) {
+    try {
+      const links = await prisma.parentStudent.findMany({
+        where: { studentId: report.studentId },
+        include: { parent: { select: { name: true, email: true } } },
+      });
+      const student = await prisma.student.findUnique({ where: { id: report.studentId }, select: { name: true } });
+      await Promise.all(links.map((l) =>
+        sendParentReportSharedEmail({
+          to: l.parent.email,
+          parentName: l.parent.name,
+          studentName: student?.name ?? "Your child",
+          week: report.weekNumber,
+          cohortYear: report.cohortYear,
+        }).catch(() => {/* silent */})
+      ));
+    } catch { /* silent */ }
+  }
+
+  res.json({ id: updated.id, sharedWithParent: updated.sharedWithParent });
 });
 
 export default router;

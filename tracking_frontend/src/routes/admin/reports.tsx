@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
@@ -22,6 +23,7 @@ interface Report {
   eventDone: boolean; eventUrl: string | null;
   eventImage1: string | null; eventImage2: string | null;
   notes: string | null; editRequested: boolean; submittedAt: string;
+  sharedWithParent: boolean;
   student: { id: string; name: string; track: string; studentCode?: string };
 }
 
@@ -81,6 +83,32 @@ function AdminReports() {
     finally { setApprovingEdit(null); }
   };
 
+  const [sharingReport, setSharingReport] = useState<string | null>(null);
+  const [unsendTarget, setUnsendTarget] = useState<string | null>(null);
+
+  const handleShareReport = async (id: string, share: boolean) => {
+    if (!share) { setUnsendTarget(id); return; } // show confirmation before unsharing
+    setSharingReport(id);
+    try {
+      await api.patch(`/admin/parents/reports/${id}/share`, { share: true });
+      setReports((prev) => prev.map((r) => r.id === id ? { ...r, sharedWithParent: true } : r));
+      toast.success("Report sent to parent's portal");
+    } catch { toast.error("Failed to send report"); }
+    finally { setSharingReport(null); }
+  };
+
+  const confirmUnsend = async () => {
+    if (!unsendTarget) return;
+    setSharingReport(unsendTarget);
+    setUnsendTarget(null);
+    try {
+      await api.patch(`/admin/parents/reports/${unsendTarget}/share`, { share: false });
+      setReports((prev) => prev.map((r) => r.id === unsendTarget ? { ...r, sharedWithParent: false } : r));
+      toast.success("Report removed from parent's portal");
+    } catch { toast.error("Failed to update report"); }
+    finally { setSharingReport(null); }
+  };
+
   const weeks = [...new Set(reports.map((r) => r.weekNumber))].sort((a, b) => b - a);
   const filtered = reports.filter((r) => {
     if (weekFilter !== "all" && r.weekNumber !== Number(weekFilter)) return false;
@@ -92,6 +120,7 @@ function AdminReports() {
   const editRequestCount = reports.filter((r) => r.editRequested).length;
 
   return (
+    <>
     <AppShell>
       <PageHeader
         title="Reports"
@@ -204,6 +233,17 @@ function AdminReports() {
                       )}
                       <Link to="/instructor/students/$id" params={{ id: r.student.id }}
                         className="text-muted-foreground hover:text-brand"><ExternalLink className="h-3.5 w-3.5" /></Link>
+                      {/* Send to Parent toggle */}
+                      <Button
+                        size="sm"
+                        variant={r.sharedWithParent ? "default" : "outline"}
+                        className={`h-6 text-[10px] px-2 ${r.sharedWithParent ? "bg-blue-600 hover:bg-blue-700 text-white" : "border-blue-300 text-blue-600 hover:bg-blue-50"}`}
+                        disabled={sharingReport === r.id}
+                        onClick={() => handleShareReport(r.id, !r.sharedWithParent)}
+                      >
+                        {sharingReport === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        {r.sharedWithParent ? "✓ Sent to Parent" : "Send to Parent"}
+                      </Button>
                     </div>
                   </div>
                   {done.length > 0 && (
@@ -234,5 +274,22 @@ function AdminReports() {
     </div>
     )}
     </AppShell>
+    <AlertDialog open={!!unsendTarget} onOpenChange={(open) => { if (!open) setUnsendTarget(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove report from parent portal?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The parent will no longer see this report in their portal. You can resend it at any time.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmUnsend} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Yes, remove it
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

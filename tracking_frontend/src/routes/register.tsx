@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,8 +38,8 @@ function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
 }
 
 export const Route = createFileRoute("/register")({
-  head: () => ({ meta: [{ title: "Register | CodeCampus Excellence Tracker" }] }),
-  component: Register,
+  beforeLoad: () => { throw redirect({ to: "/login" }); },
+  component: () => null,
 });
 
 function Register() {

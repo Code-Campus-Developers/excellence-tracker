@@ -285,4 +285,117 @@ router.post("/parents", authenticate, authorize("ADMIN"), upload.single("file"),
   }
 });
 
+// ─── Manual JSON endpoints ────────────────────────────────────────────────────
+interface ManualRow { firstName: string; lastName: string; email: string; phone?: string; track?: string; }
+type ManualResult = { row: number; name: string; email: string; status: "success" | "failed"; error?: string };
+
+// POST /admin/bulk-import/students/manual
+router.post("/students/manual", authenticate, authorize("ADMIN", "MENTOR"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { rows } = req.body as { rows: ManualRow[] };
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows provided" });
+    if (rows.length > 200) return res.status(400).json({ error: "Maximum 200 rows" });
+    const results: ManualResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const { firstName, lastName, email: rawEmail, phone, track } = rows[i];
+      const name = `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
+      const email = (rawEmail ?? "").trim().toLowerCase();
+      if (!name || !email || !track) { results.push({ row: i + 1, name: name || "(blank)", email: email || "(blank)", status: "failed", error: "First name, last name, email and track are required" }); continue; }
+      if (!phone?.trim()) { results.push({ row: i + 1, name, email, status: "failed", error: "Phone number is required" }); continue; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { results.push({ row: i + 1, name, email, status: "failed", error: "Invalid email format" }); continue; }
+      if (await prisma.user.findUnique({ where: { email } })) { results.push({ row: i + 1, name, email, status: "failed", error: "Email already registered" }); continue; }
+      try {
+        const password = generatePassword();
+        const studentCode = await generateStudentCode();
+        await prisma.user.create({ data: { name, email, passwordHash: await hashPassword(password), role: "STUDENT", phone: phone?.trim() || null, student: { create: { id: `s_${Date.now()}_${i}`, studentCode, name, email, track: track.trim(), avatarColor: "#16a34a" } } } });
+        sendStudentWelcomeEmail({ to: email, name, track: track.trim(), tempPassword: password }).catch(() => {});
+        results.push({ row: i + 1, name, email, status: "success" });
+      } catch (err) { results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" }); }
+    }
+    const successCount = results.filter((r) => r.status === "success").length;
+    if (successCount > 0) notifyAdmins(`Manual entry: ${successCount} student(s) created.`, "/admin/manage").catch(() => {});
+    return res.json({ total: rows.length, success: successCount, failed: results.filter((r) => r.status === "failed").length, results });
+  } catch (err) { return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" }); }
+});
+
+// POST /admin/bulk-import/instructors/manual
+router.post("/instructors/manual", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { rows } = req.body as { rows: ManualRow[] };
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows provided" });
+    const results: ManualResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const { firstName, lastName, email: rawEmail, phone, track } = rows[i];
+      const name = `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
+      const email = (rawEmail ?? "").trim().toLowerCase();
+      if (!name || !email) { results.push({ row: i + 1, name: name || "(blank)", email: email || "(blank)", status: "failed", error: "First name, last name, and email are required" }); continue; }
+      if (!phone?.trim()) { results.push({ row: i + 1, name, email, status: "failed", error: "Phone number is required" }); continue; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { results.push({ row: i + 1, name, email, status: "failed", error: "Invalid email format" }); continue; }
+      if (await prisma.user.findUnique({ where: { email } })) { results.push({ row: i + 1, name, email, status: "failed", error: "Email already registered" }); continue; }
+      try {
+        const password = generatePassword();
+        await prisma.user.create({ data: { name, email, passwordHash: await hashPassword(password), role: "MENTOR", phone: phone?.trim() || null, track: track?.trim() || null } });
+        sendInstructorWelcomeEmail({ to: email, name, tempPassword: password }).catch(() => {});
+        results.push({ row: i + 1, name, email, status: "success" });
+      } catch (err) { results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" }); }
+    }
+    const successCount = results.filter((r) => r.status === "success").length;
+    if (successCount > 0) notifyAdmins(`Manual entry: ${successCount} instructor(s) created.`, "/admin/manage").catch(() => {});
+    return res.json({ total: rows.length, success: successCount, failed: results.filter((r) => r.status === "failed").length, results });
+  } catch (err) { return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" }); }
+});
+
+// POST /admin/bulk-import/admins/manual
+router.post("/admins/manual", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { rows } = req.body as { rows: ManualRow[] };
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows provided" });
+    const results: ManualResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const { firstName, lastName, email: rawEmail, phone } = rows[i];
+      const name = `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
+      const email = (rawEmail ?? "").trim().toLowerCase();
+      if (!name || !email) { results.push({ row: i + 1, name: name || "(blank)", email: email || "(blank)", status: "failed", error: "First name, last name, and email are required" }); continue; }
+      if (!phone?.trim()) { results.push({ row: i + 1, name, email, status: "failed", error: "Phone number is required" }); continue; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { results.push({ row: i + 1, name, email, status: "failed", error: "Invalid email format" }); continue; }
+      if (await prisma.user.findUnique({ where: { email } })) { results.push({ row: i + 1, name, email, status: "failed", error: "Email already registered" }); continue; }
+      try {
+        const password = generatePassword();
+        await prisma.user.create({ data: { name, email, passwordHash: await hashPassword(password), role: "ADMIN", phone: phone?.trim() || null } });
+        results.push({ row: i + 1, name, email, status: "success" });
+      } catch (err) { results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" }); }
+    }
+    const successCount = results.filter((r) => r.status === "success").length;
+    if (successCount > 0) notifyAdmins(`Manual entry: ${successCount} admin(s) created.`, "/admin/manage").catch(() => {});
+    return res.json({ total: rows.length, success: successCount, failed: results.filter((r) => r.status === "failed").length, results });
+  } catch (err) { return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" }); }
+});
+
+// POST /admin/bulk-import/parents/manual
+router.post("/parents/manual", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { rows } = req.body as { rows: ManualRow[] };
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows provided" });
+    const results: ManualResult[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const { firstName, lastName, email: rawEmail, phone } = rows[i];
+      const name = `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
+      const email = (rawEmail ?? "").trim().toLowerCase();
+      if (!name || !email) { results.push({ row: i + 1, name: name || "(blank)", email: email || "(blank)", status: "failed", error: "First name, last name, and email are required" }); continue; }
+      if (!phone?.trim()) { results.push({ row: i + 1, name, email, status: "failed", error: "Phone number is required" }); continue; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { results.push({ row: i + 1, name, email, status: "failed", error: "Invalid email format" }); continue; }
+      if (await prisma.user.findUnique({ where: { email } })) { results.push({ row: i + 1, name, email, status: "failed", error: "Email already registered" }); continue; }
+      try {
+        const password = generatePassword();
+        await prisma.user.create({ data: { name, email, passwordHash: await hashPassword(password), role: "PARENT", phone: phone?.trim() || null } });
+        sendParentWelcomeEmail({ to: email, name, tempPassword: password }).catch(() => {});
+        results.push({ row: i + 1, name, email, status: "success" });
+      } catch (err) { results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" }); }
+    }
+    const successCount = results.filter((r) => r.status === "success").length;
+    if (successCount > 0) notifyAdmins(`Manual entry: ${successCount} parent(s) created.`, "/admin/parents").catch(() => {});
+    return res.json({ total: rows.length, success: successCount, failed: results.filter((r) => r.status === "failed").length, results });
+  } catch (err) { return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" }); }
+});
+
 export default router;

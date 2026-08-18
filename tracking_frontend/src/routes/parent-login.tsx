@@ -150,10 +150,6 @@ function ParentLogin() {
               </Button>
             </form>
 
-            <div className="mt-5 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/parent-register" className="text-brand font-medium hover:underline">Create account</Link>
-            </div>
             <p className="mt-3 text-center text-xs text-muted-foreground">
               <Link to="/" className="hover:text-destructive transition-colors">← Back to Home</Link>
             </p>

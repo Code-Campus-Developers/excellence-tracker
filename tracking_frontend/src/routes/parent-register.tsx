@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,8 @@ import { api } from "@/lib/api";
 import { useAuth, type AuthUser } from "@/lib/authStore";
 
 export const Route = createFileRoute("/parent-register")({
-  head: () => ({ meta: [{ title: "Parent Registration | CodeCampus" }] }),
-  component: ParentRegister,
+  beforeLoad: () => { throw redirect({ to: "/parent-login" }); },
+  component: () => null,
 });
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";

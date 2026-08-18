@@ -25,6 +25,7 @@ import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ParentRouteImport } from './routes/parent'
 import { Route as ParentLoginRouteImport } from './routes/parent-login'
+import { Route as ParentPortalRouteImport } from './routes/parent-portal'
 import { Route as ParentRegisterRouteImport } from './routes/parent-register'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -147,6 +148,11 @@ const ParentRoute = ParentRouteImport.update({
 const ParentLoginRoute = ParentLoginRouteImport.update({
   id: '/parent-login',
   path: '/parent-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParentPortalRoute = ParentPortalRouteImport.update({
+  id: '/parent-portal',
+  path: '/parent-portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ParentRegisterRoute = ParentRegisterRouteImport.update({
@@ -383,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
+  '/parent-portal': typeof ParentPortalRoute
   '/parent-register': typeof ParentRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
@@ -441,6 +448,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/notifications': typeof NotificationsRoute
   '/parent-login': typeof ParentLoginRoute
+  '/parent-portal': typeof ParentPortalRoute
   '/parent-register': typeof ParentRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
@@ -502,6 +510,7 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/parent': typeof ParentRouteWithChildren
   '/parent-login': typeof ParentLoginRoute
+  '/parent-portal': typeof ParentPortalRoute
   '/parent-register': typeof ParentRegisterRoute
   '/privacy': typeof PrivacyRoute
   '/register': typeof RegisterRoute
@@ -565,6 +574,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/parent'
     | '/parent-login'
+    | '/parent-portal'
     | '/parent-register'
     | '/privacy'
     | '/register'
@@ -623,6 +633,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/notifications'
     | '/parent-login'
+    | '/parent-portal'
     | '/parent-register'
     | '/privacy'
     | '/register'
@@ -683,6 +694,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/parent'
     | '/parent-login'
+    | '/parent-portal'
     | '/parent-register'
     | '/privacy'
     | '/register'
@@ -745,6 +757,7 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   ParentRoute: typeof ParentRouteWithChildren
   ParentLoginRoute: typeof ParentLoginRoute
+  ParentPortalRoute: typeof ParentPortalRoute
   ParentRegisterRoute: typeof ParentRegisterRoute
   PrivacyRoute: typeof PrivacyRoute
   RegisterRoute: typeof RegisterRoute
@@ -867,6 +880,13 @@ declare module '@tanstack/react-router' {
       path: '/parent-login'
       fullPath: '/parent-login'
       preLoaderRoute: typeof ParentLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parent-portal': {
+      id: '/parent-portal'
+      path: '/parent-portal'
+      fullPath: '/parent-portal'
+      preLoaderRoute: typeof ParentPortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/parent-register': {
@@ -1305,6 +1325,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   ParentRoute: ParentRouteWithChildren,
   ParentLoginRoute: ParentLoginRoute,
+  ParentPortalRoute: ParentPortalRoute,
   ParentRegisterRoute: ParentRegisterRoute,
   PrivacyRoute: PrivacyRoute,
   RegisterRoute: RegisterRoute,

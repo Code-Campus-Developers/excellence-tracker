@@ -62,6 +62,14 @@ function ChildDetail({ childId, childName, studentCode }: { childId: string; chi
 
   useEffect(() => { load("progress"); }, []);
 
+  // Poll active tab every 30s for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLoaded(new Set()); // clear cache to force re-fetch on next tab interaction
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const TABS = [
     { key: "progress" as const, label: "Progress", icon: TrendingUp },
     { key: "attendance" as const, label: "Attendance", icon: CalendarCheck },
@@ -144,22 +152,28 @@ function ParentDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchChildren = useCallback(() => {
     api.get<Child[]>("/api/parent/children")
       .then((d) => {
         const list = d ?? [];
         setChildren(list);
-        if (list.length === 1) setExpandedId(list[0].id);
+        if (list.length === 1) setExpandedId((prev) => prev ?? list[0].id);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    fetchChildren();
+    const interval = setInterval(fetchChildren, 30_000); // poll every 30s
+    return () => clearInterval(interval);
+  }, [fetchChildren]);
+
   return (
     <ParentShell>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Welcome, {user?.name?.split(" ")[0]}</h1>
-        <p className="text-muted-foreground text-sm mt-1">Monitor your child's performance at Code Campus</p>
+        <p className="text-muted-foreground text-sm mt-1">Monitor your {children.length > 1 ? "children's" : "child's"} performance at Code Campus</p>
       </div>
 
       {loading ? (

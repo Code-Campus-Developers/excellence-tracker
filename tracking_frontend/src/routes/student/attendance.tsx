@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
-import { LogIn, LogOut, Clock, CalendarDays, CheckCircle2, Timer, Loader2, TrendingUp } from "lucide-react";
+import { LogOut, Clock, CalendarDays, CheckCircle2, Timer, Loader2, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ function useElapsed(clockInAt: string | null) {
   return elapsed;
 }
 
-function TodayCard({ record, onClockIn, onClockOut, loading }: { record: AttendanceRecord | null; onClockIn: () => void; onClockOut: () => void; loading: boolean; }) {
+function TodayCard({ record, onClockOut, loading }: { record: AttendanceRecord | null; onClockOut: () => void; loading: boolean; }) {
   const elapsed = useElapsed(record && !record.clockOutAt ? record.clockInAt : null);
   const isIn = !!record && !record.clockOutAt;
   const isDone = !!record && !!record.clockOutAt;
@@ -48,12 +48,11 @@ function TodayCard({ record, onClockIn, onClockOut, loading }: { record: Attenda
               <p className="text-sm text-muted-foreground">
                 {isDone ? `${fmtTime(record!.clockInAt)} – ${fmtTime(record!.clockOutAt!)} · ${fmtDur(record!.durationMin!)}`
                   : isIn ? `Since ${fmtTime(record!.clockInAt)} · ${fmtDur(elapsed)} elapsed`
-                  : new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+                  : "Your instructor or admin will scan you in today."}
               </p>
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            {!record && <Button onClick={onClockIn} disabled={loading} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}Clock In</Button>}
             {isIn && <Button onClick={onClockOut} disabled={loading} variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 gap-2">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}Clock Out</Button>}
             {isDone && <Badge className="bg-green-100 text-green-700 border-green-200 text-sm px-3 py-1.5"><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Done for today</Badge>}
           </div>
@@ -73,16 +72,6 @@ function StudentAttendance() {
   const fetchHistory = useCallback(async () => { try { setHistory((await api.get<AttendanceRecord[]>("/api/attendance/me")) ?? []); } catch {/* */} finally { setHistoryLoading(false); } }, []);
 
   useEffect(() => { fetchToday(); fetchHistory(); }, [fetchToday, fetchHistory]);
-
-  const handleClockIn = async () => {
-    setActionLoading(true);
-    try {
-      const record = await api.post<AttendanceRecord>("/api/attendance/clock-in", {});
-      setToday(record); setHistory((prev) => [record, ...prev]);
-      toast.success("Clocked in! Have a great session.");
-    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
-    finally { setActionLoading(false); }
-  };
 
   const handleClockOut = async () => {
     setActionLoading(true);
@@ -104,7 +93,7 @@ function StudentAttendance() {
         {today === undefined ? (
           <Card><CardContent className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></CardContent></Card>
         ) : (
-          <TodayCard record={today} onClockIn={handleClockIn} onClockOut={handleClockOut} loading={actionLoading} />
+          <TodayCard record={today} onClockOut={handleClockOut} loading={actionLoading} />
         )}
 
         {completed.length > 0 && (
