@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, Loader2, Download, PlusCircle, Trash2, ClipboardList } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, Loader2, Download, PlusCircle, Trash2, ClipboardList, ClipboardPaste } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,30 @@ function getToken() { try { const r = localStorage.getItem("excellence_auth"); r
 type ManualRow = { firstName: string; lastName: string; email: string; phone: string; track: string };
 const emptyRow = (): ManualRow => ({ firstName: "", lastName: "", email: "", phone: "", track: "" });
 
+// Parse tab-separated clipboard data from Google Sheets / Excel into rows
+function parsePaste(text: string): ManualRow[] {
+  const lines = text.trim().split(/\r?\n/).map((l) => l.split("\t").map((c) => c.trim()));
+  if (lines.length === 0) return [];
+  const first = lines[0].map((h) => h.toLowerCase().replace(/[\s_]/g, ""));
+  const isHeader = first.some((h) => ["firstname","name","email","phonenumber","phone"].includes(h));
+  const dataLines = isHeader ? lines.slice(1) : lines;
+  const idx = (keys: string[]) => first.findIndex((h) => keys.includes(h));
+  const fIdx = isHeader ? idx(["firstname","first"]) : 0;
+  const lIdx = isHeader ? idx(["lastname","last"]) : 1;
+  const eIdx = isHeader ? idx(["email","emailaddress"]) : 2;
+  const pIdx = isHeader ? idx(["phonenumber","phone","phoneno","mobile"]) : 3;
+  const tIdx = isHeader ? idx(["track","programme","program"]) : 4;
+  return dataLines
+    .filter((row) => row.some((c) => c))
+    .map((row) => ({
+      firstName: fIdx >= 0 ? (row[fIdx] ?? "") : "",
+      lastName:  lIdx >= 0 ? (row[lIdx] ?? "") : "",
+      email:     eIdx >= 0 ? (row[eIdx] ?? "") : "",
+      phone:     pIdx >= 0 ? (row[pIdx] ?? "") : "",
+      track:     tIdx >= 0 ? (row[tIdx] ?? "") : "",
+    }));
+}
+
 function ManualEntryForm({ importType, onResult }: { importType: ImportType; onResult: (r: ImportResponse, usedPassword?: string) => void }) {
   const hasTrack = importType === "students" || importType === "instructors";
   const [rows, setRows] = useState<ManualRow[]>([emptyRow()]);
@@ -80,6 +104,20 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
   const [defaultPassword, setDefaultPassword] = useState("CodeCampus@2026");
   const [defaultTrack, setDefaultTrack] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasteArea, setShowPasteArea] = useState(false);
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const text = e.clipboardData.getData("text");
+    if (!text) return;
+    const parsed = parsePaste(text);
+    if (parsed.length > 0) {
+      setRows(parsed);
+      setShowPasteArea(false);
+      toast.success(`${parsed.length} row(s) pasted — review and click Create`);
+    } else {
+      toast.error("Could not parse pasted data. Make sure you copied from a spreadsheet.");
+    }
+  };
 
   const update = (idx: number, field: keyof ManualRow, val: string) =>
     setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
@@ -141,6 +179,28 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
           {defaultPassword && <p className="text-xs text-amber-600 mt-1">⚠ Share this password with students directly — it won't be emailed.</p>}
         </div>
       </div>
+      {/* Paste from spreadsheet */}
+      <div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setShowPasteArea((v) => !v)} className="gap-2">
+          <ClipboardPaste className="h-4 w-4" />
+          {showPasteArea ? "Cancel Paste" : "Paste from Spreadsheet"}
+        </Button>
+        {showPasteArea && (
+          <div className="mt-2 rounded-lg border border-dashed border-brand p-3 bg-brand-soft/20">
+            <p className="text-xs text-muted-foreground mb-2">
+              Copy cells from Google Sheets or Excel (Ctrl+A → Ctrl+C), then click below and press <strong>Ctrl+V</strong>
+            </p>
+            <textarea
+              autoFocus
+              onPaste={handlePaste}
+              className="w-full h-20 text-xs font-mono border rounded p-2 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Click here, then press Ctrl+V to paste your spreadsheet data..."
+              readOnly={false}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

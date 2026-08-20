@@ -124,7 +124,7 @@ function RootComponent() {
       <AuthProvider>
         <StoreProvider>
           <Outlet />
-          <Toaster position="bottom-right" richColors />
+          <Toaster position="bottom-right" richColors closeButton />
         </StoreProvider>
       </AuthProvider>
     </QueryClientProvider>
