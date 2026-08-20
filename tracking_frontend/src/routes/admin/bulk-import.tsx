@@ -73,10 +73,13 @@ function getToken() { try { const r = localStorage.getItem("excellence_auth"); r
 type ManualRow = { firstName: string; lastName: string; email: string; phone: string; track: string };
 const emptyRow = (): ManualRow => ({ firstName: "", lastName: "", email: "", phone: "", track: "" });
 
-function ManualEntryForm({ importType, onResult }: { importType: ImportType; onResult: (r: ImportResponse) => void }) {
+function ManualEntryForm({ importType, onResult }: { importType: ImportType; onResult: (r: ImportResponse, usedPassword?: string) => void }) {
   const hasTrack = importType === "students" || importType === "instructors";
   const [rows, setRows] = useState<ManualRow[]>([emptyRow()]);
   const [submitting, setSubmitting] = useState(false);
+  const [defaultPassword, setDefaultPassword] = useState("CodeCampus@2026");
+  const [defaultTrack, setDefaultTrack] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const update = (idx: number, field: keyof ManualRow, val: string) =>
     setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
@@ -92,11 +95,15 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
       const res = await fetch(`${BASE_URL}/admin/bulk-import/${importType}/manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ rows: filled }),
+        body: JSON.stringify({
+          rows: filled,
+          defaultPassword: defaultPassword.trim() || undefined,
+          defaultTrack: defaultTrack || undefined,
+        }),
       });
       if (!res.ok) { const e = await res.json().catch(() => ({ error: "Failed" })) as { error?: string }; throw new Error(e.error ?? "Failed"); }
       const data = await res.json() as ImportResponse;
-      onResult(data);
+      onResult(data, defaultPassword.trim() || undefined);
       if (data.success > 0) { toast.success(`${data.success} account(s) created!`); setRows([emptyRow()]); }
       if (data.failed > 0) toast.error(`${data.failed} row(s) failed — see results below`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
@@ -104,7 +111,36 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Default fields */}
+      <div className={`grid gap-4 p-4 bg-muted/40 rounded-lg border ${hasTrack ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-1 max-w-sm"}`}>
+        {hasTrack && importType === "students" && (
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Default Track <span className="text-brand">(applied to all rows)</span></label>
+            <Select value={defaultTrack} onValueChange={setDefaultTrack}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select a track for all students" /></SelectTrigger>
+              <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Default Password <span className="text-muted-foreground font-normal">(leave blank to auto-generate)</span></label>
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={defaultPassword}
+              onChange={(e) => setDefaultPassword(e.target.value)}
+              placeholder="e.g. CodeCampus@2026"
+              className="h-9 pr-16"
+            />
+            <button type="button" onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+          {defaultPassword && <p className="text-xs text-amber-600 mt-1">⚠ Share this password with students directly — it won't be emailed.</p>}
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -114,7 +150,7 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Last Name *</th>
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Email *</th>
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Phone *</th>
-              {hasTrack && <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Track {importType === "students" ? "*" : ""}</th>}
+              {hasTrack && !(importType === "students" && defaultTrack) && <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Track {importType === "students" ? "*" : ""}</th>}
               <th className="w-8" />
             </tr>
           </thead>
@@ -126,7 +162,7 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
                 <td className="py-1.5 pr-2"><Input value={row.lastName} onChange={(e) => update(idx, "lastName", e.target.value)} placeholder="Doe" className="h-8 text-sm" /></td>
                 <td className="py-1.5 pr-2"><Input type="email" value={row.email} onChange={(e) => update(idx, "email", e.target.value)} placeholder="john@example.com" className="h-8 text-sm" /></td>
                 <td className="py-1.5 pr-2"><Input value={row.phone} onChange={(e) => update(idx, "phone", e.target.value)} placeholder="08012345678" className="h-8 text-sm" /></td>
-                {hasTrack && (
+                {hasTrack && !(importType === "students" && defaultTrack) && (
                   <td className="py-1.5 pr-2">
                     {importType === "students" ? (
                       <Select value={row.track} onValueChange={(v) => update(idx, "track", v)}>
@@ -168,6 +204,7 @@ function BulkImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResponse | null>(null);
+  const [usedPassword, setUsedPassword] = useState<string | undefined>(undefined);
   const [dragOver, setDragOver] = useState(false);
 
   const config = TYPE_CONFIG[importType];
@@ -257,7 +294,7 @@ function BulkImportPage() {
         <Card className="mb-6">
           <CardHeader><CardTitle className="text-sm">Manual Entry — {config.label}</CardTitle></CardHeader>
           <CardContent>
-            <ManualEntryForm importType={importType} onResult={(r) => setResult(r)} />
+            <ManualEntryForm importType={importType} onResult={(r, pwd) => { setResult(r); setUsedPassword(pwd); }} />
           </CardContent>
         </Card>
       ) : (
@@ -325,6 +362,18 @@ function BulkImportPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
+            {usedPassword && result.success > 0 && (
+              <div className="mx-5 my-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">Default password used for all {result.success} account(s):</p>
+                  <p className="text-sm font-mono font-bold text-amber-900 mt-0.5">{usedPassword}</p>
+                </div>
+                <Button size="sm" variant="outline" className="shrink-0 text-xs border-amber-300"
+                  onClick={() => { navigator.clipboard.writeText(usedPassword); toast.success("Password copied!"); }}>
+                  Copy
+                </Button>
+              </div>
+            )}
             <div className="divide-y">
               {result.results.map((r) => (
                 <div key={r.row} className="flex items-center gap-3 px-5 py-3">
