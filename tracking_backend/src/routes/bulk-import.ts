@@ -57,6 +57,14 @@ router.post("/students", authenticate, authorize("ADMIN", "MENTOR"), upload.sing
 
     const results: Array<{ row: number; name: string; email: string; status: "success" | "failed"; error?: string }> = [];
 
+    // Pre-calculate max code to avoid race condition across the loop
+    const existingCodes = await prisma.student.findMany({ select: { studentCode: true } });
+    let csvCodeCounter = 0;
+    for (const s of existingCodes) {
+      const match = s.studentCode.match(/CC-Student-(\d+)/i);
+      if (match) csvCodeCounter = Math.max(csvCodeCounter, parseInt(match[1], 10));
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const nameData = parseName(row);
@@ -85,7 +93,8 @@ router.post("/students", authenticate, authorize("ADMIN", "MENTOR"), upload.sing
         const password = generatePassword();
         const passwordHash = await hashPassword(password);
         const studentId = `s_${Date.now()}_${i}`;
-        const studentCode = await generateStudentCode();
+        csvCodeCounter++;
+        const studentCode = `CC-Student-${String(csvCodeCounter).padStart(3, "0")}`;
         await prisma.user.create({
           data: {
             name: nameData.name,
@@ -96,6 +105,7 @@ router.post("/students", authenticate, authorize("ADMIN", "MENTOR"), upload.sing
         try { await sendStudentWelcomeEmail({ to: email, name: nameData.name, track, tempPassword: password }); } catch { /* silent */ }
         results.push({ row: i + 2, name: nameData.name, email, status: "success" });
       } catch (err) {
+        csvCodeCounter--;
         results.push({ row: i + 2, name: nameData.name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" });
       }
     }
@@ -296,6 +306,15 @@ router.post("/students/manual", authenticate, authorize("ADMIN", "MENTOR"), asyn
     if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: "No rows provided" });
     if (rows.length > 200) return res.status(400).json({ error: "Maximum 200 rows" });
     const results: ManualResult[] = [];
+
+    // Find current max student code once before the loop to avoid race conditions
+    const existingStudents = await prisma.student.findMany({ select: { studentCode: true } });
+    let codeCounter = 0;
+    for (const s of existingStudents) {
+      const match = s.studentCode.match(/CC-Student-(\d+)/i);
+      if (match) codeCounter = Math.max(codeCounter, parseInt(match[1], 10));
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const { firstName, lastName, email: rawEmail, phone, track: rowTrack } = rows[i];
       const name = `${(firstName ?? "").trim()} ${(lastName ?? "").trim()}`.trim();
@@ -307,11 +326,15 @@ router.post("/students/manual", authenticate, authorize("ADMIN", "MENTOR"), asyn
       if (await prisma.user.findUnique({ where: { email } })) { results.push({ row: i + 1, name, email, status: "failed", error: "Email already registered" }); continue; }
       try {
         const password = defaultPassword?.trim() || generatePassword();
-        const studentCode = await generateStudentCode();
+        codeCounter++;
+        const studentCode = `CC-Student-${String(codeCounter).padStart(3, "0")}`;
         await prisma.user.create({ data: { name, email, passwordHash: await hashPassword(password), role: "STUDENT", phone: phone?.trim() || null, student: { create: { id: `s_${Date.now()}_${i}`, studentCode, name, email, track: track.trim(), avatarColor: "#16a34a" } } } });
         if (!defaultPassword) sendStudentWelcomeEmail({ to: email, name, track: track.trim(), tempPassword: password }).catch(() => {});
         results.push({ row: i + 1, name, email, status: "success" });
-      } catch (err) { results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" }); }
+      } catch (err) {
+        codeCounter--; // roll back counter on failure
+        results.push({ row: i + 1, name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" });
+      }
     }
     const successCount = results.filter((r) => r.status === "success").length;
     if (successCount > 0) notifyAdmins(`Manual entry: ${successCount} student(s) created.`, "/admin/manage").catch(() => {});
