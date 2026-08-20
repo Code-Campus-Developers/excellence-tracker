@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, CalendarDays, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, CalendarDays, Plus, Pencil, Trash2, RefreshCw, FileDown } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,64 @@ function AdminAttendanceOverview() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ studentId: "", date: "", clockIn: "", clockOut: "" });
+
+  // Export state
+  const [exportMode, setExportMode] = useState<"week" | "month">("week");
+  const todayISO = new Date().toISOString();
+  // Default to current ISO week (YYYY-Www) and current month (YYYY-MM)
+  const [exportWeek, setExportWeek] = useState(() => {
+    const d = new Date();
+    const jan4 = new Date(d.getFullYear(), 0, 4);
+    const dayOfWeek = (d.getDay() + 6) % 7;
+    const weekStart = new Date(d); weekStart.setDate(d.getDate() - dayOfWeek);
+    const weekNum = Math.ceil(((weekStart.getTime() - jan4.getTime()) / 86400000 + (jan4.getDay() + 6) % 7 + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  });
+  const [exportMonth, setExportMonth] = useState(todayISO.slice(0, 7));
+  const [exporting, setExporting] = useState(false);
+
+  const getExportRange = () => {
+    if (exportMode === "week") {
+      // Parse YYYY-Www → Monday and Friday of that week
+      const [year, week] = exportWeek.split("-W").map(Number);
+      const jan4 = new Date(year, 0, 4);
+      const weekStart = new Date(jan4);
+      weekStart.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7 + (week - 1) * 7);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 4); // Friday
+      return {
+        from: weekStart.toISOString().slice(0, 10),
+        to: weekEnd.toISOString().slice(0, 10),
+      };
+    } else {
+      const [year, month] = exportMonth.split("-").map(Number);
+      const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month, 0);
+      return {
+        from: firstDay,
+        to: lastDay.toISOString().slice(0, 10),
+      };
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { from, to } = getExportRange();
+      const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
+      const token = (() => { try { const r = localStorage.getItem("excellence_auth"); return r ? (JSON.parse(r) as { token: string }).token : null; } catch { return null; } })();
+      const res = await fetch(`${BASE}/api/attendance/export?from=${from}&to=${to}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({ error: "Export failed" })) as { error?: string }; throw new Error(e.error ?? "Export failed"); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `attendance_${from}_to_${to}.xlsx`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Attendance exported!");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Export failed"); }
+    finally { setExporting(false); }
+  };
 
   const fetchAll = useCallback(() => {
     api.get<AttRecord[]>("/api/attendance/all")
@@ -144,6 +202,35 @@ function AdminAttendanceOverview() {
           All Records
         </button>
       </div>
+
+      {/* Export to Excel */}
+      <Card className="mb-5">
+        <CardContent className="p-4">
+          <p className="text-sm font-semibold mb-3 flex items-center gap-2"><FileDown className="h-4 w-4 text-brand" /> Export Attendance to Excel</p>
+          {/* Mode toggle */}
+          <div className="flex rounded-lg overflow-hidden border w-fit mb-3">
+            <button onClick={() => setExportMode("week")} className={`px-4 py-1.5 text-sm font-medium transition-colors ${exportMode === "week" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>Weekly</button>
+            <button onClick={() => setExportMode("month")} className={`px-4 py-1.5 text-sm font-medium transition-colors ${exportMode === "month" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>Monthly</button>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            {exportMode === "week" ? (
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Select Week</Label>
+                <Input type="week" value={exportWeek} onChange={(e) => setExportWeek(e.target.value)} className="h-9 text-sm w-48" />
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Select Month</Label>
+                <Input type="month" value={exportMonth} onChange={(e) => setExportMonth(e.target.value)} className="h-9 text-sm w-44" />
+              </div>
+            )}
+            <Button onClick={handleExport} disabled={exporting} size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
+              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+              {exporting ? "Exporting..." : "Download"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Form */}
       {showForm && (

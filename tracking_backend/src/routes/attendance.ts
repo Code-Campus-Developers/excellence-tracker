@@ -623,4 +623,98 @@ router.post("/scan-parent", authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// ─── GET /api/attendance/export  (admin: pivot xlsx — students × dates) ───────
+router.get("/export", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "MENTOR") {
+      return res.status(403).json({ error: "Admin or instructor only" });
+    }
+    const { from, to, track } = req.query as { from?: string; to?: string; track?: string };
+    if (!from || !to) return res.status(400).json({ error: "from and to date params are required (YYYY-MM-DD)" });
+
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const toDate   = new Date(`${to}T23:59:59.999Z`);
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      return res.status(400).json({ error: "Invalid date format" });
+    }
+
+    // Fetch all students (filtered by track if provided)
+    const students = await prisma.student.findMany({
+      where: track ? { track } : undefined,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, track: true },
+    });
+
+    // Fetch all attendance records in range
+    const records = await prisma.attendance.findMany({
+      where: {
+        date: { gte: fromDate, lte: toDate },
+        ...(track ? { student: { track } } : {}),
+      },
+      select: { studentId: true, date: true, clockInAt: true, clockOutAt: true },
+    });
+
+    // Build date list (each day in range)
+    const dates: Date[] = [];
+    const cursor = new Date(fromDate);
+    while (cursor <= toDate) {
+      dates.push(new Date(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    // Index records: studentId → dateStr → record
+    const idx: Record<string, Record<string, { clockInAt: Date; clockOutAt: Date | null }>> = {};
+    for (const r of records) {
+      const sid = r.studentId;
+      const ds = r.date.toISOString().slice(0, 10);
+      if (!idx[sid]) idx[sid] = {};
+      idx[sid][ds] = { clockInAt: r.clockInAt, clockOutAt: r.clockOutAt };
+    }
+
+    const fmtT = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Lagos" });
+    const fmtColDate = (d: Date) => `${d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" })} ${d.getUTCDate()}`;
+
+    const headerRow1 = ["First Name", "Last Name", "Track", ...dates.map(fmtColDate), "Total Present", "Total Absent"];
+
+    const dataRows = students.map((s) => {
+      const nameParts = s.name.trim().split(/\s+/);
+      const firstName = nameParts[0] ?? "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      let present = 0;
+      const cells = dates.map((d) => {
+        const ds = d.toISOString().slice(0, 10);
+        const rec = idx[s.id]?.[ds];
+        if (!rec) return "Absent";
+        present++;
+        const inTime = fmtT(rec.clockInAt);
+        const outTime = rec.clockOutAt ? fmtT(rec.clockOutAt) : "—";
+        return `${inTime} – ${outTime}`;
+      });
+      const absent = dates.length - present;
+      return [firstName, lastName, s.track, ...cells, present, absent];
+    });
+
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headerRow1, ...dataRows]);
+
+    ws["!cols"] = [
+      { wch: 18 }, { wch: 18 }, { wch: 22 },
+      ...dates.map(() => ({ wch: 15 })),
+      { wch: 14 }, { wch: 13 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const filename = `attendance_${from}_to_${to}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(buf);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 export default router;
