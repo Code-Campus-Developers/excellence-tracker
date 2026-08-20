@@ -89,7 +89,6 @@ function EditProfile() {
     try {
       const res = await api.put<{ user: AuthUser }>("/auth/profile", {
         name: form.name,
-        email: form.email,
         track: form.track || null,
         profilePicture: profilePicture || null,
       });
@@ -173,7 +172,8 @@ function EditProfile() {
               </div>
               <div>
                 <Label className="mb-1.5 block">Email</Label>
-                <Input type="email" value={form.email} onChange={(e) => set("email")(e.target.value)} required />
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">{form.email || "—"}</div>
+                <p className="text-xs text-muted-foreground mt-1">Email can only be changed by an admin.</p>
               </div>
               {(user?.role === "MENTOR" || user?.role === "STUDENT") && (
                 <div>
