@@ -36,16 +36,7 @@ app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:8080" }));
 // Body parser
 app.use(express.json());
 
-// Rate limit only sensitive auth endpoints (login, register, forgot/reset password)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  message: { error: "Too many requests, please try again later." },
-});
-app.use("/auth/login", authLimiter);
-app.use("/auth/register", authLimiter);
-app.use("/auth/forgot-password", authLimiter);
-app.use("/auth/reset-password", authLimiter);
+// Rate limiting removed for now — re-enable before production deployment
 
 // Health check
 app.get("/health", (_req, res) => {
