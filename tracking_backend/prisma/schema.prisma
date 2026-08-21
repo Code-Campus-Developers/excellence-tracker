@@ -227,12 +227,13 @@ model ParentStudent {
 }
 
 model Broadcast {
-  id           String   @id @default(cuid())
-  instructorId String   @map("instructor_id")
-  track        String
-  content      String
-  createdAt    DateTime @default(now()) @map("created_at")
-  instructor   User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  instructorId   String   @map("instructor_id")
+  track          String
+  content        String
+  targetUserIds  String[] @default([]) @map("target_user_ids")
+  createdAt      DateTime @default(now()) @map("created_at")
+  instructor     User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
 
   @@map("broadcasts")
 }

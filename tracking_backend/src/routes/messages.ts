@@ -242,13 +242,37 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// ─── POST /api/messages/broadcast  (instructor: send to all students on their track)
+// ─── GET /api/messages/track-students?track=XYZ  (instructor/admin: get students for broadcast UI)
+router.get("/track-students", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
+      return res.status(403).json({ error: "Instructors and admins only" });
+    }
+    const track = (req.query.track as string)?.trim();
+    if (!track) return res.status(400).json({ error: "track param required" });
+    const students = await prisma.student.findMany({
+      where: { track },
+      include: { user: { select: { id: true, isActive: true } } },
+      orderBy: { name: "asc" },
+    });
+    return res.json(
+      students
+        .filter((s) => s.user?.isActive)
+        .map((s) => ({ id: s.id, name: s.name, userId: s.user!.id, studentCode: s.studentCode }))
+    );
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── POST /api/messages/broadcast  (instructor: send to selected students on their track)
 router.post("/broadcast", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user!.role !== "MENTOR" && req.user!.role !== "ADMIN") {
       return res.status(403).json({ error: "Instructors and admins only" });
     }
-    const { content, track: reqTrack } = req.body as { content?: string; track?: string };
+    const { content, track: reqTrack, targetUserIds } = req.body as { content?: string; track?: string; targetUserIds?: string[] };
     if (!content?.trim()) return res.status(400).json({ error: "Content is required" });
 
     const instructor = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { name: true, track: true } });
@@ -256,22 +280,31 @@ router.post("/broadcast", authenticate, async (req: AuthRequest, res: Response) 
     if (!track) return res.status(400).json({ error: "Track is required" });
 
     const broadcast = await prisma.broadcast.create({
-      data: { instructorId: req.user!.userId, track, content: content.trim() },
+      data: {
+        instructorId: req.user!.userId,
+        track,
+        content: content.trim(),
+        targetUserIds: targetUserIds && targetUserIds.length > 0 ? targetUserIds : [],
+      },
     });
 
-    // Notify all students on this track (in-app)
-    const students = await prisma.student.findMany({
-      where: { track },
-      include: { user: { select: { id: true } } },
-    });
+    // Determine who to notify: specific targets or all on track
+    let notifyUserIds: string[] = [];
+    if (targetUserIds && targetUserIds.length > 0) {
+      notifyUserIds = targetUserIds;
+    } else {
+      const students = await prisma.student.findMany({
+        where: { track },
+        include: { user: { select: { id: true } } },
+      });
+      notifyUserIds = students.filter((s) => s.user?.id).map((s) => s.user!.id!);
+    }
+
     await Promise.all(
-      students
-        .filter((s) => s.user?.id)
-        .map((s) => createNotification({ userId: s.user!.id!, message: `${instructor?.name ?? "Your instructor"}: ${content.trim().slice(0, 80)}`, link: "/student/messages" }))
+      notifyUserIds.map((uid) => createNotification({ userId: uid, message: `${instructor?.name ?? "Your instructor"}: ${content.trim().slice(0, 80)}`, link: "/student/messages" }))
     ).catch(() => {});
 
-    // Notify all admins
-    notifyAdmins(`${instructor?.name ?? "Instructor"} sent a class broadcast to ${track}: "${content.trim().slice(0, 60)}"`, "/instructor/messages").catch(() => {});
+    notifyAdmins(`${instructor?.name ?? "Instructor"} sent a broadcast to ${track}: "${content.trim().slice(0, 60)}"`, "/instructor/messages").catch(() => {});
 
     return res.status(201).json(broadcast);
   } catch (err) {
@@ -287,12 +320,14 @@ router.get("/broadcasts", authenticate, async (req: AuthRequest, res: Response) 
     if (req.user!.role === "STUDENT") {
       const student = await prisma.student.findFirst({ where: { userId: req.user!.userId }, select: { track: true } });
       if (!student) return res.json([]);
-      broadcasts = await prisma.broadcast.findMany({
+      // Show if: targetUserIds is empty (all-track broadcast) OR userId is in targetUserIds
+      const all = await prisma.broadcast.findMany({
         where: { track: student.track },
         include: { instructor: { select: { name: true, profilePicture: true } } },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
+      broadcasts = all.filter((b) => b.targetUserIds.length === 0 || b.targetUserIds.includes(req.user!.userId));
     } else if (req.user!.role === "MENTOR") {
       const instructor = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { track: true } });
       broadcasts = await prisma.broadcast.findMany({

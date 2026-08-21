@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, Users, Plus, Shield, Megaphone } from "lucide-react";
+import { Send, MessageCircle, Loader2, Users, Plus, Shield, Megaphone, CheckSquare, Square } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar } from "@/components/PerfBadge";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
+import { TRACKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/instructor/messages")({
   head: () => ({ meta: [{ title: "Messages | CodeCampus" }] }),
@@ -34,6 +36,7 @@ interface Message {
 interface Contact { id: string; name: string; role: string; track: string | null; profilePicture: string | null; }
 
 interface Broadcast { id: string; content: string; track: string; createdAt: string; instructor: { name: string; profilePicture: string | null }; }
+interface TrackStudent { id: string; name: string; userId: string; studentCode: string; }
 
 function InstructorMessages() {
   const { user } = useAuth();
@@ -55,6 +58,10 @@ function InstructorMessages() {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [broadcastText, setBroadcastText] = useState("");
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [broadcastTrack, setBroadcastTrack] = useState<string>("");
+  const [trackStudents, setTrackStudents] = useState<TrackStudent[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -76,12 +83,27 @@ function InstructorMessages() {
   useEffect(() => {
     fetchInbox().finally(() => setInboxLoading(false));
     const inboxPoll = setInterval(fetchInbox, 20_000);
-    // Load contacts (students on track) for "New Message" button
     api.get<Contact[]>("/api/messages/contacts").then(setContacts).catch(() => {});
-    // Load broadcasts
     api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
+    // For instructor: pre-load their track's students
+    if (user?.role === "MENTOR" && user.track) {
+      setBroadcastTrack(user.track);
+    }
     return () => clearInterval(inboxPoll);
-  }, [fetchInbox]);
+  }, [fetchInbox, user?.role, user?.track]);
+
+  // Load students when broadcast track changes
+  useEffect(() => {
+    if (!broadcastTrack) { setTrackStudents([]); setSelectedUserIds(new Set()); return; }
+    setLoadingStudents(true);
+    api.get<TrackStudent[]>(`/api/messages/track-students?track=${encodeURIComponent(broadcastTrack)}`)
+      .then((students) => {
+        setTrackStudents(students);
+        setSelectedUserIds(new Set(students.map((s) => s.userId))); // all selected by default
+      })
+      .catch(() => {})
+      .finally(() => setLoadingStudents(false));
+  }, [broadcastTrack]);
 
   // poll active thread
   useEffect(() => {
@@ -126,12 +148,19 @@ function InstructorMessages() {
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastText.trim()) return;
+    if (!broadcastTrack) { toast.error("Select a track first"); return; }
+    if (selectedUserIds.size === 0) { toast.error("Select at least one student"); return; }
     setSendingBroadcast(true);
     try {
-      const b = await api.post<Broadcast>("/api/messages/broadcast", { content: broadcastText.trim() });
+      const allSelected = selectedUserIds.size === trackStudents.length;
+      const b = await api.post<Broadcast>("/api/messages/broadcast", {
+        content: broadcastText.trim(),
+        track: broadcastTrack,
+        targetUserIds: allSelected ? [] : Array.from(selectedUserIds),
+      });
       setBroadcasts((prev) => [b, ...prev]);
       setBroadcastText("");
-      toast.success("Broadcast sent to all students!");
+      toast.success(`Broadcast sent to ${selectedUserIds.size} student(s)!`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to send broadcast"); }
     finally { setSendingBroadcast(false); }
   };
@@ -156,12 +185,64 @@ function InstructorMessages() {
       {activeTab === "broadcast" ? (
         <div className="max-w-2xl space-y-4">
           <Card>
-            <CardContent className="p-4">
-              <p className="text-sm font-semibold mb-3 flex items-center gap-2"><Megaphone className="h-4 w-4 text-brand" /> Send to All Students</p>
+            <CardContent className="p-4 space-y-3">
+              <p className="text-sm font-semibold flex items-center gap-2"><Megaphone className="h-4 w-4 text-brand" /> Send Broadcast</p>
+
+              {/* Track selector — admin sees dropdown, instructor sees their track */}
+              {user?.role === "ADMIN" ? (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Select Track</label>
+                  <Select value={broadcastTrack} onValueChange={setBroadcastTrack}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Pick a track…" /></SelectTrigger>
+                    <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Track: <span className="font-medium text-foreground">{broadcastTrack || user?.track || "—"}</span></p>
+              )}
+
+              {/* Student checklist */}
+              {broadcastTrack && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs text-muted-foreground">Select Students</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setSelectedUserIds(new Set(trackStudents.map((s) => s.userId)))} className="text-[10px] text-brand hover:underline flex items-center gap-0.5"><CheckSquare className="h-3 w-3" /> All</button>
+                      <button type="button" onClick={() => setSelectedUserIds(new Set())} className="text-[10px] text-muted-foreground hover:underline flex items-center gap-0.5"><Square className="h-3 w-3" /> None</button>
+                    </div>
+                  </div>
+                  {loadingStudents ? (
+                    <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+                  ) : trackStudents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">No students on this track.</p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto border rounded-md divide-y">
+                      {trackStudents.map((s) => {
+                        const checked = selectedUserIds.has(s.userId);
+                        return (
+                          <label key={s.userId} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-muted/50 select-none">
+                            <input type="checkbox" checked={checked} onChange={() => {
+                              setSelectedUserIds((prev) => {
+                                const next = new Set(prev);
+                                checked ? next.delete(s.userId) : next.add(s.userId);
+                                return next;
+                              });
+                            }} className="h-4 w-4 rounded accent-brand" />
+                            <span className="text-sm flex-1">{s.name}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">{s.studentCode}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <form onSubmit={handleBroadcast} className="flex gap-2">
-                <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Type a message for all your students..." className="flex-1" />
-                <Button type="submit" disabled={sendingBroadcast || !broadcastText.trim()} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-1.5 shrink-0">
-                  {sendingBroadcast ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
+                <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Type your message…" className="flex-1" />
+                <Button type="submit" disabled={sendingBroadcast || !broadcastText.trim() || selectedUserIds.size === 0} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-1.5 shrink-0">
+                  {sendingBroadcast ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Send {selectedUserIds.size > 0 ? `(${selectedUserIds.size})` : ""}
                 </Button>
               </form>
             </CardContent>
