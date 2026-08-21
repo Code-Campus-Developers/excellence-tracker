@@ -34,6 +34,7 @@ model User {
   receivedMessages Message[]          @relation("MessageReceiver")
   trackAssignments TrackAssignment[]
   parentLinks      ParentStudent[]    @relation("ParentUser")
+  broadcasts       Broadcast[]
 
   @@map("users")
 }
@@ -223,4 +224,15 @@ model ParentStudent {
 
   @@unique([parentId, studentId])
   @@map("parent_students")
+}
+
+model Broadcast {
+  id           String   @id @default(cuid())
+  instructorId String   @map("instructor_id")
+  track        String
+  content      String
+  createdAt    DateTime @default(now()) @map("created_at")
+  instructor   User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@map("broadcasts")
 }

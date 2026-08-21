@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, UserCircle2, Users } from "lucide-react";
+import { Send, MessageCircle, Loader2, UserCircle2, Users, Megaphone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/student/messages")({
 
 interface Instructor { id: string; name: string; email: string; track: string | null; profilePicture: string | null; }
 interface Message { id: string; content: string; isRead: boolean; createdAt: string; senderId: string; receiverId: string; sender: { name: string; profilePicture: string | null }; }
+interface Broadcast { id: string; content: string; track: string; createdAt: string; instructor: { name: string; profilePicture: string | null }; }
 
 function StudentMessages() {
   const { user } = useAuth();
@@ -28,9 +29,12 @@ function StudentMessages() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [activeTab, setActiveTab] = useState<"chat" | "announcements">("chat");
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
 
   useEffect(() => {
     api.get<Instructor | null>("/api/messages/instructor").then(setInstructor).catch(() => setInstructor(null));
+    api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
   }, []);
 
   const fetchThread = useCallback(async (id: string) => {
@@ -67,7 +71,40 @@ function StudentMessages() {
   return (
     <StudentShell title="Messages">
       <div className="max-w-2xl flex flex-col gap-4">
-        {!instructor ? (
+
+        {/* Tab toggle */}
+        <div className="flex rounded-lg overflow-hidden border w-fit">
+          <button onClick={() => setActiveTab("chat")} className={`px-4 py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "chat" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+            <MessageCircle className="h-3.5 w-3.5" /> Chat
+          </button>
+          <button onClick={() => setActiveTab("announcements")} className={`px-4 py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "announcements" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+            <Megaphone className="h-3.5 w-3.5" /> Announcements {broadcasts.length > 0 && <span className="bg-brand-soft text-brand text-[10px] px-1.5 rounded-full ml-0.5">{broadcasts.length}</span>}
+          </button>
+        </div>
+
+        {activeTab === "announcements" ? (
+          <div className="space-y-3">
+            {broadcasts.length === 0 ? (
+              <Card><CardContent className="p-12 text-center text-muted-foreground"><Megaphone className="h-10 w-10 mx-auto mb-3 opacity-30" /><p className="text-sm">No announcements yet.</p></CardContent></Card>
+            ) : broadcasts.map((b) => (
+              <Card key={b.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={b.instructor.name} color="#16a34a" size={36} photo={b.instructor.profilePicture} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-semibold">{b.instructor.name}</span>
+                        <span className="text-[10px] bg-brand-soft text-brand px-1.5 py-0.5 rounded-full">Announcement</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{new Date(b.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm">{b.content}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : !instructor ? (
           <Card><CardContent className="p-12 text-center"><UserCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="font-semibold">No instructor assigned yet</p><p className="text-sm text-muted-foreground mt-1">An instructor for your track hasn't been set up yet.</p></CardContent></Card>
         ) : (
           <>

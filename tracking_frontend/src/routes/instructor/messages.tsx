@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, Users, Plus, Shield } from "lucide-react";
+import { Send, MessageCircle, Loader2, Users, Plus, Shield, Megaphone } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,8 @@ interface Message {
 
 interface Contact { id: string; name: string; role: string; track: string | null; profilePicture: string | null; }
 
+interface Broadcast { id: string; content: string; track: string; createdAt: string; instructor: { name: string; profilePicture: string | null }; }
+
 function InstructorMessages() {
   const { user } = useAuth();
 
@@ -47,6 +49,12 @@ function InstructorMessages() {
   const [showContacts, setShowContacts] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Broadcast state
+  const [activeTab, setActiveTab] = useState<"chats" | "broadcast">("chats");
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [broadcastText, setBroadcastText] = useState("");
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -68,8 +76,10 @@ function InstructorMessages() {
   useEffect(() => {
     fetchInbox().finally(() => setInboxLoading(false));
     const inboxPoll = setInterval(fetchInbox, 20_000);
-    // Load contacts (admins) for "New Message" button
+    // Load contacts (students on track) for "New Message" button
     api.get<Contact[]>("/api/messages/contacts").then(setContacts).catch(() => {});
+    // Load broadcasts
+    api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
     return () => clearInterval(inboxPoll);
   }, [fetchInbox]);
 
@@ -113,14 +123,73 @@ function InstructorMessages() {
     }
   };
 
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastText.trim()) return;
+    setSendingBroadcast(true);
+    try {
+      const b = await api.post<Broadcast>("/api/messages/broadcast", { content: broadcastText.trim() });
+      setBroadcasts((prev) => [b, ...prev]);
+      setBroadcastText("");
+      toast.success("Broadcast sent to all students!");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to send broadcast"); }
+    finally { setSendingBroadcast(false); }
+  };
+
   const activePerson = inbox.find((t) => t.otherId === activeId)?.other
     ?? (activeId ? { id: activeId, name: "Student", profilePicture: null } : null);
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold mb-6">Messages</h1>
+      <h1 className="text-2xl font-bold mb-4">Messages</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-180px)]">
+      {/* Tab toggle */}
+      <div className="flex rounded-lg overflow-hidden border w-fit mb-4">
+        <button onClick={() => setActiveTab("chats")} className={`px-4 py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "chats" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <MessageCircle className="h-3.5 w-3.5" /> Chats
+        </button>
+        <button onClick={() => setActiveTab("broadcast")} className={`px-4 py-1.5 text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "broadcast" ? "bg-brand text-brand-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <Megaphone className="h-3.5 w-3.5" /> Broadcast
+        </button>
+      </div>
+
+      {activeTab === "broadcast" ? (
+        <div className="max-w-2xl space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2"><Megaphone className="h-4 w-4 text-brand" /> Send to All Students</p>
+              <form onSubmit={handleBroadcast} className="flex gap-2">
+                <Input value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} placeholder="Type a message for all your students..." className="flex-1" />
+                <Button type="submit" disabled={sendingBroadcast || !broadcastText.trim()} className="bg-brand text-brand-foreground hover:bg-brand/90 gap-1.5 shrink-0">
+                  {sendingBroadcast ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+          <div className="space-y-2">
+            {broadcasts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No broadcasts sent yet.</p>
+            ) : broadcasts.map((b) => (
+              <Card key={b.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={b.instructor.name} color="#16a34a" size={32} photo={b.instructor.profilePicture} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-semibold">{b.instructor.name}</span>
+                        <span className="text-[10px] bg-brand-soft text-brand px-1.5 py-0.5 rounded-full">Broadcast</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{new Date(b.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm">{b.content}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-220px)]">
         {/* ── Inbox sidebar ── */}
         <Card className="overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b">
@@ -141,7 +210,7 @@ function InstructorMessages() {
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background text-left">
                   <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm font-medium">{c.name}</span>
-                  <span className="text-[10px] text-muted-foreground capitalize ml-auto">{c.role === "ADMIN" ? "Admin" : "Instructor"}</span>
+                  <span className="text-[10px] text-muted-foreground capitalize ml-auto">{c.role === "ADMIN" ? "Admin" : c.role === "MENTOR" ? "Instructor" : "Student"}</span>
                 </button>
               ))}
             </div>
@@ -280,6 +349,7 @@ function InstructorMessages() {
           )}
         </Card>
       </div>
+      )} {/* end chats tab */}
     </AppShell>
   );
 }
