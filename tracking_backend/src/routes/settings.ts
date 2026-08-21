@@ -80,4 +80,28 @@ adminSettingsRouter.put("/", async (req: AuthRequest, res: Response) => {
   res.json(settings);
 });
 
+// ─── GET /api/settings/holidays ───────────────────────────────────────────────
+router.get("/holidays", authenticate, async (_req: AuthRequest, res: Response) => {
+  const holidays = await prisma.holiday.findMany({ orderBy: { date: "asc" } });
+  res.json(holidays);
+});
+
+// ─── POST /api/settings/holidays ──────────────────────────────────────────────
+router.post("/holidays", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
+  const { date, name } = req.body as { date?: string; name?: string };
+  if (!date || !name?.trim()) { res.status(400).json({ error: "date and name are required" }); return; }
+  try {
+    const holiday = await prisma.holiday.create({ data: { date: new Date(date), name: name.trim() } });
+    res.json(holiday);
+  } catch {
+    res.status(409).json({ error: "A holiday already exists on that date" });
+  }
+});
+
+// ─── DELETE /api/settings/holidays/:id ────────────────────────────────────────
+router.delete("/holidays/:id", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
+  await prisma.holiday.delete({ where: { id: req.params.id } }).catch(() => {});
+  res.status(204).send();
+});
+
 export default router;

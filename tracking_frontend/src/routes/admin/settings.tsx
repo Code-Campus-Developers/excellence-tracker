@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Trash2, CalendarOff } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -216,6 +217,81 @@ function AdminSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Holidays ── */}
+      <HolidaysCard />
     </AppShell>
+  );
+}
+
+interface Holiday { id: string; date: string; name: string; }
+
+function HolidaysCard() {
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [newDate, setNewDate] = useState("");
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get<Holiday[]>("/api/settings/holidays").then(setHolidays).catch(() => {});
+  }, []);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDate || !newName.trim()) { toast.error("Date and name are required"); return; }
+    setSaving(true);
+    try {
+      const h = await api.post<Holiday>("/api/settings/holidays", { date: newDate, name: newName.trim() });
+      setHolidays((prev) => [...prev, h].sort((a, b) => a.date.localeCompare(b.date)));
+      setNewDate(""); setNewName("");
+      toast.success("Holiday added");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.del(`/api/settings/holidays/${id}`);
+      setHolidays((prev) => prev.filter((h) => h.id !== id));
+      toast.success("Holiday removed");
+    } catch { toast.error("Failed to remove holiday"); }
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-brand" /> Holidays</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">Dates added here will be skipped by the missed attendance email cron (Mon–Fri 4 PM).</p>
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-3 items-end">
+          <div>
+            <Label className="text-xs mb-1 block">Date</Label>
+            <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="h-9 w-40" required />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <Label className="text-xs mb-1 block">Holiday Name</Label>
+            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Eid el-Fitr" className="h-9" required />
+          </div>
+          <Button type="submit" disabled={saving} size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90">
+            {saving ? "Adding…" : "Add Holiday"}
+          </Button>
+        </form>
+        {holidays.length > 0 && (
+          <div className="divide-y border rounded-md">
+            {holidays.map((h) => (
+              <div key={h.id} className="flex items-center justify-between px-4 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">{h.name}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(h.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric" })}</p>
+                </div>
+                <button onClick={() => handleDelete(h.id)} className="text-muted-foreground hover:text-destructive transition-colors ml-4">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {holidays.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No holidays added yet.</p>}
+      </CardContent>
+    </Card>
   );
 }

@@ -226,6 +226,15 @@ model ParentStudent {
   @@map("parent_students")
 }
 
+model Holiday {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("holidays")
+}
+
 model Broadcast {
   id             String   @id @default(cuid())
   instructorId   String   @map("instructor_id")

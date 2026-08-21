@@ -15,6 +15,13 @@ export function startMissedAttendanceCron() {
       const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
       const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 
+      // Skip if today is a configured holiday
+      const isHoliday = await prisma.holiday.findFirst({ where: { date: { gte: startOfDay, lt: endOfDay } } });
+      if (isHoliday) {
+        console.log(`[Cron] Skipping missed attendance — today is a holiday: ${isHoliday.name}`);
+        return;
+      }
+
       const dateStr = now.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
       // Get all students who clocked in today
@@ -62,5 +69,5 @@ export function startMissedAttendanceCron() {
     }
   }, { timezone: "Africa/Lagos" }); // Nigerian time (WAT = UTC+1)
 
-  console.log("⏰ Missed attendance cron scheduled (6 PM WAT, Mon–Sat)");
+  console.log("⏰ Missed attendance cron scheduled (4 PM WAT, Mon–Fri)");
 }
