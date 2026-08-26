@@ -163,7 +163,7 @@ router.post("/instructors", authenticate, authorize("ADMIN"), upload.single("fil
             email, passwordHash, role: "MENTOR", phone: phone || null, track: track ?? null,
           },
         });
-        try { await sendInstructorWelcomeEmail({ to: email, name: nameData.name, tempPassword: password, loginUrl: `${process.env.APP_URL ?? ""}/instructor-login` }); } catch { /* silent */ }
+        try { await sendInstructorWelcomeEmail({ to: email, name: nameData.name, tempPassword: password }); } catch { /* silent */ }
         results.push({ row: i + 2, name: nameData.name, email, status: "success" });
       } catch (err) {
         results.push({ row: i + 2, name: nameData.name, email, status: "failed", error: err instanceof Error ? err.message : "Unknown error" });

@@ -35,7 +35,7 @@ router.post("/instructors", async (req: AuthRequest, res: Response) => {
     select: { id: true, name: true, email: true, track: true, createdAt: true },
   });
 
-  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/instructor-login` }); }
+  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
   try { await notifyAdmins(`New instructor account created: ${name}`, "/admin/manage"); }
@@ -88,7 +88,7 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
     include: { student: true },
   });
 
-  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword, loginUrl: `${process.env.APP_URL}/login` }); }
+  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
   try {
@@ -139,8 +139,7 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res: Response)
   await audit(req, "PASSWORD_RESET_BY_ADMIN", { targetUserId: user.id, targetEmail: user.email });
 
   try {
-    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword,
-      loginUrl: `${process.env.APP_URL}/${user.role === 'MENTOR' ? 'instructor-login' : user.role === 'ADMIN' ? 'admin-login' : 'login'}` });
+    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword });
   } catch (err) { console.error("Reset email failed:", err); }
 
   res.json({ message: `Password reset — new credentials sent to ${user.email}`, tempPassword });
