@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma, { generateStudentCode } from "../lib/prisma";
-import { hashPassword, generateResetToken } from "../lib/auth";
+import { hashPassword } from "../lib/auth";
 import { sendInstructorWelcomeEmail, sendStudentWelcomeEmail } from "../lib/email";
 import { authenticate, authorize, AuthRequest } from "../middleware/authenticate";
 import { notifyAdmins, notifyInstructors } from "./notifications";
@@ -127,22 +127,39 @@ router.get("/users", async (_req: AuthRequest, res: Response) => {
   res.json(users);
 });
 
-// POST /admin/users/:id/reset-password — generate temp password + send email
+// POST /admin/users/:id/reset-password — set an admin-supplied password, or
+// preserve the existing generated-password flow for older clients.
 router.post("/users/:id/reset-password", async (req: AuthRequest, res: Response) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const tempPassword = Math.random().toString(36).slice(-8) + "Cc1!";
-  const passwordHash = await hashPassword(tempPassword);
+  const suppliedPassword = typeof req.body?.password === "string" ? req.body.password : "";
+  if (suppliedPassword) {
+    if (suppliedPassword.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" }); return;
+    }
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])/.test(suppliedPassword);
+    if (!strongPassword) {
+      res.status(400).json({ error: "Password must contain uppercase, lowercase, a number, and a symbol" }); return;
+    }
+  }
+
+  const nextPassword = suppliedPassword || Math.random().toString(36).slice(-8) + "Cc1!";
+  const passwordHash = await hashPassword(nextPassword);
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash, resetToken: null, resetExpires: null } });
 
   await audit(req, "PASSWORD_RESET_BY_ADMIN", { targetUserId: user.id, targetEmail: user.email });
 
+  if (suppliedPassword) {
+    res.json({ message: `Password reset for ${user.email}` });
+    return;
+  }
+
   try {
-    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword });
+    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword: nextPassword });
   } catch (err) { console.error("Reset email failed:", err); }
 
-  res.json({ message: `Password reset — new credentials sent to ${user.email}`, tempPassword });
+  res.json({ message: `Password reset — new credentials sent to ${user.email}`, tempPassword: nextPassword });
 });
 
 // POST /admin/users/:id/toggle-active — restrict or unrestrict a user

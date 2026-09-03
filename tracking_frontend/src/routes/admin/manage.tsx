@@ -33,6 +33,8 @@ function AdminPanel() {
 
   const [instructorDialog, setInstructorDialog] = useState(false);
   const [studentDialog, setStudentDialog] = useState(false);
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [resetForm, setResetForm] = useState({ password: "", confirmPassword: "" });
   const [newInstructor, setNewInstructor] = useState({ firstName: "", lastName: "", email: "", track: "" });
   const [newStudent, setNewStudent] = useState({ firstName: "", lastName: "", email: "", track: "" });
   const [saving, setSaving] = useState(false);  const [studentPage, setStudentPage] = useState(1);
@@ -104,6 +106,33 @@ function AdminPanel() {
       await api.post(`/admin/users/${userId}/reset-password`, {});
       toast.success(`Password reset | new credentials emailed to ${name}`);
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+  };
+
+  const closeResetDialog = () => {
+    setResetTarget(null);
+    setResetForm({ password: "", confirmPassword: "" });
+  };
+
+  const setStudentPassword = async () => {
+    if (!resetTarget) return;
+    if (resetForm.password.length < 8) {
+      toast.error("Password must be at least 8 characters"); return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d])/.test(resetForm.password)) {
+      toast.error("Password must contain uppercase, lowercase, a number, and a symbol"); return;
+    }
+    if (resetForm.password !== resetForm.confirmPassword) {
+      toast.error("Passwords do not match"); return;
+    }
+
+    setSaving(true);
+    try {
+      await api.post(`/admin/users/${resetTarget.id}/reset-password`, { password: resetForm.password });
+      toast.success(`Password reset successfully for ${resetTarget.name}`);
+      closeResetDialog();
+      load();
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to reset password"); }
+    finally { setSaving(false); }
   };
 
   const toggleActive = async (userId: string, name: string, isActive: boolean) => {
@@ -226,7 +255,7 @@ function AdminPanel() {
                     )}
                     {userRecord && (
                       <>
-                        <button onClick={() => resetPassword(userRecord.id, s.name)}
+                        <button onClick={() => setResetTarget({ id: userRecord.id, name: s.name })}
                           className="text-muted-foreground hover:text-brand p-1" title="Reset password">
                           <RefreshCw className="h-4 w-4" />
                         </button>
@@ -311,6 +340,41 @@ function AdminPanel() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Reset Student Password Dialog */}
+      <Dialog open={Boolean(resetTarget)} onOpenChange={(open) => { if (!open) closeResetDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Enter a new password for <span className="font-medium text-foreground">{resetTarget?.name}</span>.
+            </p>
+            <div>
+              <Label htmlFor="student-new-password" className="mb-1.5 block">New Password</Label>
+              <Input id="student-new-password" type="password" autoComplete="new-password"
+                placeholder="Enter new password" value={resetForm.password}
+                onChange={(e) => setResetForm((p) => ({ ...p, password: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="student-confirm-password" className="mb-1.5 block">Confirm New Password</Label>
+              <Input id="student-confirm-password" type="password" autoComplete="new-password"
+                placeholder="Re-enter new password" value={resetForm.confirmPassword}
+                onChange={(e) => setResetForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === "Enter" && !saving) void setStudentPassword(); }} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use at least 8 characters with uppercase, lowercase, a number, and a symbol.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeResetDialog} disabled={saving}>Cancel</Button>
+            <Button onClick={setStudentPassword} disabled={saving}
+              className="bg-brand text-brand-foreground hover:bg-brand/90">
+              <RefreshCw className="h-4 w-4" />{saving ? "Resetting..." : "Reset Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Instructor Dialog */}
       <Dialog open={instructorDialog} onOpenChange={setInstructorDialog}>
