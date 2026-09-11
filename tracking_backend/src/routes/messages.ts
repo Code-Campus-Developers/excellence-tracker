@@ -332,13 +332,12 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
       emitToRole("MENTOR", "message:new", message);
     }
 
-    // Notify recipient
-    const sender = await prisma.user.findUnique({ where: { id: me }, select: { name: true } });
-    await createNotification({
+    // Notification creation must not delay the chat response.
+    void createNotification({
       userId: receiverId,
-      message: `New message from ${sender?.name ?? "someone"}: "${content.trim().slice(0, 60)}${content.trim().length > 60 ? "…" : ""}"`,
+      message: `New message from ${message.sender.name}: "${content.trim().slice(0, 60)}${content.trim().length > 60 ? "…" : ""}"`,
       link: messagePageForRole(receiver?.role ?? "STUDENT"),
-    });
+    }).catch((error) => console.error("Failed to create message notification", error));
 
     return res.status(201).json(message);
   } catch (err) {

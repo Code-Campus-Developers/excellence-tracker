@@ -33,6 +33,9 @@ export function initializeMessagingSocket(server: HttpServer) {
     socket.join(room);
     socket.join(`role:${role}`);
 
+    // Keep a durable activity time in case the process stops before disconnect fires.
+    prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+
     try {
       const pending = await prisma.message.findMany({
         where: { receiverId: userId, deliveredAt: null },
@@ -69,10 +72,21 @@ export function initializeMessagingSocket(server: HttpServer) {
       reply(Boolean(io?.sockets.adapter.rooms.get(roomFor(targetUserId))?.size));
     });
 
+    socket.on("presence:details", async (
+      targetUserId: string,
+      reply: (status: { online: boolean; lastSeenAt: string | null }) => void,
+    ) => {
+      const online = Boolean(io?.sockets.adapter.rooms.get(roomFor(targetUserId))?.size);
+      const user = await prisma.user.findUnique({ where: { id: targetUserId }, select: { lastSeenAt: true } }).catch(() => null);
+      reply({ online, lastSeenAt: user?.lastSeenAt?.toISOString() ?? null });
+    });
+
     socket.on("disconnect", () => {
-      setTimeout(() => {
+      setTimeout(async () => {
         if (!io?.sockets.adapter.rooms.get(room)?.size) {
-          io?.emit("presence:changed", { userId, online: false });
+          const lastSeenAt = new Date();
+          await prisma.user.update({ where: { id: userId }, data: { lastSeenAt } }).catch(() => {});
+          io?.emit("presence:changed", { userId, online: false, lastSeenAt: lastSeenAt.toISOString() });
         }
       }, 250);
     });

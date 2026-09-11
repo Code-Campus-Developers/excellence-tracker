@@ -162,10 +162,10 @@ export function StudentShell({ children, title }: StudentShellProps) {
       </nav>
 
       {/* Bottom — cohort/week bar */}
-      <div className="p-4 border-t shrink-0">
-        <div className="rounded-lg bg-brand text-brand-foreground p-4">
-          <div className="text-xs font-semibold opacity-90">Week</div>
-          <div className="text-3xl font-bold mt-1">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
+      <div className="px-4 py-1 border-t shrink-0">
+        <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
+          <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
+          <div className="text-xl leading-tight font-bold">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
         </div>
       </div>
     </>

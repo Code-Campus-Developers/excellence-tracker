@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { TRACKS } from "@/lib/tracking";
 import { getMessagingSocket } from "@/lib/messaging-socket";
+import { formatChatTimestamp, formatLastSeen } from "@/lib/date-time";
 
 export const Route = createFileRoute("/instructor/messages")({
   head: () => ({ meta: [{ title: "Messages | CodeCampus" }] }),
@@ -49,14 +50,16 @@ function InstructorMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [threadLoading, setThreadLoading] = useState(false);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [showContacts, setShowContacts] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const threadCacheRef = useRef(new Map<string, Message[]>());
+  const threadRequestRef = useRef(0);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [otherTyping, setOtherTyping] = useState(false);
   const [otherOnline, setOtherOnline] = useState(false);
+  const [otherLastSeen, setOtherLastSeen] = useState<string | null>(null);
 
   // Broadcast state
   const [activeTab, setActiveTab] = useState<"chats" | "broadcast">("chats");
@@ -76,14 +79,15 @@ function InstructorMessages() {
   }, []);
 
   const fetchThread = useCallback(async (userId: string) => {
+    const requestId = ++threadRequestRef.current;
     try {
       const data = await api.get<Message[]>(`/api/messages/thread/${userId}`);
-      setMessages(data ?? []);
+      const nextMessages = data ?? [];
+      threadCacheRef.current.set(userId, nextMessages);
+      if (requestId === threadRequestRef.current) setMessages(nextMessages);
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        await api.post(`/api/messages/thread/${userId}/read`, {});
+        void api.post(`/api/messages/thread/${userId}/read`, {}).then(() => fetchInbox()).catch(() => {});
       }
-      // refresh inbox to clear unread badges
-      await fetchInbox();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load conversation");
     }
@@ -118,7 +122,10 @@ function InstructorMessages() {
   // poll active thread
   useEffect(() => {
     if (!activeId) return;
-    fetchThread(activeId);
+    const cached = threadCacheRef.current.get(activeId);
+    setMessages(cached ?? []);
+    setThreadLoading(!cached);
+    fetchThread(activeId).finally(() => setThreadLoading(false));
     pollRef.current = setInterval(() => fetchThread(activeId), 60_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [activeId, fetchThread]);
@@ -153,8 +160,11 @@ function InstructorMessages() {
     const onTyping = ({ userId, isTyping }: { userId: string; isTyping: boolean }) => {
       if (userId === activeId) setOtherTyping(isTyping);
     };
-    const onPresence = ({ userId, online }: { userId: string; online: boolean }) => {
-      if (userId === activeId) setOtherOnline(online);
+    const onPresence = ({ userId, online, lastSeenAt }: { userId: string; online: boolean; lastSeenAt?: string | null }) => {
+      if (userId === activeId) {
+        setOtherOnline(online);
+        if (lastSeenAt) setOtherLastSeen(lastSeenAt);
+      }
     };
     socket.on("message:new", onNewMessage);
     socket.on("messages:read", onRead);
@@ -162,7 +172,13 @@ function InstructorMessages() {
     socket.on("messages:unread-changed", refresh);
     socket.on("typing", onTyping);
     socket.on("presence:changed", onPresence);
-    if (activeId) socket.emit("presence:check", activeId, setOtherOnline);
+    if (activeId) {
+      setOtherTyping(false);
+      socket.emit("presence:details", activeId, (status: { online: boolean; lastSeenAt: string | null }) => {
+        setOtherOnline(status.online);
+        setOtherLastSeen(status.lastSeenAt);
+      });
+    }
     return () => {
       socket.off("message:new", onNewMessage);
       socket.off("messages:read", onRead);
@@ -188,31 +204,50 @@ function InstructorMessages() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const openThread = async (userId: string) => {
+  const openThread = (userId: string) => {
+    if (userId === activeId) return;
+    const cached = threadCacheRef.current.get(userId);
+    setMessages(cached ?? []);
+    setThreadLoading(!cached);
     setActiveId(userId);
-    setThreadLoading(true);
-    setMessages([]);
-    await fetchThread(userId);
-    setThreadLoading(false);
   };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || !activeId) return;
-    setSending(true);
+    const receiverId = activeId;
+    const content = text.trim();
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const pendingMessage: Message = {
+      id: pendingId,
+      content,
+      isRead: false,
+      deliveredAt: null,
+      readAt: null,
+      createdAt: new Date().toISOString(),
+      senderId: user?.id ?? "",
+      receiverId,
+      sender: { name: user?.name ?? "You", role: user?.role ?? "MENTOR", profilePicture: user?.profilePicture ?? null },
+      reads: [],
+    };
+
+    setText("");
+    setMessages((previous) => [...previous, pendingMessage]);
+    getMessagingSocket()?.emit("typing", { receiverId, isTyping: false });
     try {
       const msg = await api.post<Message>("/api/messages", {
-        receiverId: activeId,
-        content: text.trim(),
+        receiverId,
+        content,
       });
-      setMessages((prev) => prev.some((message) => message.id === msg.id) ? prev : [...prev, msg]);
-      setText("");
-      getMessagingSocket()?.emit("typing", { receiverId: activeId, isTyping: false });
-      await fetchInbox();
+      setMessages((previous) => {
+        const withoutPending = previous.filter((message) => message.id !== pendingId);
+        return withoutPending.some((message) => message.id === msg.id) ? withoutPending : [...withoutPending, msg];
+      });
+      void fetchInbox();
     } catch (err) {
+      setMessages((previous) => previous.filter((message) => message.id !== pendingId));
+      setText((current) => current || content);
       toast.error(err instanceof Error ? err.message : "Failed to send");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -340,7 +375,7 @@ function InstructorMessages() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold">{b.instructor.name}</span>
                         <span className="text-[10px] bg-brand-soft text-brand px-1.5 py-0.5 rounded-full">Broadcast</span>
-                        <span className="text-xs text-muted-foreground ml-auto">{new Date(b.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{formatChatTimestamp(b.createdAt)}</span>
                       </div>
                       <p className="text-sm">{b.content}</p>
                     </div>
@@ -418,7 +453,7 @@ function InstructorMessages() {
                       {t.latest.senderId === user?.id ? "You: " : ""}{t.latest.content}
                     </p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(t.latest.createdAt).toLocaleDateString()}
+                      {formatChatTimestamp(t.latest.createdAt)}
                     </p>
                   </div>
                 </button>
@@ -447,7 +482,7 @@ function InstructorMessages() {
                 <div>
                   <span className="font-semibold text-sm block">{activePerson?.name}</span>
                   <span className={`text-[10px] ${otherTyping ? "text-brand" : "text-muted-foreground"}`}>
-                    {otherTyping ? "typing…" : otherOnline ? "online" : "offline"}
+                    {otherTyping ? "typing…" : otherOnline ? "online" : formatLastSeen(otherLastSeen)}
                   </span>
                 </div>
               </div>
@@ -490,7 +525,7 @@ function InstructorMessages() {
                             {m.content}
                           </div>
                           <span className="text-[10px] text-muted-foreground px-1 inline-flex items-center gap-1">
-                            {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {formatChatTimestamp(m.createdAt)}
                             {isMe && ((m.reads?.length ?? 0) > 0 || m.readAt
                               ? <CheckCheck className="h-3 w-3 text-brand" aria-label="Seen" />
                               : m.deliveredAt
@@ -522,9 +557,9 @@ function InstructorMessages() {
                 <Button
                   type="submit"
                   className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0"
-                  disabled={sending || !text.trim()}
+                  disabled={!text.trim()}
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  <Send className="h-4 w-4" />
                 </Button>
               </form>
             </>

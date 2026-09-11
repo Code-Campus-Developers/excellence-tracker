@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { StudentShell } from "@/components/StudentShell";
 import { getMessagingSocket } from "@/lib/messaging-socket";
+import { formatChatTimestamp, formatLastSeen } from "@/lib/date-time";
 
 export const Route = createFileRoute("/student/messages")({
   head: () => ({ meta: [{ title: "Messages | CodeCampus" }] }),
@@ -32,12 +33,12 @@ function StudentMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingThread, setLoadingThread] = useState(false);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [instructorTyping, setInstructorTyping] = useState(false);
   const [instructorOnline, setInstructorOnline] = useState(false);
+  const [instructorLastSeen, setInstructorLastSeen] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"chat" | "announcements">("chat");
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
 
@@ -50,7 +51,7 @@ function StudentMessages() {
     try {
       setMessages((await api.get<Message[]>(`/api/messages/thread/${id}`)) ?? []);
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        await api.post(`/api/messages/thread/${id}/read`, {});
+        void api.post(`/api/messages/thread/${id}/read`, {}).catch(() => {});
       }
     }
     catch { /* silent */ }
@@ -92,8 +93,11 @@ function StudentMessages() {
     const onTyping = ({ userId, isTyping }: { userId: string; isTyping: boolean }) => {
       if (userId === instructor.id) setInstructorTyping(isTyping);
     };
-    const onPresence = ({ userId, online }: { userId: string; online: boolean }) => {
-      if (userId === instructor.id) setInstructorOnline(online);
+    const onPresence = ({ userId, online, lastSeenAt }: { userId: string; online: boolean; lastSeenAt?: string | null }) => {
+      if (userId === instructor.id) {
+        setInstructorOnline(online);
+        if (lastSeenAt) setInstructorLastSeen(lastSeenAt);
+      }
     };
     const refreshAnnouncements = () => api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
     socket.on("message:new", onNewMessage);
@@ -102,7 +106,10 @@ function StudentMessages() {
     socket.on("typing", onTyping);
     socket.on("presence:changed", onPresence);
     socket.on("broadcast:new", refreshAnnouncements);
-    socket.emit("presence:check", instructor.id, setInstructorOnline);
+    socket.emit("presence:details", instructor.id, (status: { online: boolean; lastSeenAt: string | null }) => {
+      setInstructorOnline(status.online);
+      setInstructorLastSeen(status.lastSeenAt);
+    });
     return () => {
       socket.off("message:new", onNewMessage);
       socket.off("messages:read", onRead);
@@ -128,14 +135,36 @@ function StudentMessages() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || !instructor) return;
-    setSending(true);
+    const content = text.trim();
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const pendingMessage: Message = {
+      id: pendingId,
+      content,
+      isRead: false,
+      deliveredAt: null,
+      readAt: null,
+      createdAt: new Date().toISOString(),
+      senderId: user?.id ?? "",
+      receiverId: instructor.id,
+      supportStudentId: user?.id ?? null,
+      sender: { name: user?.name ?? "You", role: user?.role ?? "STUDENT", profilePicture: user?.profilePicture ?? null },
+      reads: [],
+    };
+
+    setText("");
+    setMessages((previous) => [...previous, pendingMessage]);
+    getMessagingSocket()?.emit("typing", { receiverId: instructor.id, isTyping: false });
     try {
-      const msg = await api.post<Message>("/api/messages", { receiverId: instructor.id, content: text.trim() });
-      setMessages((prev) => prev.some((message) => message.id === msg.id) ? prev : [...prev, msg]);
-      setText("");
-      getMessagingSocket()?.emit("typing", { receiverId: instructor.id, isTyping: false });
-    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to send"); }
-    finally { setSending(false); }
+      const msg = await api.post<Message>("/api/messages", { receiverId: instructor.id, content });
+      setMessages((previous) => {
+        const withoutPending = previous.filter((message) => message.id !== pendingId);
+        return withoutPending.some((message) => message.id === msg.id) ? withoutPending : [...withoutPending, msg];
+      });
+    } catch (err) {
+      setMessages((previous) => previous.filter((message) => message.id !== pendingId));
+      setText((current) => current || content);
+      toast.error(err instanceof Error ? err.message : "Failed to send");
+    }
   };
 
   const handleTyping = (value: string) => {
@@ -178,7 +207,7 @@ function StudentMessages() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold">{b.instructor.name}</span>
                         <span className="text-[10px] bg-brand-soft text-brand px-1.5 py-0.5 rounded-full">Announcement</span>
-                        <span className="text-xs text-muted-foreground ml-auto">{new Date(b.createdAt).toLocaleDateString()}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{formatChatTimestamp(b.createdAt)}</span>
                       </div>
                       <p className="text-sm">{b.content}</p>
                     </div>
@@ -197,7 +226,7 @@ function StudentMessages() {
                 <div>
                   <p className="font-semibold text-sm">{instructor.name}</p>
                   <p className={`text-xs ${instructorTyping ? "text-brand" : "text-muted-foreground"}`}>
-                    {instructorTyping ? "typing…" : instructorOnline ? "online" : `${instructor.track} Course Instructor`}
+                    {instructorTyping ? "typing…" : instructorOnline ? "online" : formatLastSeen(instructorLastSeen)}
                   </p>
                 </div>
                 <div className="ml-auto"><span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Your instructor</span></div>
@@ -223,7 +252,7 @@ function StudentMessages() {
                         )}
                         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-brand text-brand-foreground rounded-tr-sm" : "bg-background border rounded-tl-sm"}`}>{m.content}</div>
                         <span className="text-[10px] text-muted-foreground px-1 inline-flex items-center gap-1">
-                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatChatTimestamp(m.createdAt)}
                           {isMe && ((m.reads?.length ?? 0) > 0 || m.readAt
                             ? <CheckCheck className="h-3 w-3 text-brand" aria-label="Seen" />
                             : m.deliveredAt
@@ -244,8 +273,8 @@ function StudentMessages() {
 
               <form onSubmit={handleSend} className="flex gap-2 mt-3">
                 <Input value={text} onChange={(e) => handleTyping(e.target.value)} placeholder="Type a message…" className="flex-1" autoComplete="off" />
-                <Button type="submit" className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0" disabled={sending || !text.trim()}>
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                <Button type="submit" className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0" disabled={!text.trim()}>
+                  <Send className="h-4 w-4" />
                 </Button>
               </form>
             </div>

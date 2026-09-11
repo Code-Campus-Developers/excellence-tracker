@@ -29,6 +29,7 @@ model User {
   resetToken       String?           @map("reset_token")
   resetExpires     DateTime?         @map("reset_expires")
   createdAt        DateTime          @default(now()) @map("created_at")
+  lastSeenAt       DateTime?         @map("last_seen_at")
   student          Student?
   sentMessages     Message[]         @relation("MessageSender")
   receivedMessages Message[]         @relation("MessageReceiver")
