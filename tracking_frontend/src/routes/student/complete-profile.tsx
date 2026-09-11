@@ -25,7 +25,7 @@ function CompleteProfile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!track) { toast.error("Please select your course/track"); return; }
+    if (!track) { toast.error("Please select your course"); return; }
     if (!phone.trim()) { toast.error("Please enter your phone number"); return; }
     setSaving(true);
     try {
@@ -57,7 +57,7 @@ function CompleteProfile() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label className="mb-1.5 block">Course / Track</Label>
+                <Label className="mb-1.5 block">Course</Label>
                 <Select value={track} onValueChange={setTrack}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select your course" />

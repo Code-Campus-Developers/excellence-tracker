@@ -109,7 +109,7 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: AuthRequest, res:
 
     // Email all students in this track about their new instructor
     const students = await prisma.student.findMany({
-      where: { track },
+      where: { track, isArchived: false },
       include: { user: { select: { email: true } } },
     });
     const startDateStr = new Date(startDate).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });

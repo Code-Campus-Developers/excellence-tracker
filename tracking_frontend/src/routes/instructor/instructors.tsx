@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { UserPlus, Trash2, RefreshCw } from "lucide-react";
+import { UserPlus, Trash2, RefreshCw, ChevronRight } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,13 @@ import { TRACKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/instructor/instructors")({
   head: () => ({ meta: [{ title: "Instructors | CodeCampus Excellence Tracker" }] }),
-  component: InstructorsList,
+  component: InstructorsRoute,
 });
+
+function InstructorsRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return /^\/instructor\/instructors\/[^/]+\/?$/.test(pathname) ? <Outlet /> : <InstructorsList />;
+}
 
 interface InstructorRow {
   id: string;
@@ -31,6 +36,7 @@ interface InstructorRow {
 }
 
 function InstructorsList() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
 
@@ -118,7 +124,16 @@ function InstructorsList() {
             </div>
           )}
           {instructors.map((m) => (
-            <div key={m.id} className="flex items-center gap-4 p-4">
+            <div
+              key={m.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate({ to: "/instructor/instructors/$id", params: { id: m.id } })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && event.target === event.currentTarget) navigate({ to: "/instructor/instructors/$id", params: { id: m.id } });
+              }}
+              className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+            >
               <div className="h-10 w-10 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-sm font-semibold shrink-0">
                 {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
               </div>
@@ -132,14 +147,14 @@ function InstructorsList() {
               {isAdmin && (
                 <>
                   <button
-                    onClick={() => handleResetPassword(m.id, m.name)}
+                    onClick={(event) => { event.stopPropagation(); handleResetPassword(m.id, m.name); }}
                     className="text-muted-foreground hover:text-brand p-1"
                     title="Reset password"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(m.id, m.name)}
+                    onClick={(event) => { event.stopPropagation(); handleDelete(m.id, m.name); }}
                     className="text-destructive hover:opacity-70 p-1"
                     title="Remove instructor"
                   >
@@ -147,6 +162,7 @@ function InstructorsList() {
                   </button>
                 </>
               )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </div>
           ))}
         </CardContent>
@@ -172,9 +188,9 @@ function InstructorsList() {
                 <Input type="email" placeholder="enter email address" value={form.email}
                   onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
               </div>            <div>
-              <Label className="mb-1.5 block">Track / Specialty</Label>
+              <Label className="mb-1.5 block">Course / Specialty</Label>
               <Select value={form.track} onValueChange={(v) => setForm((p) => ({ ...p, track: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>

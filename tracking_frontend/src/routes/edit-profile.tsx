@@ -177,9 +177,9 @@ function EditProfile() {
               </div>
               {(user?.role === "MENTOR" || user?.role === "STUDENT") && (
                 <div>
-                  <Label className="mb-1.5 block">Track / Specialty</Label>
+                  <Label className="mb-1.5 block">Course / Specialty</Label>
                   <Select value={form.track} onValueChange={set("track")}>
-                    <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                     <SelectContent>
                       {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>

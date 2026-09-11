@@ -21,6 +21,16 @@ function minutesDiff(from: Date, to: Date) {
   return Math.round((to.getTime() - from.getTime()) / 60_000);
 }
 
+/** Keep attendance notifications consistent with the Nigeria-based attendance UI. */
+function formatLagosTime(date: Date) {
+  return date.toLocaleTimeString("en-NG", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Lagos",
+  });
+}
+
 // ─── GET /api/attendance/today  — student checks today's record ───────────────
 router.get("/today", authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -51,7 +61,7 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
       return res.status(403).json({ error: "Students only" });
     }
     const student = await prisma.student.findFirst({
-      where: { userId: req.user!.userId },
+      where: { userId: req.user!.userId, isArchived: false },
       select: { id: true },
     });
     if (!student) return res.status(404).json({ error: "Student record not found" });
@@ -79,7 +89,7 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
 
     // Notify admin + track instructor
     const sInfo = await prisma.student.findUnique({ where: { id: student.id }, select: { name: true } });
-    const msg = `${sInfo?.name ?? "A student"} clocked in at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+    const msg = `${sInfo?.name ?? "A student"} clocked in at ${formatLagosTime(now)}.`;
     const link = `/instructor/students/${student.id}`;
     await Promise.all([
       notifyAdmins(msg, link),
@@ -87,7 +97,7 @@ router.post("/clock-in", authenticate, async (req: AuthRequest, res: Response) =
     ]);
 
     // Notify parents (email + in-app)
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const timeStr = formatLagosTime(now);
     notifyParentsAttendance({
       studentId: student.id,
       studentName: sInfo?.name ?? "Student",
@@ -116,7 +126,7 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
       return res.status(403).json({ error: "Students only" });
     }
     const student = await prisma.student.findFirst({
-      where: { userId: req.user!.userId },
+      where: { userId: req.user!.userId, isArchived: false },
       select: { id: true },
     });
     if (!student) return res.status(404).json({ error: "Student record not found" });
@@ -155,7 +165,7 @@ router.post("/clock-out", authenticate, async (req: AuthRequest, res: Response) 
     ]);
 
     // Notify parents (email + in-app)
-    const clockOutTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const clockOutTimeStr = formatLagosTime(now);
     notifyParentsAttendance({
       studentId: student.id,
       studentName: sInfo?.name ?? "Student",
@@ -339,7 +349,7 @@ router.post("/scan", async (req: Request, res: Response) => {
 
     // Find student by studentCode
     const student = await prisma.student.findFirst({
-      where: { studentCode: studentCode.trim() },
+      where: { studentCode: studentCode.trim(), isArchived: false },
       select: { id: true, name: true, track: true, studentCode: true },
     });
     if (!student) {
@@ -384,7 +394,7 @@ router.post("/scan", async (req: Request, res: Response) => {
         studentId: student.id,
         studentName: student.name,
         action: "clock_out",
-        time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        time: formatLagosTime(now),
         durationMin: minutesDiff(existing.clockInAt, now),
       }).catch(() => {/* silent */});
 
@@ -406,12 +416,12 @@ router.post("/scan", async (req: Request, res: Response) => {
     });
 
     // Notify
-    const msg = `${student.name} clocked in via QR at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+    const msg = `${student.name} clocked in via QR at ${formatLagosTime(now)}.`;
     const link = `/instructor/students/${student.id}`;
     await Promise.all([notifyAdmins(msg, link), notifyTrackInstructor(student.id, msg, link)]).catch(() => {});
 
     // Notify parents
-    const scanTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const scanTimeStr = formatLagosTime(now);
     notifyParentsAttendance({
       studentId: student.id,
       studentName: student.name,
@@ -456,7 +466,7 @@ router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response)
     }
 
     const student = await prisma.student.findFirst({
-      where: { studentCode: studentCode.trim() },
+      where: { studentCode: studentCode.trim(), isArchived: false },
       select: { id: true, name: true, track: true, studentCode: true },
     });
     if (!student) {
@@ -482,7 +492,7 @@ router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response)
       const record = await prisma.attendance.create({
         data: { studentId: student.id, date: start, clockInAt: now },
       });
-      const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const timeStr = formatLagosTime(now);
       const link = `/instructor/students/${student.id}`;
       await Promise.all([notifyAdmins(`${student.name} clocked in at ${timeStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked in at ${timeStr}.`, link)]).catch(() => {});
       notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_in", time: timeStr }).catch(() => {});
@@ -522,7 +532,7 @@ router.post("/scan-staff", authenticate, async (req: AuthRequest, res: Response)
     const durStr = dur < 60 ? `${dur}m` : `${Math.floor(dur / 60)}h ${dur % 60}m`;
     const link = `/instructor/students/${student.id}`;
     await Promise.all([notifyAdmins(`${student.name} clocked out. Session: ${durStr}.`, link), notifyTrackInstructor(student.id, `${student.name} clocked out. Session: ${durStr}.`, link)]).catch(() => {});
-    const staffClockOutTimeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const staffClockOutTimeStr = formatLagosTime(now);
     notifyParentsAttendance({ studentId: student.id, studentName: student.name, action: "clock_out", time: staffClockOutTimeStr, durationMin: dur }).catch(() => {});
     notifyParentsInApp(student.id, `${student.name} clocked out. Session: ${durStr}.`).catch(() => {});
     const staffClockOutStudentUser = await prisma.user.findFirst({ where: { student: { id: student.id } }, select: { email: true } });
@@ -555,7 +565,7 @@ router.post("/scan-parent", authenticate, async (req: AuthRequest, res: Response
 
     // Find student by code
     const student = await prisma.student.findFirst({
-      where: { studentCode: studentCode.trim() },
+      where: { studentCode: studentCode.trim(), isArchived: false },
       select: { id: true, name: true, track: true, studentCode: true },
     });
     if (!student) {
@@ -575,7 +585,7 @@ router.post("/scan-parent", authenticate, async (req: AuthRequest, res: Response
       where: { studentId: student.id, date: { gte: start, lt: end } },
     });
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const timeStr = formatLagosTime(now);
 
     if (existing?.clockOutAt) {
       return res.json({

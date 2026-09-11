@@ -105,7 +105,6 @@ function Leaderboard() {
   );
 
   const byCurrent = [...enriched].sort((a, b) => b.current - a.current);
-  const byAvg = [...enriched].sort((a, b) => b.stats.avg - a.stats.avg);
   const byHigh = [...enriched].sort((a, b) => b.stats.high - a.stats.high);
   const byLow = [...enriched].sort((a, b) => a.stats.low - b.stats.low);
 
@@ -124,7 +123,6 @@ function Leaderboard() {
         <div className="overflow-x-auto pb-1 mb-4">
           <TabsList className="w-max">
             <TabsTrigger value="current">Current Week</TabsTrigger>
-            <TabsTrigger value="avg">Overall Average</TabsTrigger>
             <TabsTrigger value="high">Highest Score</TabsTrigger>
             <TabsTrigger value="low">Lowest Score</TabsTrigger>
           </TabsList>
@@ -132,9 +130,6 @@ function Leaderboard() {
 
         <TabsContent value="current">
           <Board rows={byCurrent} scoreLabel={`Week ${CURRENT_WEEK}`} getScore={(id) => byCurrent.find((r) => r.id === id)!.current} />
-        </TabsContent>
-        <TabsContent value="avg">
-          <Board rows={byAvg} scoreLabel="Average" getScore={(id) => byAvg.find((r) => r.id === id)!.stats.avg} />
         </TabsContent>
         <TabsContent value="high">
           <Board rows={byHigh} scoreLabel="Best" getScore={(id) => byHigh.find((r) => r.id === id)!.stats.high} />

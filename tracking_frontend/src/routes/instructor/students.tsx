@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PerfBadge, Avatar } from "@/components/PerfBadge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Search, ChevronRight, UserPlus } from "lucide-react";
 import { useState, useMemo } from "react";
-import { studentStats, TRACKS } from "@/lib/tracking";
-import { useStore } from "@/lib/store";
+import { TRACKS } from "@/lib/tracking";
+import { getCurrentWeek, useStore } from "@/lib/store";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Pagination } from "@/components/Pagination";
@@ -23,11 +23,17 @@ export const Route = createFileRoute("/instructor/students")({
   head: () => ({
     meta: [{ title: "Students | CodeCampus Excellence Tracker" }],
   }),
-  component: StudentsList,
+  component: StudentsRoute,
 });
 
+function StudentsRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return /^\/instructor\/students\/[^/]+\/?$/.test(pathname) ? <Outlet /> : <StudentsList />;
+}
+
 function StudentsList() {
-  const { evaluations, students, refresh } = useStore();
+  const { evaluations, students, settings, refresh } = useStore();
+  const currentWeek = getCurrentWeek(settings);
   const [q, setQ] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", track: "" });
@@ -37,17 +43,22 @@ function StudentsList() {
 
   const rows = useMemo(() => {
     setPage(1); // reset page on search
-    return students.map((s) => ({ ...s, stats: studentStats(s.id, evaluations) })).filter((s) =>
+    return students.map((s) => {
+      const studentEvaluations = evaluations.filter((evaluation) => evaluation.studentId === s.id);
+      const currentEvaluation = studentEvaluations.find((evaluation) => evaluation.week === currentWeek);
+      return { ...s, evaluationCount: studentEvaluations.length, currentScore: currentEvaluation?.total ?? null };
+    }).filter((s) =>
       (s.name + s.track + (s.email ?? "")).toLowerCase().includes(q.toLowerCase()),
     ).map((s, _, arr) => {
-      const ranked = [...arr].filter((x) => x.stats.count > 0).sort((a, b) => b.stats.avg - a.stats.avg);
+      const ranked = [...arr]
+        .filter((x) => x.currentScore !== null)
+        .sort((a, b) => (b.currentScore ?? 0) - (a.currentScore ?? 0));
       return {
         ...s,
-        rank: s.stats.count > 0 ? ranked.findIndex((r) => r.id === s.id) + 1 : null,
-        total: ranked.filter((r) => r.stats.count > 0).length,
+        rank: s.currentScore !== null ? ranked.findIndex((r) => r.id === s.id) + 1 : null,
       };
     });
-  }, [q, evaluations, students]);
+  }, [q, evaluations, students, currentWeek]);
 
   const totalPages = Math.ceil(rows.length / PER_PAGE);
   const pagedRows = rows.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -58,7 +69,7 @@ function StudentsList() {
   const handleCreate = async () => {
     if (!form.firstName.trim() || !form.lastName.trim()) { toast.error("Please enter the student's first and last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter the student's email"); return; }
-    if (!form.track) { toast.error("Please select a track"); return; }
+    if (!form.track) { toast.error("Please select a course"); return; }
     setSaving(true);
     try {
       const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
@@ -106,9 +117,9 @@ function StudentsList() {
                 onChange={(e) => set("email")(e.target.value)} />
             </div>
             <div>
-              <Label className="mb-1.5 block">Track</Label>
+              <Label className="mb-1.5 block">Course</Label>
               <Select value={form.track} onValueChange={set("track")}>
-                <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
@@ -132,7 +143,7 @@ function StudentsList() {
       <div className="mb-4 relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search by name or track..."
+          placeholder="Search by name or course..."
           className="pl-9"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -165,12 +176,12 @@ function StudentsList() {
               </div>
               <div className="hidden sm:block text-right">
                 <div className="text-xs text-muted-foreground">Evaluations</div>
-                <div className="font-semibold">{s.stats.count}</div>
+                <div className="font-semibold">{s.evaluationCount}</div>
               </div>
               <div className="hidden sm:block text-right">
-                <div className="text-xs text-muted-foreground">Average</div>
+                <div className="text-xs text-muted-foreground">Week {currentWeek} Score</div>
                 <div className="font-semibold">
-                  {s.stats.count ? `${s.stats.avg}/100` : "—"}
+                  {s.currentScore !== null ? `${s.currentScore}/100` : "—"}
                 </div>
               </div>
               {s.rank !== null && (
@@ -179,8 +190,8 @@ function StudentsList() {
                   <div className="font-semibold text-brand">#{s.rank}</div>
                 </div>
               )}
-              {s.stats.count > 0 ? (
-                <PerfBadge total={s.stats.avg} />
+              {s.currentScore !== null ? (
+                <PerfBadge total={s.currentScore} />
               ) : (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
                   Not evaluated

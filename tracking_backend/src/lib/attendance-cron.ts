@@ -36,6 +36,7 @@ export function startMissedAttendanceCron() {
       const absentStudents = await prisma.student.findMany({
         where: {
           id: { notIn: presentStudentIds },
+          isArchived: false,
           user: { isActive: true },
         },
         select: {

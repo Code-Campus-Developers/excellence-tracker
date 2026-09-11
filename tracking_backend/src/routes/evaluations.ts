@@ -42,6 +42,13 @@ router.post("/", async (req: Request, res: Response) => {
     res.status(400).json({ error: "id, studentId, week, scores and total are required" }); return;
   }
   try {
+    const targetStudent = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { isArchived: true },
+    });
+    if (!targetStudent) { res.status(404).json({ error: "Student not found" }); return; }
+    if (targetStudent.isArchived) { res.status(409).json({ error: "Archived students cannot be evaluated" }); return; }
+
     const evaluation = await prisma.evaluation.create({
       data: { id, studentId, week, evaluator: evaluator ?? "Mentor Sarah", scores, total, notes: notes ?? "" },
     });

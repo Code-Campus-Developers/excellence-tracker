@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
-import { LogOut, Clock, CalendarDays, CheckCircle2, Timer, Loader2, TrendingUp } from "lucide-react";
+import { LogOut, Clock, CalendarDays, CheckCircle2, Timer, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,6 @@ function StudentAttendance() {
 
   const completed = history.filter((r) => r.durationMin !== null);
   const totalMin = completed.reduce((s, r) => s + (r.durationMin ?? 0), 0);
-  const avgMin = completed.length ? Math.round(totalMin / completed.length) : 0;
 
   return (
     <StudentShell title="Attendance">
@@ -97,8 +96,8 @@ function StudentAttendance() {
         )}
 
         {completed.length > 0 && (
-          <div className="grid grid-cols-3 gap-4">
-            {[{ label: "Days Present", value: completed.length, icon: <CalendarDays className="h-4 w-4 text-brand" /> }, { label: "Total Time", value: fmtDur(totalMin), icon: <Clock className="h-4 w-4 text-brand" /> }, { label: "Avg / Day", value: fmtDur(avgMin), icon: <TrendingUp className="h-4 w-4 text-brand" /> }].map((s) => (
+          <div className="grid grid-cols-2 gap-4">
+            {[{ label: "Days Present", value: completed.length, icon: <CalendarDays className="h-4 w-4 text-brand" /> }, { label: "Total Time", value: fmtDur(totalMin), icon: <Clock className="h-4 w-4 text-brand" /> }].map((s) => (
               <Card key={s.label}><CardContent className="p-4 text-center"><div className="flex items-center justify-center mb-1">{s.icon}</div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></CardContent></Card>
             ))}
           </div>

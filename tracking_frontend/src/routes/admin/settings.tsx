@@ -97,7 +97,7 @@ function AdminSettings() {
     <AppShell>
       <PageHeader
         title="Settings"
-        subtitle="Configure grading thresholds and current week per track."
+        subtitle="Configure grading thresholds and current week per course."
         actions={
           <Button onClick={handleSave} disabled={saving}
             className="bg-brand text-brand-foreground hover:bg-brand/90">
@@ -192,14 +192,14 @@ function AdminSettings() {
       {/* Per-track current week */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Current Week per Track</CardTitle>
+          <CardTitle className="text-base">Current Week per Course</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 mb-4">
-            <strong>Use this when tracks are on different weeks.</strong> For example, if Software Engineering
-            is on Week 6 but Data Analytics is still on Week 4. If all tracks move together,
+            <strong>Use this when courses are on different weeks.</strong> For example, if Software Engineering
+            is on Week 6 but Data Analytics is still on Week 4. If all courses move together,
             use the <strong>Global Week Override</strong> above instead | it's simpler.
-            Each instructor can also update their own track's week from their Settings page.
+            Each instructor can also update their own course's week from their Settings page.
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {TRACKS.map((track) => (

@@ -200,7 +200,12 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
   });
 
   try {
-    await sendPasswordResetEmail({ to: user.email, name: user.name, token });
+    await sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      token,
+      isStudent: user.role === "STUDENT",
+    });
   } catch (err) {
     console.error("Email send failed:", err);
   }

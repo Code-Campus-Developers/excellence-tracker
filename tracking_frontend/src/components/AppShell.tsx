@@ -10,6 +10,8 @@ import { TOTAL_WEEKS } from "@/lib/tracking";
 import { useAuth } from "@/lib/authStore";
 import { useStore, getCurrentWeek } from "@/lib/store";
 import { api } from "@/lib/api";
+import { getMessagingSocket } from "@/lib/messaging-socket";
+import { formatNotificationDateTime } from "@/lib/date-time";
 
 interface Notification {
   id: string;
@@ -22,7 +24,7 @@ interface Notification {
 const ADMIN_EXTRA_NAV = [
   { to: "/admin/manage", label: "User Management", icon: Shield },
   { to: "/admin/bulk-import", label: "Bulk Import", icon: FileText },
-  { to: "/admin/track-assignments", label: "Track Assignments", icon: GraduationCap },
+  { to: "/admin/track-assignments", label: "Course Assignments", icon: GraduationCap },
   { to: "/admin/settings", label: "Settings", icon: UserCog },
 ];
 
@@ -39,6 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [showResults, setShowResults] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -52,11 +55,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     } catch { /* silent */ }
   }, []);
 
+  const fetchUnreadMessages = useCallback(async () => {
+    try {
+      const { count } = await api.get<{ count: number }>("/api/messages/unread-count");
+      setUnreadMessages(count ?? 0);
+    } catch { /* silent */ }
+  }, []);
+
   useEffect(() => {
     fetchNotifications();
+    fetchUnreadMessages();
     const interval = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    const messageInterval = setInterval(fetchUnreadMessages, 60_000);
+    const socket = getMessagingSocket();
+    socket?.on("message:new", fetchUnreadMessages);
+    socket?.on("messages:unread-changed", fetchUnreadMessages);
+    return () => {
+      clearInterval(interval);
+      clearInterval(messageInterval);
+      socket?.off("message:new", fetchUnreadMessages);
+      socket?.off("messages:unread-changed", fetchUnreadMessages);
+    };
+  }, [fetchNotifications, fetchUnreadMessages]);
 
   const handleBellClick = async () => {
     const opening = !showNotifications;
@@ -167,7 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 className={[
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
                   active
                     ? "bg-brand-soft text-brand"
                     : "text-sidebar-foreground hover:bg-muted",
@@ -175,6 +195,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
+                {item.to === "/instructor/messages" && unreadMessages > 0 && (
+                  <span className="ml-auto h-4 min-w-4 px-1 bg-brand text-brand-foreground rounded-full text-[10px] flex items-center justify-center font-bold">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -188,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     key={item.to}
                     to={item.to}
                     className={[
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
                       active
                         ? "bg-brand-soft text-brand"
                         : "text-sidebar-foreground hover:bg-muted",
@@ -203,10 +228,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </nav>
 
-        <div className="p-4 border-t">
-          <div className="rounded-lg bg-brand text-brand-foreground p-4">
-              <div className="text-xs font-semibold opacity-90">Week</div>
-            <div className="text-3xl font-bold mt-1">{displayWeek} / {settings.total_weeks}</div>
+        <div className="px-4 py-1 border-t">
+          <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
+            <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
+            <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
           </div>
         </div>
       </aside>
@@ -241,7 +266,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={item.to}
                 onClick={() => setMobileNavOpen(false)}
                 className={[
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative",
                   active
                     ? "bg-brand-soft text-brand"
                     : "text-sidebar-foreground hover:bg-muted",
@@ -249,6 +274,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
+                {item.to === "/instructor/messages" && unreadMessages > 0 && (
+                  <span className="ml-auto h-4 min-w-4 px-1 bg-brand text-brand-foreground rounded-full text-[10px] flex items-center justify-center font-bold">
+                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -268,10 +298,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </nav>
 
-        <div className="p-4 border-t">
-          <div className="rounded-lg bg-brand text-brand-foreground p-4">
-            <div className="text-xs font-semibold opacity-90">Week</div>
-            <div className="text-3xl font-bold mt-1">{displayWeek} / {settings.total_weeks}</div>
+        <div className="px-4 py-1 border-t">
+          <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
+            <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
+            <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
           </div>
         </div>
       </aside>
@@ -365,7 +395,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                             <div className="min-w-0">
                               <p className="text-sm leading-snug">{n.message}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(n.createdAt).toLocaleDateString()}
+                                {formatNotificationDateTime(n.createdAt)}
                               </p>
                             </div>
                           </Link>

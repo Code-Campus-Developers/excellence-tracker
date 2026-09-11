@@ -121,7 +121,7 @@ function InstructorSettings() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Use this when <strong>all tracks are on the same week</strong>. Leave blank to let the system
+            Use this when <strong>all courses are on the same week</strong>. Leave blank to let the system
             auto-calculate from the cohort start date. This affects all dashboards, evaluate
             form defaults, and stats cards.
           </p>
@@ -154,13 +154,13 @@ function InstructorSettings() {
       {myTrack && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">My Track Week | {myTrack}</CardTitle>
+            <CardTitle className="text-base">My Course Week | {myTrack}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Use this when your track is on a <strong>different week</strong> from the global setting.
-              Only affects your track ({myTrack}). Leave it matching the global week if your
-              track moves with everyone else.
+              Use this when your course is on a <strong>different week</strong> from the global setting.
+              Only affects your course ({myTrack}). Leave it matching the global week if your
+              course moves with everyone else.
             </p>
             <div className="max-w-xs">
               <Label className="mb-1.5 block">{myTrack} | Current Week</Label>
@@ -178,8 +178,8 @@ function InstructorSettings() {
       {!myTrack && (
         <Card>
           <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            No track assigned to your account. Ask an admin to set your track so you can
-            manage your track's week independently.
+            No course assigned to your account. Ask an admin to set your course so you can
+            manage your course's week independently.
           </CardContent>
         </Card>
       )}

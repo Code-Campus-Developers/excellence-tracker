@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, Users, Plus, Shield, Megaphone, CheckSquare, Square } from "lucide-react";
+import { Send, MessageCircle, Loader2, Users, Plus, Shield, Megaphone, CheckSquare, Square, Check, CheckCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { TRACKS } from "@/lib/tracking";
+import { getMessagingSocket } from "@/lib/messaging-socket";
 
 export const Route = createFileRoute("/instructor/messages")({
   head: () => ({ meta: [{ title: "Messages | CodeCampus" }] }),
@@ -28,9 +29,10 @@ interface ThreadSummary {
 }
 
 interface Message {
-  id: string; content: string; isRead: boolean; createdAt: string;
-  senderId: string; receiverId: string;
-  sender: { name: string; profilePicture: string | null };
+  id: string; content: string; isRead: boolean; deliveredAt: string | null; readAt: string | null; createdAt: string;
+  senderId: string; receiverId: string; supportStudentId?: string | null;
+  sender: { name: string; role: string; profilePicture: string | null };
+  reads: { readAt: string; user: { id: string; name: string; role: string } }[];
 }
 
 interface Contact { id: string; name: string; role: string; track: string | null; profilePicture: string | null; }
@@ -52,6 +54,9 @@ function InstructorMessages() {
   const [showContacts, setShowContacts] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [otherTyping, setOtherTyping] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(false);
 
   // Broadcast state
   const [activeTab, setActiveTab] = useState<"chats" | "broadcast">("chats");
@@ -74,15 +79,20 @@ function InstructorMessages() {
     try {
       const data = await api.get<Message[]>(`/api/messages/thread/${userId}`);
       setMessages(data ?? []);
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        await api.post(`/api/messages/thread/${userId}/read`, {});
+      }
       // refresh inbox to clear unread badges
       await fetchInbox();
-    } catch { /* silent */ }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load conversation");
+    }
   }, [fetchInbox]);
 
   // initial inbox load
   useEffect(() => {
     fetchInbox().finally(() => setInboxLoading(false));
-    const inboxPoll = setInterval(fetchInbox, 20_000);
+    const inboxPoll = setInterval(fetchInbox, 60_000);
     api.get<Contact[]>("/api/messages/contacts").then(setContacts).catch(() => {});
     api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
     // For instructor: pre-load their track's students
@@ -109,9 +119,69 @@ function InstructorMessages() {
   useEffect(() => {
     if (!activeId) return;
     fetchThread(activeId);
-    pollRef.current = setInterval(() => fetchThread(activeId), 15_000);
+    pollRef.current = setInterval(() => fetchThread(activeId), 60_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [activeId, fetchThread]);
+
+  useEffect(() => {
+    const socket = getMessagingSocket();
+    if (!socket) return;
+    const refresh = () => fetchInbox();
+    const onNewMessage = (message: Message) => {
+      fetchInbox();
+      if (message.senderId === activeId || message.receiverId === activeId) {
+        setMessages((previous) => previous.some((item) => item.id === message.id) ? previous : [...previous, message]);
+        if (message.senderId === activeId && document.visibilityState === "visible") {
+          api.post(`/api/messages/thread/${activeId}/read`, {}).catch(() => {});
+        }
+      }
+    };
+    const onRead = ({ messageIds, readAt, reader }: { messageIds: string[]; readAt: string; reader?: { id: string; name: string; role: string } }) => {
+      const ids = new Set(messageIds);
+      setMessages((previous) => previous.map((message) => {
+        if (!ids.has(message.id)) return message;
+        const reads = reader && !message.reads.some((receipt) => receipt.user.id === reader.id)
+          ? [...message.reads, { readAt, user: reader }]
+          : message.reads;
+        return { ...message, isRead: true, deliveredAt: message.deliveredAt ?? readAt, readAt: message.readAt ?? readAt, reads };
+      }));
+    };
+    const onDelivered = ({ messageIds, deliveredAt }: { messageIds: string[]; deliveredAt: string }) => {
+      const ids = new Set(messageIds);
+      setMessages((previous) => previous.map((message) => ids.has(message.id) ? { ...message, deliveredAt } : message));
+    };
+    const onTyping = ({ userId, isTyping }: { userId: string; isTyping: boolean }) => {
+      if (userId === activeId) setOtherTyping(isTyping);
+    };
+    const onPresence = ({ userId, online }: { userId: string; online: boolean }) => {
+      if (userId === activeId) setOtherOnline(online);
+    };
+    socket.on("message:new", onNewMessage);
+    socket.on("messages:read", onRead);
+    socket.on("messages:delivered", onDelivered);
+    socket.on("messages:unread-changed", refresh);
+    socket.on("typing", onTyping);
+    socket.on("presence:changed", onPresence);
+    if (activeId) socket.emit("presence:check", activeId, setOtherOnline);
+    return () => {
+      socket.off("message:new", onNewMessage);
+      socket.off("messages:read", onRead);
+      socket.off("messages:delivered", onDelivered);
+      socket.off("messages:unread-changed", refresh);
+      socket.off("typing", onTyping);
+      socket.off("presence:changed", onPresence);
+    };
+  }, [activeId, fetchInbox]);
+
+  useEffect(() => {
+    const markVisibleMessagesRead = () => {
+      if (activeId && document.visibilityState === "visible") {
+        api.post(`/api/messages/thread/${activeId}/read`, {}).then(fetchInbox).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", markVisibleMessagesRead);
+    return () => document.removeEventListener("visibilitychange", markVisibleMessagesRead);
+  }, [activeId, fetchInbox]);
 
   // scroll to bottom
   useEffect(() => {
@@ -135,8 +205,9 @@ function InstructorMessages() {
         receiverId: activeId,
         content: text.trim(),
       });
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => prev.some((message) => message.id === msg.id) ? prev : [...prev, msg]);
       setText("");
+      getMessagingSocket()?.emit("typing", { receiverId: activeId, isTyping: false });
       await fetchInbox();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to send");
@@ -148,7 +219,7 @@ function InstructorMessages() {
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastText.trim()) return;
-    if (!broadcastTrack) { toast.error("Select a track first"); return; }
+    if (!broadcastTrack) { toast.error("Select a course first"); return; }
     if (selectedUserIds.size === 0) { toast.error("Select at least one student"); return; }
     setSendingBroadcast(true);
     try {
@@ -166,7 +237,17 @@ function InstructorMessages() {
   };
 
   const activePerson = inbox.find((t) => t.otherId === activeId)?.other
-    ?? (activeId ? { id: activeId, name: "Student", profilePicture: null } : null);
+    ?? contacts.find((contact) => contact.id === activeId)
+    ?? (activeId ? { id: activeId, name: "Contact", profilePicture: null } : null);
+
+  const handleTyping = (value: string) => {
+    setText(value);
+    if (!activeId) return;
+    const socket = getMessagingSocket();
+    socket?.emit("typing", { receiverId: activeId, isTyping: true });
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => socket?.emit("typing", { receiverId: activeId, isTyping: false }), 1200);
+  };
 
   return (
     <AppShell>
@@ -191,14 +272,14 @@ function InstructorMessages() {
               {/* Track selector — admin sees dropdown, instructor sees their track */}
               {user?.role === "ADMIN" ? (
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Select Track</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Select Course</label>
                   <Select value={broadcastTrack} onValueChange={setBroadcastTrack}>
-                    <SelectTrigger className="h-9"><SelectValue placeholder="Pick a track…" /></SelectTrigger>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Pick a course…" /></SelectTrigger>
                     <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Track: <span className="font-medium text-foreground">{broadcastTrack || user?.track || "—"}</span></p>
+                <p className="text-xs text-muted-foreground">Course: <span className="font-medium text-foreground">{broadcastTrack || user?.track || "—"}</span></p>
               )}
 
               {/* Student checklist */}
@@ -214,7 +295,7 @@ function InstructorMessages() {
                   {loadingStudents ? (
                     <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
                   ) : trackStudents.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-3">No students on this track.</p>
+                    <p className="text-xs text-muted-foreground text-center py-3">No students on this course.</p>
                   ) : (
                     <div className="max-h-40 overflow-y-auto border rounded-md divide-y">
                       {trackStudents.map((s) => {
@@ -273,7 +354,7 @@ function InstructorMessages() {
       <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-220px)]">
         {/* ── Inbox sidebar ── */}
         <Card className="overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b">
+          <div className="shrink-0 min-h-0 flex flex-col">
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Conversations</p>
             {contacts.length > 0 && (
@@ -284,10 +365,10 @@ function InstructorMessages() {
             )}
           </div>
           {showContacts && contacts.length > 0 && (
-            <div className="border-b bg-muted/30 px-3 py-2">
+            <div className="border-b bg-muted/30 px-3 py-2 max-h-[50vh] md:max-h-[calc(100vh-330px)] overflow-y-auto overscroll-contain">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1.5">Start conversation</p>
               {contacts.map((c) => (
-                <button key={c.id} onClick={() => { setActiveId(c.id); setShowContacts(false); }}
+                <button key={c.id} onClick={() => { void openThread(c.id); setShowContacts(false); }}
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-background text-left">
                   <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm font-medium">{c.name}</span>
@@ -297,7 +378,7 @@ function InstructorMessages() {
             </div>
           )}
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {inboxLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -363,7 +444,12 @@ function InstructorMessages() {
                 ) : activePerson ? (
                   <Avatar name={activePerson.name} color="#16a34a" size={32} />
                 ) : null}
-                <span className="font-semibold text-sm">{activePerson?.name}</span>
+                <div>
+                  <span className="font-semibold text-sm block">{activePerson?.name}</span>
+                  <span className={`text-[10px] ${otherTyping ? "text-brand" : "text-muted-foreground"}`}>
+                    {otherTyping ? "typing…" : otherOnline ? "online" : "offline"}
+                  </span>
+                </div>
               </div>
 
               {/* Messages */}
@@ -382,15 +468,20 @@ function InstructorMessages() {
                     const isMe = m.senderId === user?.id;
                     return (
                       <div key={m.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                        {!isMe && activePerson && (
-                          activePerson.profilePicture ? (
-                            <img src={activePerson.profilePicture} alt={activePerson.name}
+                        {!isMe && (
+                          m.sender.profilePicture ? (
+                            <img src={m.sender.profilePicture} alt={m.sender.name}
                               className="h-7 w-7 rounded-full object-cover shrink-0 mt-1" />
                           ) : (
-                            <Avatar name={activePerson.name} color="#16a34a" size={28} />
+                            <Avatar name={m.sender.name} color="#16a34a" size={28} />
                           )
                         )}
                         <div className={`max-w-[75%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
+                          {!isMe && (
+                            <span className="text-[10px] font-medium text-muted-foreground px-1">
+                              {m.sender.name}{m.sender.role === "ADMIN" ? " · Admin" : m.sender.role === "MENTOR" ? " · Instructor" : ""}
+                            </span>
+                          )}
                           <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
                             isMe
                               ? "bg-brand text-brand-foreground rounded-tr-sm"
@@ -398,9 +489,19 @@ function InstructorMessages() {
                           }`}>
                             {m.content}
                           </div>
-                          <span className="text-[10px] text-muted-foreground px-1">
+                          <span className="text-[10px] text-muted-foreground px-1 inline-flex items-center gap-1">
                             {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {isMe && ((m.reads?.length ?? 0) > 0 || m.readAt
+                              ? <CheckCheck className="h-3 w-3 text-brand" aria-label="Seen" />
+                              : m.deliveredAt
+                                ? <CheckCheck className="h-3 w-3" aria-label="Delivered" />
+                                : <Check className="h-3 w-3" aria-label="Sent" />)}
                           </span>
+                          {isMe && m.reads?.length > 0 && (
+                            <span className="text-[9px] text-muted-foreground px-1">
+                              Seen by {m.reads.map((receipt) => receipt.user.name).join(", ")}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -413,7 +514,7 @@ function InstructorMessages() {
               <form onSubmit={handleSend} className="flex gap-2 p-4 border-t shrink-0">
                 <Input
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => handleTyping(e.target.value)}
                   placeholder="Type a message…"
                   className="flex-1"
                   autoComplete="off"

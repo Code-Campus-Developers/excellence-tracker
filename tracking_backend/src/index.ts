@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import http from "http";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -22,7 +23,8 @@ import parentsRouter from "./routes/parents";
 import googleAuthRouter from "./routes/google-auth";
 import { startMissedAttendanceCron } from "./lib/attendance-cron";
 import prisma from "./lib/prisma";
-import { authenticate } from "./middleware/authenticate";
+import { authenticate, authorize } from "./middleware/authenticate";
+import { initializeMessagingSocket } from "./lib/messaging-socket";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -66,10 +68,65 @@ app.use("/api/parent", parentsRouter);
 app.get("/api/instructors", authenticate, async (_req, res) => {
   const instructors = await prisma.user.findMany({
     where: { role: "MENTOR", isActive: true },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: { id: true, name: true, email: true, track: true, profilePicture: true, createdAt: true },
     orderBy: { name: "asc" },
   });
   res.json(instructors);
+});
+
+// GET /api/instructors/:id — staff directory profile and teaching activity
+app.get("/api/instructors/:id", authenticate, authorize("MENTOR", "ADMIN"), async (req, res) => {
+  const instructor = await prisma.user.findFirst({
+    where: { id: req.params.id, role: "MENTOR" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      track: true,
+      profilePicture: true,
+      isActive: true,
+      createdAt: true,
+      trackAssignments: { orderBy: { startDate: "desc" } },
+      _count: { select: { sentMessages: true, receivedMessages: true, broadcasts: true } },
+    },
+  });
+
+  if (!instructor) {
+    res.status(404).json({ error: "Instructor not found" });
+    return;
+  }
+
+  const now = new Date();
+  const currentAssignmentCourses = instructor.trackAssignments
+    .filter((assignment) => assignment.startDate <= now && (!assignment.endDate || assignment.endDate >= now))
+    .map((assignment) => assignment.track);
+  const assignedCourses = Array.from(new Set([
+    ...(instructor.track ? [instructor.track] : []),
+    ...currentAssignmentCourses,
+  ]));
+
+  const [students, evaluationsCompleted] = await Promise.all([
+    assignedCourses.length > 0
+      ? prisma.student.findMany({
+          where: { track: { in: assignedCourses }, isArchived: false },
+          select: {
+            id: true,
+            studentCode: true,
+            name: true,
+            email: true,
+            track: true,
+            avatarColor: true,
+            user: { select: { profilePicture: true, isActive: true } },
+            _count: { select: { evaluations: true, attendance: true, selfReports: true } },
+          },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+    prisma.evaluation.count({ where: { evaluator: instructor.name } }),
+  ]);
+
+  res.json({ ...instructor, assignedCourses, students, evaluationsCompleted });
 });
 
 // 404
@@ -81,7 +138,10 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initializeMessagingSocket(server);
+
+server.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
   startMissedAttendanceCron();
 });

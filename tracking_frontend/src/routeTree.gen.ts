@@ -67,6 +67,7 @@ import { Route as StudentMessagesRouteImport } from './routes/student/messages'
 import { Route as StudentProgressRouteImport } from './routes/student/progress'
 import { Route as StudentQrCodeRouteImport } from './routes/student/qr-code'
 import { Route as StudentSelfReportRouteImport } from './routes/student/self-report'
+import { Route as InstructorInstructorsIdRouteImport } from './routes/instructor/instructors.$id'
 import { Route as InstructorStudentsIdRouteImport } from './routes/instructor/students.$id'
 import { Route as ParentChildIdRouteImport } from './routes/parent/child.$id'
 
@@ -361,6 +362,11 @@ const StudentSelfReportRoute = StudentSelfReportRouteImport.update({
   path: '/self-report',
   getParentRoute: () => StudentRoute,
 } as any)
+const InstructorInstructorsIdRoute = InstructorInstructorsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => InstructorInstructorsRoute,
+} as any)
 const InstructorStudentsIdRoute = InstructorStudentsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -408,7 +414,7 @@ export interface FileRoutesByFullPath {
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
-  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/instructors': typeof InstructorInstructorsRouteWithChildren
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
   '/instructor/reports': typeof InstructorReportsRoute
@@ -431,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/instructor/': typeof InstructorIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/instructor/instructors/$id': typeof InstructorInstructorsIdRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
   '/parent/child/$id': typeof ParentChildIdRoute
 }
@@ -466,7 +473,7 @@ export interface FileRoutesByTo {
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
-  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/instructors': typeof InstructorInstructorsRouteWithChildren
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
   '/instructor/reports': typeof InstructorReportsRoute
@@ -489,6 +496,7 @@ export interface FileRoutesByTo {
   '/instructor': typeof InstructorIndexRoute
   '/parent': typeof ParentIndexRoute
   '/student': typeof StudentIndexRoute
+  '/instructor/instructors/$id': typeof InstructorInstructorsIdRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
   '/parent/child/$id': typeof ParentChildIdRoute
 }
@@ -529,7 +537,7 @@ export interface FileRoutesById {
   '/instructor/attendance-overview': typeof InstructorAttendanceOverviewRoute
   '/instructor/evaluate': typeof InstructorEvaluateRoute
   '/instructor/id-card': typeof InstructorIdCardRoute
-  '/instructor/instructors': typeof InstructorInstructorsRoute
+  '/instructor/instructors': typeof InstructorInstructorsRouteWithChildren
   '/instructor/leaderboard': typeof InstructorLeaderboardRoute
   '/instructor/messages': typeof InstructorMessagesRoute
   '/instructor/reports': typeof InstructorReportsRoute
@@ -552,6 +560,7 @@ export interface FileRoutesById {
   '/instructor/': typeof InstructorIndexRoute
   '/parent/': typeof ParentIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/instructor/instructors/$id': typeof InstructorInstructorsIdRoute
   '/instructor/students/$id': typeof InstructorStudentsIdRoute
   '/parent/child/$id': typeof ParentChildIdRoute
 }
@@ -616,6 +625,7 @@ export interface FileRouteTypes {
     | '/instructor/'
     | '/parent/'
     | '/student/'
+    | '/instructor/instructors/$id'
     | '/instructor/students/$id'
     | '/parent/child/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/instructor'
     | '/parent'
     | '/student'
+    | '/instructor/instructors/$id'
     | '/instructor/students/$id'
     | '/parent/child/$id'
   id:
@@ -736,6 +747,7 @@ export interface FileRouteTypes {
     | '/instructor/'
     | '/parent/'
     | '/student/'
+    | '/instructor/instructors/$id'
     | '/instructor/students/$id'
     | '/parent/child/$id'
   fileRoutesById: FileRoutesById
@@ -1176,6 +1188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentSelfReportRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/instructor/instructors/$id': {
+      id: '/instructor/instructors/$id'
+      path: '/$id'
+      fullPath: '/instructor/instructors/$id'
+      preLoaderRoute: typeof InstructorInstructorsIdRouteImport
+      parentRoute: typeof InstructorInstructorsRoute
+    }
     '/instructor/students/$id': {
       id: '/instructor/students/$id'
       path: '/$id'
@@ -1217,6 +1236,19 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface InstructorInstructorsRouteChildren {
+  InstructorInstructorsIdRoute: typeof InstructorInstructorsIdRoute
+}
+
+const InstructorInstructorsRouteChildren: InstructorInstructorsRouteChildren = {
+  InstructorInstructorsIdRoute: InstructorInstructorsIdRoute,
+}
+
+const InstructorInstructorsRouteWithChildren =
+  InstructorInstructorsRoute._addFileChildren(
+    InstructorInstructorsRouteChildren,
+  )
+
 interface InstructorStudentsRouteChildren {
   InstructorStudentsIdRoute: typeof InstructorStudentsIdRoute
 }
@@ -1232,7 +1264,7 @@ interface InstructorRouteChildren {
   InstructorAttendanceOverviewRoute: typeof InstructorAttendanceOverviewRoute
   InstructorEvaluateRoute: typeof InstructorEvaluateRoute
   InstructorIdCardRoute: typeof InstructorIdCardRoute
-  InstructorInstructorsRoute: typeof InstructorInstructorsRoute
+  InstructorInstructorsRoute: typeof InstructorInstructorsRouteWithChildren
   InstructorLeaderboardRoute: typeof InstructorLeaderboardRoute
   InstructorMessagesRoute: typeof InstructorMessagesRoute
   InstructorReportsRoute: typeof InstructorReportsRoute
@@ -1245,7 +1277,7 @@ const InstructorRouteChildren: InstructorRouteChildren = {
   InstructorAttendanceOverviewRoute: InstructorAttendanceOverviewRoute,
   InstructorEvaluateRoute: InstructorEvaluateRoute,
   InstructorIdCardRoute: InstructorIdCardRoute,
-  InstructorInstructorsRoute: InstructorInstructorsRoute,
+  InstructorInstructorsRoute: InstructorInstructorsRouteWithChildren,
   InstructorLeaderboardRoute: InstructorLeaderboardRoute,
   InstructorMessagesRoute: InstructorMessagesRoute,
   InstructorReportsRoute: InstructorReportsRoute,

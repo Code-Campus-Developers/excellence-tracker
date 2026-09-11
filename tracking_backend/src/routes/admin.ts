@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma, { generateStudentCode } from "../lib/prisma";
 import { hashPassword } from "../lib/auth";
-import { sendInstructorWelcomeEmail, sendStudentWelcomeEmail } from "../lib/email";
+import { sendInstructorWelcomeEmail, sendStudentWelcomeEmail, shouldSuppressStudentEmail } from "../lib/email";
 import { authenticate, authorize, AuthRequest } from "../middleware/authenticate";
 import { notifyAdmins, notifyInstructors } from "./notifications";
 import { audit } from "../lib/audit";
@@ -58,8 +58,19 @@ router.delete("/instructors/:id", async (req: AuthRequest, res: Response) => {
 // GET /admin/students
 router.get("/students", async (_req: AuthRequest, res: Response) => {
   const students = await prisma.student.findMany({
+    where: { isArchived: false },
     include: { _count: { select: { evaluations: true } } },
     orderBy: { name: "asc" },
+  });
+  res.json(students);
+});
+
+// GET /admin/students/archived — archived students remain fully recoverable
+router.get("/students/archived", async (_req: AuthRequest, res: Response) => {
+  const students = await prisma.student.findMany({
+    where: { isArchived: true },
+    include: { _count: { select: { evaluations: true } } },
+    orderBy: { archivedAt: "desc" },
   });
   res.json(students);
 });
@@ -88,7 +99,7 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
     include: { student: true },
   });
 
-  try { await sendInstructorWelcomeEmail({ to: email, name, tempPassword }); }
+  try { await sendStudentWelcomeEmail({ to: email, name, track, tempPassword }); }
   catch (err) { console.error("Welcome email failed:", err); }
 
   try {
@@ -101,6 +112,35 @@ router.post("/students", async (req: AuthRequest, res: Response) => {
     student: user.student,
     tempPassword,
   });
+});
+
+// POST /admin/students/:id/archive — preserve records but remove from active workflows
+router.post("/students/:id/archive", async (req: AuthRequest, res: Response) => {
+  const student = await prisma.student.findUnique({ where: { id: req.params.id } });
+  if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+
+  const reason = typeof req.body?.reason === "string" && req.body.reason.trim()
+    ? req.body.reason.trim()
+    : null;
+  const updated = await prisma.student.update({
+    where: { id: student.id },
+    data: { isArchived: true, archivedAt: new Date(), archiveReason: reason },
+  });
+  await audit(req, "STUDENT_ARCHIVED", { studentId: student.id, studentName: student.name, reason });
+  res.json(updated);
+});
+
+// POST /admin/students/:id/unarchive — restore the student without losing history
+router.post("/students/:id/unarchive", async (req: AuthRequest, res: Response) => {
+  const student = await prisma.student.findUnique({ where: { id: req.params.id } });
+  if (!student) { res.status(404).json({ error: "Student not found" }); return; }
+
+  const updated = await prisma.student.update({
+    where: { id: student.id },
+    data: { isArchived: false, archivedAt: null, archiveReason: null },
+  });
+  await audit(req, "STUDENT_UNARCHIVED", { studentId: student.id, studentName: student.name });
+  res.json(updated);
 });
 
 // DELETE /admin/students/:id
@@ -156,7 +196,9 @@ router.post("/users/:id/reset-password", async (req: AuthRequest, res: Response)
   }
 
   try {
-    await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword: nextPassword });
+    if (user.role !== "STUDENT" || !shouldSuppressStudentEmail(user.email)) {
+      await sendInstructorWelcomeEmail({ to: user.email, name: user.name, tempPassword: nextPassword });
+    }
   } catch (err) { console.error("Reset email failed:", err); }
 
   res.json({ message: `Password reset — new credentials sent to ${user.email}`, tempPassword: nextPassword });

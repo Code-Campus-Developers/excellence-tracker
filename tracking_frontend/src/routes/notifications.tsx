@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/authStore";
 import { AppShell } from "@/components/AppShell";
 import { StudentShell } from "@/components/StudentShell";
 import { ParentShell } from "@/components/ParentShell";
+import { formatNotificationDateTime } from "@/lib/date-time";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({ meta: [{ title: "Notifications | CodeCampus" }] }),
@@ -122,7 +123,7 @@ function NotificationsPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm leading-snug">{n.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(n.createdAt).toLocaleString()}
+                  {formatNotificationDateTime(n.createdAt)}
                 </p>
               </div>
               <button
@@ -143,4 +144,3 @@ function NotificationsPage() {
   if (user?.role === "PARENT") return <ParentShell>{content}</ParentShell>;
   return <AppShell>{content}</AppShell>;
 }
-

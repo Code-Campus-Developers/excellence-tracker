@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Users, UserPlus, Trash2, LogOut, GraduationCap, RefreshCw, ShieldOff, ShieldCheck, FileText } from "lucide-react";
+import { Users, UserPlus, Trash2, LogOut, GraduationCap, RefreshCw, ShieldOff, ShieldCheck, FileText, Archive, ArchiveRestore } from "lucide-react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,14 @@ export const Route = createFileRoute("/admin/manage")({
 });
 
 interface UserRow { id: string; name: string; email: string; role: string; track?: string | null; isActive: boolean; createdAt: string; }
-interface StudentRow { id: string; name: string; email: string; track: string; _count: { evaluations: number }; }
+interface StudentRow { id: string; name: string; email: string; track: string; isArchived?: boolean; archivedAt?: string | null; archiveReason?: string | null; _count: { evaluations: number }; }
 interface AuditRow { id: string; userName: string; userRole: string; action: string; details: Record<string, unknown>; ipAddress: string; createdAt: string; }
 
 function AdminPanel() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [students, setStudents] = useState<StudentRow[]>([]);
+  const [archivedStudents, setArchivedStudents] = useState<StudentRow[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditRow[]>([]);
 
   const [instructorDialog, setInstructorDialog] = useState(false);
@@ -42,13 +44,15 @@ function AdminPanel() {
   const STUDENTS_PER_PAGE = 20;
   const AUDIT_PER_PAGE = 50;
   const load = async () => {
-    const [u, s, a] = await Promise.all([
+    const [u, s, archived, a] = await Promise.all([
       api.get<UserRow[]>("/admin/users"),
       api.get<StudentRow[]>("/admin/students"),
+      api.get<StudentRow[]>("/admin/students/archived"),
       api.get<{ logs: AuditRow[] }>("/admin/audit-logs"),
     ]);
     setUsers(u);
     setStudents(s);
+    setArchivedStudents(archived);
     setAuditLogs(a?.logs ?? []);
   };
 
@@ -98,6 +102,25 @@ function AdminPanel() {
     if (!confirm(`Remove student ${name} and all their evaluations?`)) return;
     try { await api.del(`/admin/students/${id}`); load(); toast.success("Student removed"); }
     catch (err) { toast.error(err instanceof Error ? err.message : "Failed"); }
+  };
+
+  const archiveStudent = async (id: string, name: string) => {
+    const reason = prompt(`Archive ${name}?\n\nOptional: enter a reason. Parent attendance alerts will stop.`, "");
+    if (reason === null) return;
+    try {
+      await api.post(`/admin/students/${id}/archive`, { reason });
+      await load();
+      toast.success(`${name} archived; attendance alerts stopped`);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to archive student"); }
+  };
+
+  const unarchiveStudent = async (id: string, name: string) => {
+    if (!confirm(`Unarchive ${name}? They will return to active lists and attendance alerts will resume.`)) return;
+    try {
+      await api.post(`/admin/students/${id}/unarchive`, {});
+      await load();
+      toast.success(`${name} restored to active students`);
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to unarchive student"); }
   };
 
   const resetPassword = async (userId: string, name: string) => {
@@ -155,14 +178,14 @@ function AdminPanel() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card><CardContent className="p-5">
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">Instructors</div>
-          <div className="text-3xl font-bold mt-2">{instructors.length}</div>
-        </CardContent></Card>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <Card><CardContent className="p-5">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Students</div>
           <div className="text-3xl font-bold mt-2">{students.length}</div>
+        </CardContent></Card>
+        <Card><CardContent className="p-5">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Instructors</div>
+          <div className="text-3xl font-bold mt-2">{instructors.length}</div>
         </CardContent></Card>
         <Card><CardContent className="p-5">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Registered Accounts</div>
@@ -172,12 +195,17 @@ function AdminPanel() {
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Restricted</div>
           <div className="text-3xl font-bold mt-2 text-destructive">{users.filter((u) => !u.isActive).length}</div>
         </CardContent></Card>
+        <Card><CardContent className="p-5">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Archived</div>
+          <div className="text-3xl font-bold mt-2 text-amber-600">{archivedStudents.length}</div>
+        </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="instructors">
+      <Tabs defaultValue="students">
         <TabsList className="mb-4">
-          <TabsTrigger value="instructors">Instructors</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="instructors">Instructors</TabsTrigger>
+          <TabsTrigger value="archived">Archived Students</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
@@ -193,7 +221,16 @@ function AdminPanel() {
             <CardContent className="p-0 divide-y">
               {instructors.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No instructors yet.</div>}
               {instructors.map((m) => (
-                <div key={m.id} className="flex items-center gap-4 p-4">
+                <div
+                  key={m.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate({ to: "/instructor/instructors/$id", params: { id: m.id } })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && event.target === event.currentTarget) navigate({ to: "/instructor/instructors/$id", params: { id: m.id } });
+                  }}
+                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                >
                   <div className="h-9 w-9 rounded-full bg-brand text-brand-foreground flex items-center justify-center text-xs font-semibold shrink-0">
                     {m.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                   </div>
@@ -204,16 +241,16 @@ function AdminPanel() {
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${m.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                     {m.isActive ? "Active" : "Restricted"}
                   </span>
-                  <button onClick={() => resetPassword(m.id, m.name)}
+                  <button onClick={(event) => { event.stopPropagation(); resetPassword(m.id, m.name); }}
                     className="text-muted-foreground hover:text-brand p-1" title="Reset password">
                     <RefreshCw className="h-4 w-4" />
                   </button>
-                  <button onClick={() => toggleActive(m.id, m.name, m.isActive)}
+                  <button onClick={(event) => { event.stopPropagation(); toggleActive(m.id, m.name, m.isActive); }}
                     className="text-muted-foreground hover:text-warning p-1"
                     title={m.isActive ? "Restrict" : "Unrestrict"}>
                     {m.isActive ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4 text-brand" />}
                   </button>
-                  <button onClick={() => deleteInstructor(m.id, m.name)}
+                  <button onClick={(event) => { event.stopPropagation(); deleteInstructor(m.id, m.name); }}
                     className="text-destructive hover:opacity-70 p-1">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -237,7 +274,16 @@ function AdminPanel() {
               {pagedStudents.map((s) => {
                 const userRecord = users.find((u) => u.email === s.email);
                 return (
-                  <div key={s.id} className="flex items-center gap-4 p-4">
+                  <div
+                    key={s.id}
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate({ to: "/instructor/students/$id", params: { id: s.id } })}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && event.target === event.currentTarget) navigate({ to: "/instructor/students/$id", params: { id: s.id } });
+                    }}
+                    className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                  >
                     <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-xs font-semibold shrink-0">
                       {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
@@ -255,18 +301,22 @@ function AdminPanel() {
                     )}
                     {userRecord && (
                       <>
-                        <button onClick={() => setResetTarget({ id: userRecord.id, name: s.name })}
+                        <button onClick={(event) => { event.stopPropagation(); setResetTarget({ id: userRecord.id, name: s.name }); }}
                           className="text-muted-foreground hover:text-brand p-1" title="Reset password">
                           <RefreshCw className="h-4 w-4" />
                         </button>
-                        <button onClick={() => toggleActive(userRecord.id, s.name, userRecord.isActive)}
+                        <button onClick={(event) => { event.stopPropagation(); toggleActive(userRecord.id, s.name, userRecord.isActive); }}
                           className="text-muted-foreground hover:text-warning p-1"
                           title={userRecord.isActive ? "Restrict" : "Unrestrict"}>
                           {userRecord.isActive ? <ShieldOff className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4 text-brand" />}
                         </button>
                       </>
                     )}
-                    <button onClick={() => deleteStudent(s.id, s.name)}
+                    <button onClick={(event) => { event.stopPropagation(); archiveStudent(s.id, s.name); }}
+                      className="text-muted-foreground hover:text-amber-600 p-1" title="Archive student">
+                      <Archive className="h-4 w-4" />
+                    </button>
+                    <button onClick={(event) => { event.stopPropagation(); deleteStudent(s.id, s.name); }}
                       className="text-destructive hover:opacity-70 p-1">
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -282,6 +332,53 @@ function AdminPanel() {
             totalItems={students.length}
             perPage={STUDENTS_PER_PAGE}
           />
+        </TabsContent>
+
+        {/* Archived Students Tab */}
+        <TabsContent value="archived">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="font-semibold">Archived Students</h2>
+              <p className="text-xs text-muted-foreground mt-1">Records are preserved and parent attendance alerts are paused.</p>
+            </div>
+          </div>
+          <Card>
+            <CardContent className="p-0 divide-y">
+              {archivedStudents.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No archived students.</div>}
+              {archivedStudents.map((s) => (
+                <div
+                  key={s.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate({ to: "/instructor/students/$id", params: { id: s.id } })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && event.target === event.currentTarget) navigate({ to: "/instructor/students/$id", params: { id: s.id } });
+                  }}
+                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <div className="h-9 w-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-semibold shrink-0">
+                    {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{s.name}</div>
+                    <div className="text-xs text-muted-foreground">{s.email} · {s.track}</div>
+                    {s.archiveReason && <div className="text-xs text-amber-700 mt-1">Reason: {s.archiveReason}</div>}
+                  </div>
+                  <div className="text-xs text-muted-foreground hidden md:block">
+                    {s.archivedAt ? `Archived ${new Date(s.archivedAt).toLocaleDateString()}` : "Archived"}
+                  </div>
+                  <button onClick={(event) => { event.stopPropagation(); unarchiveStudent(s.id, s.name); }}
+                    className="text-brand hover:opacity-70 p-1" title="Unarchive student">
+                    <ArchiveRestore className="h-4 w-4" />
+                  </button>
+                  <button onClick={(event) => { event.stopPropagation(); deleteStudent(s.id, s.name); }}
+                    className="text-destructive hover:opacity-70 p-1" title="Delete permanently">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Audit Log Tab */}
@@ -397,9 +494,9 @@ function AdminPanel() {
                 onChange={(e) => setNewInstructor((p) => ({ ...p, email: e.target.value }))} />
             </div>
             <div>
-              <Label className="mb-1.5 block">Track / Specialty</Label>
+              <Label className="mb-1.5 block">Course / Specialty</Label>
               <Select value={newInstructor.track} onValueChange={(v) => setNewInstructor((p) => ({ ...p, track: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
@@ -437,9 +534,9 @@ function AdminPanel() {
                 onChange={(e) => setNewStudent((p) => ({ ...p, email: e.target.value }))} />
             </div>
             <div>
-              <Label className="mb-1.5 block">Track</Label>
+              <Label className="mb-1.5 block">Course</Label>
               <Select value={newStudent.track} onValueChange={(v) => setNewStudent((p) => ({ ...p, track: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>

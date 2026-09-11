@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { authenticate, type AuthRequest } from "../middleware/authenticate";
 import { getCurrentInstructorForTrack } from "./track-assignments";
 import { createNotification, notifyAdmins } from "./notifications";
+import { emitToRole, emitToUser, isUserOnline } from "../lib/messaging-socket";
 
 const router = Router();
 
@@ -13,6 +14,48 @@ function threadKey(a: string, b: string) {
   return [a, b].sort().join("|");
 }
 
+async function canAccessConversation(me: string, role: string, other: string) {
+  if (me === other) return false;
+  const target = await prisma.user.findFirst({
+    where: { id: other, isActive: true },
+    select: { id: true, role: true },
+  });
+  if (!target) return false;
+  if (role === "ADMIN") return target.role === "MENTOR" || target.role === "STUDENT";
+  if (role === "MENTOR") {
+    if (target.role === "ADMIN") return true;
+    if (target.role !== "STUDENT") return false;
+    return Boolean(await prisma.student.findFirst({ where: { userId: other, isArchived: false }, select: { id: true } }));
+  }
+  if (role === "STUDENT") {
+    if (target.role !== "MENTOR") return false;
+    const student = await prisma.student.findFirst({
+      where: { userId: me, isArchived: false },
+      select: { track: true },
+    });
+    if (!student) return false;
+    const assigned = await getCurrentInstructorForTrack(student.track);
+    return assigned?.id === other;
+  }
+  return false;
+}
+
+async function conversationWhere(me: string, role: string, other: string) {
+  if (role === "STUDENT") return { supportStudentId: me };
+  const target = await prisma.user.findUnique({ where: { id: other }, select: { role: true } });
+  if (target?.role === "STUDENT") return { supportStudentId: other };
+  return {
+    OR: [
+      { senderId: me, receiverId: other },
+      { senderId: other, receiverId: me },
+    ],
+  };
+}
+
+function messagePageForRole(role: string) {
+  return role === "STUDENT" ? "/student/messages" : "/instructor/messages";
+}
+
 // ─── GET /api/messages/contacts
 //     Instructor → list students on their track
 //     Admin → list all instructors + students
@@ -21,20 +64,22 @@ router.get("/contacts", authenticate, async (req: AuthRequest, res: Response) =>
     const me = req.user!.userId;
     let where: Record<string, unknown> = {};
     if (req.user!.role === "MENTOR") {
-      const instructor = await prisma.user.findUnique({ where: { id: me }, select: { track: true } });
-      if (instructor?.track) {
-        // Return students on their track
-        const students = await prisma.student.findMany({
-          where: { track: instructor.track },
+      const [students, admins] = await Promise.all([
+        prisma.student.findMany({
+          where: { isArchived: false },
           include: { user: { select: { id: true, name: true, profilePicture: true, isActive: true } } },
-        });
-        const contacts = students
-          .filter((s) => s.user && s.user.isActive && s.user.id !== me)
-          .map((s) => ({ id: s.user!.id, name: s.name, role: "STUDENT", track: s.track, profilePicture: s.user!.profilePicture }));
-        return res.json(contacts);
-      }
-      // fallback: admins only
-      where = { role: "ADMIN", isActive: true, id: { not: me } };
+          orderBy: { name: "asc" },
+        }),
+        prisma.user.findMany({
+          where: { role: "ADMIN", isActive: true, id: { not: me } },
+          select: { id: true, name: true, role: true, track: true, profilePicture: true },
+          orderBy: { name: "asc" },
+        }),
+      ]);
+      const contacts = students
+        .filter((s) => s.user?.isActive && s.user.id !== me)
+        .map((s) => ({ id: s.user!.id, name: s.name, role: "STUDENT", track: s.track, profilePicture: s.user!.profilePicture }));
+      return res.json([...admins, ...contacts]);
     } else if (req.user!.role === "ADMIN") {
       where = { role: { in: ["MENTOR", "STUDENT"] }, isActive: true, id: { not: me } };
     } else {
@@ -93,29 +138,66 @@ router.get("/thread/:userId", authenticate, async (req: AuthRequest, res: Respon
   try {
     const me = req.user!.userId;
     const other = req.params.userId;
+    if (!(await canAccessConversation(me, req.user!.role, other))) {
+      return res.status(403).json({ error: "You cannot access this conversation" });
+    }
 
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          { senderId: me, receiverId: other },
-          { senderId: other, receiverId: me },
-        ],
-      },
-      orderBy: { createdAt: "asc" },
+    const latestMessages = await prisma.message.findMany({
+      where: await conversationWhere(me, req.user!.role, other),
+      orderBy: { createdAt: "desc" },
+      take: 150,
       select: {
-        id: true, content: true, isRead: true, createdAt: true,
-        senderId: true, receiverId: true,
-        sender: { select: { name: true, profilePicture: true } },
+        id: true, content: true, isRead: true, deliveredAt: true, readAt: true, createdAt: true,
+        senderId: true, receiverId: true, supportStudentId: true,
+        sender: { select: { name: true, role: true, profilePicture: true } },
+        reads: { select: { readAt: true, user: { select: { id: true, name: true, role: true } } } },
       },
     });
+    return res.json(latestMessages.reverse());
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
-    // mark incoming messages as read
-    await prisma.message.updateMany({
-      where: { senderId: other, receiverId: me, isRead: false },
-      data: { isRead: true },
+// Mark messages as seen only when the client is actively displaying the thread.
+router.post("/thread/:userId/read", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const me = req.user!.userId;
+    const other = req.params.userId;
+    if (!(await canAccessConversation(me, req.user!.role, other))) {
+      return res.status(403).json({ error: "You cannot access this conversation" });
+    }
+    const unread = await prisma.message.findMany({
+      where: {
+        ...(await conversationWhere(me, req.user!.role, other)),
+        senderId: { not: me },
+        reads: { none: { userId: me } },
+      },
+      select: { id: true, senderId: true, supportStudentId: true },
     });
-
-    return res.json(messages);
+    if (unread.length === 0) return res.json({ updated: 0 });
+    const readAt = new Date();
+    const messageIds = unread.map((message) => message.id);
+    const reader = await prisma.user.findUnique({ where: { id: me }, select: { id: true, name: true, role: true } });
+    await prisma.$transaction([
+      prisma.messageRead.createMany({
+        data: messageIds.map((messageId) => ({ messageId, userId: me, readAt })),
+        skipDuplicates: true,
+      }),
+      prisma.message.updateMany({ where: { id: { in: messageIds }, readAt: null }, data: { isRead: true, readAt } }),
+      prisma.message.updateMany({ where: { id: { in: messageIds }, deliveredAt: null }, data: { deliveredAt: readAt } }),
+    ]);
+    const receipt = { messageIds, readAt: readAt.toISOString(), reader };
+    for (const senderId of new Set(unread.map((message) => message.senderId))) {
+      emitToUser(senderId, "messages:read", receipt);
+    }
+    if (unread.some((message) => message.supportStudentId)) {
+      emitToRole("ADMIN", "messages:read", receipt);
+      emitToRole("MENTOR", "messages:read", receipt);
+    }
+    emitToUser(me, "messages:unread-changed", {});
+    return res.json({ updated: messageIds.length, readAt: readAt.toISOString() });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
@@ -131,35 +213,55 @@ router.get("/inbox", authenticate, async (req: AuthRequest, res: Response) => {
     }
     const me = req.user!.userId;
 
-    // get all messages involving this user
+    const activeStudents = await prisma.student.findMany({
+      where: { isArchived: false, user: { isActive: true } },
+      select: { name: true, track: true, user: { select: { id: true, name: true, profilePicture: true } } },
+    });
+    const studentContacts = activeStudents
+      .filter((student) => student.user)
+      .map((student) => ({ id: student.user!.id, name: student.name, profilePicture: student.user!.profilePicture }));
+    const studentUserIds = studentContacts.map((student) => student.id);
+
     const msgs = await prisma.message.findMany({
-      where: { OR: [{ senderId: me }, { receiverId: me }] },
+      where: { OR: [{ senderId: me }, { receiverId: me }, { supportStudentId: { in: studentUserIds } }] },
       orderBy: { createdAt: "desc" },
       select: {
-        id: true, content: true, isRead: true, createdAt: true,
-        senderId: true, receiverId: true,
-        sender: { select: { id: true, name: true, profilePicture: true } },
+        id: true, content: true, isRead: true, deliveredAt: true, readAt: true, createdAt: true,
+        senderId: true, receiverId: true, supportStudentId: true,
+        sender: { select: { id: true, name: true, role: true, profilePicture: true } },
         receiver: { select: { id: true, name: true, profilePicture: true } },
+        reads: { where: { userId: me }, select: { userId: true } },
       },
     });
 
     // group by the other party, keep only the latest message per thread
     const threads = new Map<string, typeof msgs[0]>();
     for (const m of msgs) {
-      const otherId = m.senderId === me ? m.receiverId : m.senderId;
+      const otherId = m.supportStudentId ?? (m.senderId === me ? m.receiverId : m.senderId);
       if (!threads.has(otherId)) threads.set(otherId, m);
     }
 
     // build response: include unread count per thread
-    const result = await Promise.all(
-      Array.from(threads.entries()).map(async ([otherId, latest]) => {
-        const unread = await prisma.message.count({
-          where: { senderId: otherId, receiverId: me, isRead: false },
-        });
-        const other = latest.senderId === me ? latest.receiver : latest.sender;
+    const unreadByThread = new Map<string, number>();
+    for (const message of msgs) {
+      const threadId = message.supportStudentId ?? (message.senderId === me ? message.receiverId : message.senderId);
+      const shouldCount = req.user!.role === "ADMIN" ? message.senderId !== me : message.receiverId === me;
+      if (shouldCount && message.reads.length === 0) {
+        unreadByThread.set(threadId, (unreadByThread.get(threadId) ?? 0) + 1);
+      }
+    }
+    const contactMap = new Map(studentContacts.map((student) => [student.id, student]));
+    const directIds = Array.from(threads.keys()).filter((id) => !contactMap.has(id));
+    const directContacts = await prisma.user.findMany({
+      where: { id: { in: directIds } },
+      select: { id: true, name: true, profilePicture: true },
+    });
+    for (const contact of directContacts) contactMap.set(contact.id, contact);
+    const result = Array.from(threads.entries()).map(([otherId, latest]) => {
+        const unread = unreadByThread.get(otherId) ?? 0;
+        const other = contactMap.get(otherId) ?? (latest.senderId === me ? latest.receiver : latest.sender);
         return { otherId, other, latest, unread };
-      })
-    );
+      });
 
     // sort by latest message date
     result.sort((a, b) => new Date(b.latest.createdAt).getTime() - new Date(a.latest.createdAt).getTime());
@@ -174,8 +276,16 @@ router.get("/inbox", authenticate, async (req: AuthRequest, res: Response) => {
 // ─── GET /api/messages/unread-count  — for notification badge
 router.get("/unread-count", authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const me = req.user!.userId;
+    let visibility: Record<string, unknown> = { receiverId: me };
+    if (req.user!.role === "STUDENT") {
+      visibility = { supportStudentId: me };
+    } else if (req.user!.role === "ADMIN") {
+      const students = await prisma.student.findMany({ where: { isArchived: false }, select: { userId: true } });
+      visibility = { OR: [{ receiverId: me }, { supportStudentId: { in: students.flatMap((student) => student.userId ? [student.userId] : []) } }] };
+    }
     const count = await prisma.message.count({
-      where: { receiverId: req.user!.userId, isRead: false },
+      where: { ...visibility, senderId: { not: me }, reads: { none: { userId: me } } },
     });
     return res.json({ count });
   } catch (err) {
@@ -196,43 +306,38 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response) => {
     if (me === receiverId) {
       return res.status(400).json({ error: "Cannot message yourself" });
     }
-
-    // students can only message their track instructor
-    if (req.user!.role === "STUDENT") {
-      const student = await prisma.student.findFirst({
-        where: { userId: me },
-        select: { track: true },
-      });
-      if (!student) return res.status(404).json({ error: "Student record not found" });
-
-      const instructor = await prisma.user.findFirst({
-        where: { id: receiverId, role: "MENTOR", isActive: true },
-      });
-      if (!instructor) {
-        return res.status(403).json({ error: "You can only message your track instructor" });
-      }
-      // Verify this instructor is the current one for the student's track
-      const currentInstructor = await getCurrentInstructorForTrack(student.track);
-      if (!currentInstructor || currentInstructor.id !== receiverId) {
-        return res.status(403).json({ error: "You can only message your track instructor" });
-      }
+    if (!(await canAccessConversation(me, req.user!.role, receiverId))) {
+      return res.status(403).json({ error: "You cannot message this user" });
     }
 
+    const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { role: true } });
+    const supportStudentId = req.user!.role === "STUDENT" ? me : receiver?.role === "STUDENT" ? receiverId : null;
+    const deliveredAt = isUserOnline(receiverId) ? new Date() : null;
+
     const message = await prisma.message.create({
-      data: { senderId: me, receiverId, content: content.trim() },
+      data: { senderId: me, receiverId, supportStudentId, content: content.trim(), deliveredAt },
       select: {
-        id: true, content: true, isRead: true, createdAt: true,
-        senderId: true, receiverId: true,
-        sender: { select: { name: true, profilePicture: true } },
+        id: true, content: true, isRead: true, deliveredAt: true, readAt: true, createdAt: true,
+        senderId: true, receiverId: true, supportStudentId: true,
+        sender: { select: { name: true, role: true, profilePicture: true } },
+        reads: { select: { readAt: true, user: { select: { id: true, name: true, role: true } } } },
       },
     });
+
+    emitToUser(receiverId, "message:new", message);
+    emitToUser(receiverId, "messages:unread-changed", {});
+    emitToUser(me, "message:sent", message);
+    if (supportStudentId) {
+      emitToRole("ADMIN", "message:new", message);
+      emitToRole("MENTOR", "message:new", message);
+    }
 
     // Notify recipient
     const sender = await prisma.user.findUnique({ where: { id: me }, select: { name: true } });
     await createNotification({
       userId: receiverId,
       message: `New message from ${sender?.name ?? "someone"}: "${content.trim().slice(0, 60)}${content.trim().length > 60 ? "…" : ""}"`,
-      link: req.user!.role === "STUDENT" ? "/instructor/messages" : "/student/messages",
+      link: messagePageForRole(receiver?.role ?? "STUDENT"),
     });
 
     return res.status(201).json(message);
@@ -251,7 +356,7 @@ router.get("/track-students", authenticate, async (req: AuthRequest, res: Respon
     const track = (req.query.track as string)?.trim();
     if (!track) return res.status(400).json({ error: "track param required" });
     const students = await prisma.student.findMany({
-      where: { track },
+      where: { track, isArchived: false },
       include: { user: { select: { id: true, isActive: true } } },
       orderBy: { name: "asc" },
     });
@@ -294,7 +399,7 @@ router.post("/broadcast", authenticate, async (req: AuthRequest, res: Response) 
       notifyUserIds = targetUserIds;
     } else {
       const students = await prisma.student.findMany({
-        where: { track },
+        where: { track, isArchived: false },
         include: { user: { select: { id: true } } },
       });
       notifyUserIds = students.filter((s) => s.user?.id).map((s) => s.user!.id!);
@@ -303,6 +408,8 @@ router.post("/broadcast", authenticate, async (req: AuthRequest, res: Response) 
     await Promise.all(
       notifyUserIds.map((uid) => createNotification({ userId: uid, message: `${instructor?.name ?? "Your instructor"}: ${content.trim().slice(0, 80)}`, link: "/student/messages" }))
     ).catch(() => {});
+
+    for (const uid of notifyUserIds) emitToUser(uid, "broadcast:new", broadcast);
 
     notifyAdmins(`${instructor?.name ?? "Instructor"} sent a broadcast to ${track}: "${content.trim().slice(0, 60)}"`, "/instructor/messages").catch(() => {});
 

@@ -38,7 +38,7 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: "Students only" });
     }
     const student = await prisma.student.findFirst({
-      where: { userId: req.user!.userId },
+      where: { userId: req.user!.userId, isArchived: false },
       select: { id: true },
     });
     if (!student) return res.status(404).json({ error: "Student record not found" });

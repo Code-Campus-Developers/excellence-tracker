@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { TRACKS } from "@/lib/tracking";
 
 export const Route = createFileRoute("/admin/track-assignments")({
-  head: () => ({ meta: [{ title: "Track Assignments | CodeCampus" }] }),
+  head: () => ({ meta: [{ title: "Course Assignments | CodeCampus" }] }),
   component: TrackAssignmentsPage,
 });
 
@@ -73,7 +73,7 @@ function TrackAssignmentsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.instructorId || !form.track || !form.startDate) {
-      toast.error("Instructor, track, and start date are required"); return;
+      toast.error("Instructor, course, and start date are required"); return;
     }
     setSaving(true);
     try {
@@ -119,8 +119,8 @@ function TrackAssignmentsPage() {
   return (
     <AppShell>
       <PageHeader
-        title="Track Assignments"
-        subtitle="Assign instructors to tracks with date ranges. The currently active assignment is used for messaging and notifications."
+        title="Course Assignments"
+        subtitle="Assign instructors to courses with date ranges. The currently active assignment is used for messaging and notifications."
         actions={
           <Button onClick={() => { resetForm(); setShowForm(true); }}
             className="bg-brand text-brand-foreground hover:bg-brand/90 gap-2">
@@ -149,9 +149,9 @@ function TrackAssignmentsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="mb-1.5 block">Track</Label>
+                <Label className="mb-1.5 block">Course</Label>
                 <Select value={form.track} onValueChange={(v) => setForm((p) => ({ ...p, track: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select track" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
                   <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -184,7 +184,7 @@ function TrackAssignmentsPage() {
       ) : assignments.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center text-muted-foreground">
-            No track assignments yet. Create one to get started.
+            No course assignments yet. Create one to get started.
           </CardContent>
         </Card>
       ) : (

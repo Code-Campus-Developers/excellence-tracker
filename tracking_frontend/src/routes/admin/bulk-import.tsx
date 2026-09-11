@@ -36,16 +36,16 @@ const TYPE_CONFIG: Record<ImportType, {
   students: {
     label: "Students",
     endpoint: "/admin/bulk-import/students",
-    columns: ["First Name", "Last Name", "Email", "Phone", "Track"],
-    template: "First Name,Last Name,Email,Phone,Track\nJohn,Doe,john@example.com,08012345678,Software Engineering\nJane,Smith,jane@example.com,08087654321,Data Analytics",
+    columns: ["First Name", "Last Name", "Email", "Phone", "Course"],
+    template: "First Name,Last Name,Email,Phone,Course\nJohn,Doe,john@example.com,08012345678,Software Engineering\nJane,Smith,jane@example.com,08087654321,Data Analytics",
     filename: "student-import-template.csv",
     maxRows: 200,
   },
   instructors: {
     label: "Instructors",
     endpoint: "/admin/bulk-import/instructors",
-    columns: ["First Name", "Last Name", "Email", "Phone", "Track (optional)"],
-    template: "First Name,Last Name,Email,Phone,Track\nAde,Adeyemi,ade@example.com,08011111111,Software Engineering\nChidi,Okonkwo,chidi@example.com,08022222222,",
+    columns: ["First Name", "Last Name", "Email", "Phone", "Course (optional)"],
+    template: "First Name,Last Name,Email,Phone,Course\nAde,Adeyemi,ade@example.com,08011111111,Software Engineering\nChidi,Okonkwo,chidi@example.com,08022222222,",
     filename: "instructor-import-template.csv",
     maxRows: 100,
   },
@@ -85,7 +85,7 @@ function parsePaste(text: string): ManualRow[] {
   const lIdx = isHeader ? idx(["lastname","last"]) : 1;
   const eIdx = isHeader ? idx(["email","emailaddress"]) : 2;
   const pIdx = isHeader ? idx(["phonenumber","phone","phoneno","mobile"]) : 3;
-  const tIdx = isHeader ? idx(["track","programme","program"]) : 4;
+  const tIdx = isHeader ? idx(["track","course","programme","program"]) : 4;
   return dataLines
     .filter((row) => row.some((c) => c))
     .map((row) => ({
@@ -154,9 +154,9 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
       <div className={`grid gap-4 p-4 bg-muted/40 rounded-lg border ${hasTrack ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-1 max-w-sm"}`}>
         {hasTrack && importType === "students" && (
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Default Track <span className="text-brand">(applied to all rows)</span></label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">Default Course <span className="text-brand">(applied to all rows)</span></label>
             <Select value={defaultTrack} onValueChange={setDefaultTrack}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="Select a track for all students" /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select a course for all students" /></SelectTrigger>
               <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -210,7 +210,7 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Last Name *</th>
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Email *</th>
               <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Phone *</th>
-              {hasTrack && !(importType === "students" && defaultTrack) && <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Track {importType === "students" ? "*" : ""}</th>}
+              {hasTrack && !(importType === "students" && defaultTrack) && <th className="text-left py-2 pr-2 font-medium text-muted-foreground">Course {importType === "students" ? "*" : ""}</th>}
               <th className="w-8" />
             </tr>
           </thead>
@@ -226,7 +226,7 @@ function ManualEntryForm({ importType, onResult }: { importType: ImportType; onR
                   <td className="py-1.5 pr-2">
                     {importType === "students" ? (
                       <Select value={row.track} onValueChange={(v) => update(idx, "track", v)}>
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select track" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select course" /></SelectTrigger>
                         <SelectContent>{TRACKS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                       </Select>
                     ) : (

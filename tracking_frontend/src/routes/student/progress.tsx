@@ -54,10 +54,6 @@ function StudentProgress() {
   const latest = evals[evals.length - 1];
   const CURRENT_WEEK = getCurrentWeek(settings);
   const currentWeekEval = evals.find((e) => e.week === CURRENT_WEEK);
-  const allCurrentWeek = allEvals.filter((e) => e.week === CURRENT_WEEK);
-  const classAvg = allCurrentWeek.length
-    ? Math.round(allCurrentWeek.reduce((s, e) => s + e.total, 0) / allCurrentWeek.length)
-    : null;
 
   const trendData = evals.map((e) => ({ week: `W${e.week}`, score: e.total }));
   const radarData = CATEGORIES.map((c) => ({
@@ -87,10 +83,9 @@ function StudentProgress() {
     <StudentShell title="My Progress">
       <div className="space-y-6">
         {/* Summary stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { label: "This Week", value: currentWeekEval ? `${currentWeekEval.total}/100` : "—", sub: currentWeekEval ? <PerfBadge total={currentWeekEval.total} /> : null },
-            { label: "Average",   value: `${stats.avg}/100` },
             { label: "Best",      value: `${stats.high}/100`, sub: <span className="text-xs text-brand flex items-center gap-1"><Award className="h-3 w-3" />personal best</span> },
             { label: "Trend",     value: <span className={`flex items-center gap-1 ${trendColor}`}><TrendIcon className="h-5 w-5" />{stats.trend > 0 ? `+${stats.trend}` : stats.trend}</span>, sub: <span className="text-xs text-muted-foreground">vs last week</span> },
           ].map((item) => (
@@ -103,34 +98,6 @@ function StudentProgress() {
             </Card>
           ))}
         </div>
-
-        {/* Class comparison */}
-        {classAvg !== null && currentWeekEval && (
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium">Your score vs class average (Week {CURRENT_WEEK})</span>
-                <span className="text-xs text-muted-foreground">
-                  {currentWeekEval.total >= classAvg
-                    ? `+${currentWeekEval.total - classAvg} above avg`
-                    : `${currentWeekEval.total - classAvg} below avg`}
-                </span>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs w-20 text-muted-foreground">You</span>
-                  <Progress value={currentWeekEval.total} className="h-3 flex-1" />
-                  <span className="text-xs font-bold w-8 text-right">{currentWeekEval.total}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs w-20 text-muted-foreground">Class avg</span>
-                  <Progress value={classAvg} className="h-3 flex-1 opacity-50" />
-                  <span className="text-xs font-bold w-8 text-right">{classAvg}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Charts */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

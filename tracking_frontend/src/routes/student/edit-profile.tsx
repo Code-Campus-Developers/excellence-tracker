@@ -114,9 +114,9 @@ function StudentEditProfile() {
                 <p className="text-xs text-muted-foreground mt-1">Email can only be changed by an admin.</p>
               </div>
               <div>
-                <Label className="mb-1.5 block">Track</Label>
+                <Label className="mb-1.5 block">Course</Label>
                 <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">{form.track || "—"}</div>
-                <p className="text-xs text-muted-foreground mt-1">Track can only be changed by an admin.</p>
+                <p className="text-xs text-muted-foreground mt-1">Course can only be changed by an admin.</p>
               </div>
               <Button type="submit" className="w-full bg-brand text-brand-foreground hover:bg-brand/90" disabled={saving || uploading}>
                 {saving ? "Saving..." : "Save Changes"}

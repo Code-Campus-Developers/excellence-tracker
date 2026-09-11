@@ -175,6 +175,12 @@ export async function notifyParentsAttendance(opts: {
   durationMin?: number | null;
 }) {
   try {
+    const student = await prisma.student.findUnique({
+      where: { id: opts.studentId },
+      select: { isArchived: true },
+    });
+    if (!student || student.isArchived) return;
+
     const parents = await getParentsOfStudent(opts.studentId);
     await Promise.all(
       parents.map((p) =>
@@ -208,4 +214,3 @@ export async function notifyParentsInApp(studentId: string, message: string, lin
     console.error("notifyParentsInApp failed:", err);
   }
 }
-

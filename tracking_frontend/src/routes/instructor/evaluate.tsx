@@ -30,6 +30,9 @@ import { useStore, getCurrentWeek } from "@/lib/store";
 import { useAuth } from "@/lib/authStore";
 
 export const Route = createFileRoute("/instructor/evaluate")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    studentId: typeof search.studentId === "string" ? search.studentId : "",
+  }),
   head: () => ({
     meta: [{ title: "New Weekly Evaluation | CodeCampus" }],
   }),
@@ -37,11 +40,12 @@ export const Route = createFileRoute("/instructor/evaluate")({
 });
 
 function Evaluate() {
+  const { studentId: initialStudentId } = Route.useSearch();
   const navigate = useNavigate();
   const { addEvaluation, evaluations, students, addStudent, settings } = useStore();
   const { user } = useAuth();
   const currentWeek = getCurrentWeek(settings);
-  const [studentId, setStudentId] = useState<string>("");
+  const [studentId, setStudentId] = useState<string>(initialStudentId);
   const [week, setWeek] = useState<number>(() => getCurrentWeek(settings));
   const [scores, setScores] = useState<Scores>(emptyScores());
   const [notes, setNotes] = useState("");
@@ -78,7 +82,7 @@ function Evaluate() {
 
   const handleCreateStudent = async () => {
     if (!newName.trim()) { toast.error("Name is required"); return; }
-    if (!newTrack) { toast.error("Please select a track"); return; }
+    if (!newTrack) { toast.error("Please select a course"); return; }
     setSaving(true);
     try {
       const created = await addStudent({
@@ -158,10 +162,10 @@ function Evaluate() {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Track</Label>
+              <Label className="mb-1.5 block">Course</Label>
               <Select value={newTrack} onValueChange={setNewTrack}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select track" />
+                  <SelectValue placeholder="Select course" />
                 </SelectTrigger>
                 <SelectContent>
                   {TRACKS.map((t) => (
@@ -207,7 +211,7 @@ function Evaluate() {
                   <PopoverContent className="w-[320px] p-0" align="start">
                     <Command>
                       <CommandInput
-                        placeholder="Search by name or track…"
+                        placeholder="Search by name or course…"
                         value={comboSearch}
                         onValueChange={setComboSearch}
                       />

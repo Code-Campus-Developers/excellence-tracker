@@ -16,45 +16,51 @@ enum Role {
 }
 
 model User {
-  id               String             @id @default(cuid())
+  id               String            @id @default(cuid())
   name             String
-  email            String             @unique
-  passwordHash     String?            @map("password_hash")
-  googleId         String?            @unique @map("google_id")
-  role             Role               @default(STUDENT)
+  email            String            @unique
+  passwordHash     String?           @map("password_hash")
+  googleId         String?           @unique @map("google_id")
+  role             Role              @default(STUDENT)
   track            String?
-  isActive         Boolean            @default(true) @map("is_active")
-  profilePicture   String?            @map("profile_picture")
-  phone            String?            @map("phone")
-  resetToken       String?            @map("reset_token")
-  resetExpires     DateTime?          @map("reset_expires")
-  createdAt        DateTime           @default(now()) @map("created_at")
+  isActive         Boolean           @default(true) @map("is_active")
+  profilePicture   String?           @map("profile_picture")
+  phone            String?           @map("phone")
+  resetToken       String?           @map("reset_token")
+  resetExpires     DateTime?         @map("reset_expires")
+  createdAt        DateTime          @default(now()) @map("created_at")
   student          Student?
-  sentMessages     Message[]          @relation("MessageSender")
-  receivedMessages Message[]          @relation("MessageReceiver")
+  sentMessages     Message[]         @relation("MessageSender")
+  receivedMessages Message[]         @relation("MessageReceiver")
+  supportMessages  Message[]         @relation("MessageSupportStudent")
+  messageReads     MessageRead[]
   trackAssignments TrackAssignment[]
-  parentLinks      ParentStudent[]    @relation("ParentUser")
+  parentLinks      ParentStudent[]   @relation("ParentUser")
   broadcasts       Broadcast[]
 
   @@map("users")
 }
 
 model Student {
-  id          String       @id
-  studentCode String       @unique @default("") @map("student_code")
-  name        String
-  email       String       @unique
-  track       String
-  avatarColor String       @default("#16a34a") @map("avatar_color")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  userId      String?      @unique @map("user_id")
-  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  evaluations Evaluation[]
-  selfReports SelfReport[]
-  attendance  Attendance[]
-  dailyEvents DailyEvent[]
-  parentLinks ParentStudent[]
+  id            String          @id
+  studentCode   String          @unique @default("") @map("student_code")
+  name          String
+  email         String          @unique
+  track         String
+  avatarColor   String          @default("#16a34a") @map("avatar_color")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  isArchived    Boolean         @default(false) @map("is_archived")
+  archivedAt    DateTime?       @map("archived_at")
+  archiveReason String?         @map("archive_reason")
+  userId        String?         @unique @map("user_id")
+  user          User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  evaluations   Evaluation[]
+  selfReports   SelfReport[]
+  attendance    Attendance[]
+  dailyEvents   DailyEvent[]
+  parentLinks   ParentStudent[]
 
+  @@index([isArchived])
   @@map("students")
 }
 
@@ -112,70 +118,89 @@ enum ReportStatus {
 }
 
 model Message {
-  id         String   @id @default(cuid())
-  senderId   String   @map("sender_id")
-  receiverId String   @map("receiver_id")
-  content    String
-  isRead     Boolean  @default(false) @map("is_read")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id               String    @id @default(cuid())
+  senderId         String    @map("sender_id")
+  receiverId       String    @map("receiver_id")
+  supportStudentId String?   @map("support_student_id")
+  content          String
+  isRead           Boolean   @default(false) @map("is_read")
+  deliveredAt      DateTime? @map("delivered_at")
+  readAt           DateTime? @map("read_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  sender     User     @relation("MessageSender",   fields: [senderId],   references: [id], onDelete: Cascade)
-  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender         User          @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver       User          @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  supportStudent User?         @relation("MessageSupportStudent", fields: [supportStudentId], references: [id], onDelete: Cascade)
+  reads          MessageRead[]
 
   @@index([senderId, receiverId])
   @@index([receiverId, isRead])
+  @@index([supportStudentId, createdAt])
   @@map("messages")
 }
 
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+  @@map("message_reads")
+}
+
 model SelfReport {
-  id              String       @id @default(cuid())
-  studentId       String       @map("student_id")
-  weekNumber      Int          @map("week_number")
-  cohortYear      Int          @map("cohort_year")
+  id         String @id @default(cuid())
+  studentId  String @map("student_id")
+  weekNumber Int    @map("week_number")
+  cohortYear Int    @map("cohort_year")
 
-  linkedinDone    Boolean      @default(false) @map("linkedin_done")
-  linkedinUrl     String?      @map("linkedin_url")
+  linkedinDone Boolean @default(false) @map("linkedin_done")
+  linkedinUrl  String? @map("linkedin_url")
 
-  learningLogDone Boolean      @default(false) @map("learning_log_done")
-  learningLogUrl  String?      @map("learning_log_url")
+  learningLogDone Boolean @default(false) @map("learning_log_done")
+  learningLogUrl  String? @map("learning_log_url")
 
-  codingDone      Boolean      @default(false) @map("coding_done")
-  codingUrl       String?      @map("coding_url")
+  codingDone Boolean @default(false) @map("coding_done")
+  codingUrl  String? @map("coding_url")
 
-  eventDone       Boolean      @default(false) @map("event_done")
-  eventUrl        String?      @map("event_url")
-  eventImage1     String?      @map("event_image_1")
-  eventImage2     String?      @map("event_image_2")
+  eventDone   Boolean @default(false) @map("event_done")
+  eventUrl    String? @map("event_url")
+  eventImage1 String? @map("event_image_1")
+  eventImage2 String? @map("event_image_2")
 
-  notes           String?
+  notes String?
 
-  status            ReportStatus @default(PENDING)
-  editRequested     Boolean      @default(false) @map("edit_requested")
-  verifiedById      String?      @map("verified_by_id")
-  verifiedAt        DateTime?    @map("verified_at")
-  sharedWithParent  Boolean      @default(false) @map("shared_with_parent")
+  status           ReportStatus @default(PENDING)
+  editRequested    Boolean      @default(false) @map("edit_requested")
+  verifiedById     String?      @map("verified_by_id")
+  verifiedAt       DateTime?    @map("verified_at")
+  sharedWithParent Boolean      @default(false) @map("shared_with_parent")
 
-  submittedAt     DateTime     @default(now()) @map("submitted_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  student         Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, weekNumber, cohortYear])
   @@map("self_reports")
 }
 
-
 model Attendance {
   id          String    @id @default(cuid())
   studentId   String    @map("student_id")
-  date        DateTime  @db.Date @map("date")
+  date        DateTime  @map("date") @db.Date
   clockInAt   DateTime  @map("clock_in_at")
   clockOutAt  DateTime? @map("clock_out_at")
   durationMin Int?      @map("duration_min")
   notes       String?
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, date])
   @@index([date])
@@ -191,7 +216,7 @@ model TrackAssignment {
   notes        String?
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  instructor   User      @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  instructor User @relation(fields: [instructorId], references: [id], onDelete: Cascade)
 
   @@index([track, startDate])
   @@map("track_assignments")
@@ -200,14 +225,14 @@ model TrackAssignment {
 model DailyEvent {
   id          String   @id @default(cuid())
   studentId   String   @map("student_id")
-  date        DateTime @db.Date @map("date")
+  date        DateTime @map("date") @db.Date
   description String?
   image1      String?  @map("image_1")
   image2      String?  @map("image_2")
   image3      String?  @map("image_3")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, date])
   @@index([date])
@@ -215,12 +240,12 @@ model DailyEvent {
 }
 
 model ParentStudent {
-  id        String  @id @default(cuid())
-  parentId  String  @map("parent_id")
-  studentId String  @map("student_id")
+  id        String @id @default(cuid())
+  parentId  String @map("parent_id")
+  studentId String @map("student_id")
 
-  parent    User    @relation("ParentUser", fields: [parentId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent  User    @relation("ParentUser", fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, studentId])
   @@map("parent_students")
@@ -236,13 +261,13 @@ model Holiday {
 }
 
 model Broadcast {
-  id             String   @id @default(cuid())
-  instructorId   String   @map("instructor_id")
-  track          String
-  content        String
-  targetUserIds  String[] @default([]) @map("target_user_ids")
-  createdAt      DateTime @default(now()) @map("created_at")
-  instructor     User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  instructorId  String   @map("instructor_id")
+  track         String
+  content       String
+  targetUserIds String[] @default([]) @map("target_user_ids")
+  createdAt     DateTime @default(now()) @map("created_at")
+  instructor    User     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
 
   @@map("broadcasts")
 }

@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
   BookOpen,
-  TrendingUp,
   TrendingDown,
   Users,
   ClipboardCheck,
@@ -30,8 +29,6 @@ import {
   STUDENTS,
   CATEGORIES,
   weekEvals,
-  studentStats,
-  MAX_TOTAL,
 } from "@/lib/tracking";
 import { useStore, getCurrentWeek } from "@/lib/store";
 
@@ -94,16 +91,13 @@ function Dashboard() {
   const CURRENT_WEEK = getCurrentWeek(settings);
   const thisWeek = weekEvals(CURRENT_WEEK, evaluations);
   const evaluatedCount = thisWeek.length;
-  const avgThisWeek = evaluatedCount
-    ? Math.round(thisWeek.reduce((s, e) => s + e.total, 0) / evaluatedCount)
-    : 0;
 
   const weeklyTrend = useMemo(() => {
-    const arr: { week: string; avg: number }[] = [];
+    const arr: { week: string; score: number }[] = [];
     for (let w = 1; w <= CURRENT_WEEK; w++) {
       const evs = weekEvals(w, evaluations);
       const avg = evs.length ? Math.round(evs.reduce((s, e) => s + e.total, 0) / evs.length) : 0;
-      arr.push({ week: `W${w}`, avg });
+      arr.push({ week: `W${w}`, score: avg });
     }
     return arr;
   }, [evaluations]);
@@ -120,19 +114,19 @@ function Dashboard() {
 
   const topStudents = useMemo(() => {
     return students
-      .map((s) => ({ ...s, stats: studentStats(s.id, evaluations) }))
-      .filter((s) => s.stats.count > 0)
-      .sort((a, b) => b.stats.avg - a.stats.avg)
+      .map((s) => ({ ...s, currentScore: thisWeek.find((e) => e.studentId === s.id)?.total ?? null }))
+      .filter((s) => s.currentScore !== null)
+      .sort((a, b) => (b.currentScore ?? 0) - (a.currentScore ?? 0))
       .slice(0, 5);
-  }, [evaluations, students]);
+  }, [students, thisWeek]);
 
   const needsImprovement = useMemo(() => {
     return students
-      .map((s) => ({ ...s, stats: studentStats(s.id, evaluations) }))
-      .filter((s) => s.stats.count > 0 && s.stats.avg < 65)
-      .sort((a, b) => a.stats.avg - b.stats.avg)
+      .map((s) => ({ ...s, currentScore: thisWeek.find((e) => e.studentId === s.id)?.total ?? null }))
+      .filter((s) => s.currentScore !== null && s.currentScore < 65)
+      .sort((a, b) => (a.currentScore ?? 0) - (b.currentScore ?? 0))
       .slice(0, 4);
-  }, [evaluations, students]);
+  }, [students, thisWeek]);
 
   return (
     <AppShell>
@@ -149,7 +143,7 @@ function Dashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Stat
           label="Total Students"
           value={students.length}
@@ -163,13 +157,6 @@ function Dashboard() {
           icon={ClipboardCheck}
           accent={`Week ${CURRENT_WEEK}`}
           to="/instructor/evaluate"
-        />
-        <Stat
-          label="Average Score"
-          value={`${avgThisWeek}/${MAX_TOTAL}`}
-          icon={TrendingUp}
-          accent="This week"
-          to="/instructor/leaderboard"
         />
         <Stat
           label="Total Evaluations"
@@ -201,7 +188,7 @@ function Dashboard() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="avg"
+                    dataKey="score"
                     stroke="var(--brand)"
                     strokeWidth={3}
                     dot={{ fill: "var(--brand)", r: 5 }}
@@ -275,10 +262,10 @@ function Dashboard() {
                   <div className="text-xs text-muted-foreground">{s.track}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{s.stats.avg}</div>
-                  <div className="text-xs text-muted-foreground">avg</div>
+                  <div className="font-bold">{s.currentScore}</div>
+                  <div className="text-xs text-muted-foreground">Week {CURRENT_WEEK}</div>
                 </div>
-                <PerfBadge total={s.stats.avg} />
+                <PerfBadge total={s.currentScore ?? 0} />
               </Link>
             ))}
           </CardContent>
@@ -310,9 +297,9 @@ function Dashboard() {
                     <div className="font-medium text-sm truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground">{s.track}</div>
                   </div>
-                  <div className="font-bold text-sm">{s.stats.avg}/100</div>
+                  <div className="font-bold text-sm">{s.currentScore}/100</div>
                 </div>
-                <Progress value={s.stats.avg} className="h-1.5" />
+                <Progress value={s.currentScore ?? 0} className="h-1.5" />
               </Link>
             ))}
           </CardContent>

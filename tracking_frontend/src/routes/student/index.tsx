@@ -67,12 +67,15 @@ function StudentHome() {
   const currentWeekEval = evals.find((e) => e.week === CURRENT_WEEK);
   const latest = evals[evals.length - 1];
 
-  const allStudentAvgs = allStudents
-    .map((s) => ({ id: s.id, avg: studentStats(s.id, allEvals).avg }))
-    .filter((s) => s.avg > 0)
-    .sort((a, b) => b.avg - a.avg);
-  const rank = allStudentAvgs.findIndex((s) => s.id === studentRecord.id) + 1;
-  const totalRanked = allStudentAvgs.length;
+  const currentWeekScores = allStudents
+    .map((s) => ({
+      id: s.id,
+      score: studentEvals(s.id, allEvals).find((evaluation) => evaluation.week === CURRENT_WEEK)?.total ?? null,
+    }))
+    .filter((s) => s.score !== null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const rank = currentWeekScores.findIndex((s) => s.id === studentRecord.id) + 1;
+  const totalRanked = currentWeekScores.length;
 
   const TrendIcon = stats.trend > 0 ? TrendingUp : stats.trend < 0 ? TrendingDown : Minus;
   const trendColor = stats.trend > 0 ? "text-[color:var(--success)]" : stats.trend < 0 ? "text-[color:var(--danger)]" : "text-muted-foreground";
@@ -99,7 +102,7 @@ function StudentHome() {
               )}
               <div>
                 <h1 className="text-2xl font-bold">{studentRecord.name}</h1>
-                <p className="text-sm text-muted-foreground">{user?.email} · {studentRecord.track} Track</p>
+                <p className="text-sm text-muted-foreground">{user?.email} · {studentRecord.track} Course</p>
                 {studentRecord.studentCode && (
                   <span className="inline-block mt-1 text-xs font-mono px-2 py-0.5 bg-brand-soft text-brand rounded-full">
                     {studentRecord.studentCode}
@@ -116,7 +119,7 @@ function StudentHome() {
                   <div className="text-xs text-muted-foreground">of {totalRanked}</div>
                 </div>
               )}
-              {stats.count > 0 && <PerfBadge total={stats.avg} />}
+              {latest && <PerfBadge total={latest.total} />}
             </div>
           </div>
         </CardContent>
@@ -125,10 +128,9 @@ function StudentHome() {
       {/* Stats row */}
       {evals.length > 0 ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {[
               { label: "This Week", value: currentWeekEval ? `${currentWeekEval.total}/100` : "—", sub: currentWeekEval ? <PerfBadge total={currentWeekEval.total} /> : null },
-              { label: "Average",   value: `${stats.avg}/100` },
               { label: "Best Score",value: `${stats.high}/100`, sub: <span className="text-xs text-brand flex items-center gap-1"><Award className="h-3 w-3" />personal best</span> },
               { label: "Trend",     value: <span className={`flex items-center gap-1 ${trendColor}`}><TrendIcon className="h-5 w-5" />{stats.trend > 0 ? `+${stats.trend}` : stats.trend}</span>, sub: <span className="text-xs text-muted-foreground">vs last week</span> },
             ].map((item) => (

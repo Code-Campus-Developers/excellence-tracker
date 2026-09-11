@@ -5,25 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Award, ClipboardCheck, ExternalLink, Linkedin, BookOpen, Code2, Calendar, CheckCircle2, Clock, XCircle, Loader2, CalendarDays } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, Award, ClipboardCheck, Linkedin, BookOpen, Code2, Calendar, CheckCircle2, Clock, XCircle, Loader2, CalendarDays } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  RadarChart,
-  Radar,
-  PolarAngleAxis,
-  PolarGrid,
-} from "recharts";
-import { STUDENTS, studentEvals, studentStats, CATEGORIES, MAX_TOTAL } from "@/lib/tracking";
+import { studentEvals, studentStats, CATEGORIES, MAX_TOTAL, type Student } from "@/lib/tracking";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/authStore";
 
 interface SelfReport {
   id: string;
@@ -99,10 +87,14 @@ function StatCard({
 }
 
 function StudentDetail() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const loaderData = Route.useLoaderData() as { id: string } | undefined;
   const id = loaderData?.id ?? "";
   const { evaluations, students } = useStore();
-  const student = students.find((s) => s.id === id);
+  const storeStudent = students.find((s) => s.id === id);
+  const [archivedStudent, setArchivedStudent] = useState<Student | null>(null);
+  const student = storeStudent ?? archivedStudent;
 
   const [selfReports, setSelfReports] = useState<SelfReport[]>([]);
   const [srLoading, setSrLoading] = useState(true);
@@ -113,6 +105,11 @@ function StudentDetail() {
 
   useEffect(() => {
     if (!id) return;
+    if (!storeStudent) {
+      api.get<Student>(`/api/students/${id}`)
+        .then(setArchivedStudent)
+        .catch(() => {/* handled by the not-found state */});
+    }
     api.get<SelfReport[]>(`/api/self-reports/student/${id}`)
       .then((data) => setSelfReports(data ?? []))
       .catch(() => {/* silent */})
@@ -122,7 +119,7 @@ function StudentDetail() {
       .then((data) => setAttendance(data ?? []))
       .catch(() => {/* silent */})
       .finally(() => setAttendanceLoading(false));
-  }, [id]);
+  }, [id, storeStudent]);
 
   const handleVerify = async (reportId: string, status: "VERIFIED" | "REJECTED") => {
     setVerifying(reportId);
@@ -147,24 +144,27 @@ function StudentDetail() {
   const stats = studentStats(student.id, evaluations);
   const latest = evals[evals.length - 1];
 
-  const trendData = evals.map((e) => ({ week: `W${e.week}`, score: e.total }));
-  const radarData = CATEGORIES.map((c) => ({
-    category: c.short,
-    value: latest ? Math.round((latest.scores[c.key] / c.max) * 100) : 0,
-  }));
-
   const TrendIcon = stats.trend > 0 ? TrendingUp : stats.trend < 0 ? TrendingDown : Minus;
   const trendColor =
     stats.trend > 0 ? "text-[color:var(--success)]" : stats.trend < 0 ? "text-[color:var(--danger)]" : "text-muted-foreground";
 
   return (
     <AppShell>
-      <Link
-        to="/instructor/students"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to students
-      </Link>
+      {isAdmin ? (
+        <Link
+          to="/admin/manage"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to User Management
+        </Link>
+      ) : (
+        <Link
+          to="/instructor/students"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to students
+        </Link>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
@@ -172,7 +172,7 @@ function StudentDetail() {
           <div>
             <h1 className="text-2xl font-bold">{student.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {student.email} · {student.track} Track
+              {student.email} · {student.track} Course
             </p>
             {student.studentCode && (
               <span className="text-xs font-mono bg-brand/10 text-brand px-2 py-0.5 rounded mt-1 inline-block">
@@ -182,14 +182,8 @@ function StudentDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <a href={`/student/${student.id}`} target="_blank" rel="noreferrer">
-              <ExternalLink className="h-4 w-4" />
-              Student View
-            </a>
-          </Button>
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
-            <Link to="/instructor/evaluate">
+            <Link to="/instructor/evaluate" search={{ studentId: student.id }}>
               <ClipboardCheck className="h-4 w-4" />
               New Evaluation
             </Link>
@@ -211,13 +205,12 @@ function StudentDetail() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
               label="Latest"
               value={`${latest.total}/100`}
               sub={<PerfBadge total={latest.total} />}
             />
-            <StatCard label="Average" value={`${stats.avg}/100`} />
             <StatCard
               label="Highest"
               value={`${stats.high}/100`}
@@ -234,64 +227,6 @@ function StudentDetail() {
               }
               sub={<span className="text-muted-foreground">{stats.count} weeks evaluated</span>}
             />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base">Score History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="week" stroke="var(--muted-foreground)" fontSize={12} />
-                      <YAxis stroke="var(--muted-foreground)" fontSize={12} domain={[0, 100]} />
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="score"
-                        stroke="var(--brand)"
-                        strokeWidth={3}
-                        dot={{ fill: "var(--brand)", r: 5 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Latest Category Mix</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData}>
-                      <PolarGrid stroke="var(--border)" />
-                      <PolarAngleAxis
-                        dataKey="category"
-                        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                      />
-                      <Radar
-                        dataKey="value"
-                        stroke="var(--brand)"
-                        fill="var(--brand)"
-                        fillOpacity={0.35}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           <Card>

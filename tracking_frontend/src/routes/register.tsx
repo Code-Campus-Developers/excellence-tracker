@@ -59,7 +59,7 @@ function Register() {
     if (!form.lastName.trim()) { toast.error("Please enter your last name"); return; }
     if (!form.email.trim()) { toast.error("Please enter your email address"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { toast.error("Please enter a valid email address"); return; }
-    if (!form.track) { toast.error("Please select your track"); return; }
+    if (!form.track) { toast.error("Please select your course"); return; }
     if (!form.phone.trim()) { toast.error("Please enter your phone number"); return; }
     const phoneValid = /^(\+234|0)[0-9]{9,10}$/.test(form.phone.replace(/\s|-/g, ""));
     if (!phoneValid) { toast.error("Enter a valid phone number (e.g. 08012345678 or +2348012345678)"); return; }

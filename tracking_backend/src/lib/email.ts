@@ -7,6 +7,32 @@ const FROM = process.env.FROM_EMAIL ?? "onboarding@resend.dev";
 const APP_URL = process.env.APP_URL ?? "http://localhost:8080";
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:8080";
 
+const GENERATED_STUDENT_EMAIL_DOMAINS = new Set([
+  "codecampus.ng",
+  "codecampus.com.ng",
+]);
+
+/**
+ * Generated student addresses use a dotted local part (for example,
+ * first.last@codecampus.ng). Single-name Code Campus addresses may be real and
+ * must continue receiving email. This rule is only used by student email flows.
+ */
+export function shouldSuppressStudentEmail(email: string): boolean {
+  const parts = email.trim().toLowerCase().split("@");
+  if (parts.length !== 2) return false;
+
+  const [localPart, domain] = parts;
+  return localPart.includes(".") && GENERATED_STUDENT_EMAIL_DOMAINS.has(domain);
+}
+
+function suppressGeneratedStudentEmail(email: string): boolean {
+  const shouldSuppress = shouldSuppressStudentEmail(email);
+  if (shouldSuppress) {
+    console.info(`[email] Skipped generated student address: ${email}`);
+  }
+  return shouldSuppress;
+}
+
 // ─── Helper: send silently (never throws) ─────────────────────────────────────
 export async function sendSilent(fn: () => Promise<void>) {
   try { await fn(); } catch (e) { console.error("Email send failed:", e); }
@@ -221,7 +247,9 @@ export async function sendPasswordResetEmail(opts: {
   to: string;
   name: string;
   token: string;
+  isStudent?: boolean;
 }) {
+  if (opts.isStudent && suppressGeneratedStudentEmail(opts.to)) return;
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${opts.token}`;
   await resend.emails.send({
     from: FROM,
@@ -247,6 +275,7 @@ export async function sendEvaluationEmail(opts: {
   total: number;
   evaluator: string;
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   const dashboardUrl = `${FRONTEND_URL}/dashboard`;
   await resend.emails.send({
     from: FROM,
@@ -274,6 +303,7 @@ export async function sendStudentWelcomeEmail(opts: {
   track: string;
   tempPassword?: string;
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   await resend.emails.send({
     from: FROM,
     to: opts.to,
@@ -303,6 +333,7 @@ export async function sendStudentWelcomeEmail(opts: {
 export async function sendSelfReportVerifiedEmail(opts: {
   to: string; name: string; week: number; status: "VERIFIED" | "REJECTED";
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   const isVerified = opts.status === "VERIFIED";
   await resend.emails.send({
     from: FROM,
@@ -324,6 +355,7 @@ export async function sendSelfReportVerifiedEmail(opts: {
 export async function sendTrackInstructorAssignedEmail(opts: {
   to: string; studentName: string; instructorName: string; track: string; startDate: string;
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   await resend.emails.send({
     from: FROM,
     to: opts.to,
@@ -368,6 +400,7 @@ export async function sendEditRequestEmail(opts: {
 export async function sendEditApprovalEmail(opts: {
   to: string; studentName: string; week: number; approved: boolean;
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   const color = opts.approved ? "#16a34a" : "#dc2626";
   const title = opts.approved ? "Edit Request Approved ✅" : "Edit Request Denied ❌";
   await resend.emails.send({
@@ -395,6 +428,7 @@ export async function sendStudentAttendanceEmail(opts: {
   time: string;
   durationMin?: number | null;
 }) {
+  if (suppressGeneratedStudentEmail(opts.to)) return;
   const isIn = opts.action === "clock_in";
   const color = isIn ? "#16a34a" : "#2563eb";
   const durText = opts.durationMin

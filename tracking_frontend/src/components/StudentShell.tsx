@@ -8,7 +8,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/authStore";
 import { Avatar } from "@/components/PerfBadge";
 import { api } from "@/lib/api";
+import { getMessagingSocket } from "@/lib/messaging-socket";
 import { useStore, getCurrentWeek } from "@/lib/store";
+import { formatNotificationDateTime } from "@/lib/date-time";
 
 const NAV = [
   { to: "/student",             label: "Dashboard",   icon: LayoutDashboard, exact: true },
@@ -58,8 +60,16 @@ export function StudentShell({ children, title }: StudentShellProps) {
     fetchNotifications();
     fetchUnreadMessages();
     const i1 = setInterval(fetchNotifications, 60_000);
-    const i2 = setInterval(fetchUnreadMessages, 30_000);
-    return () => { clearInterval(i1); clearInterval(i2); };
+    const i2 = setInterval(fetchUnreadMessages, 60_000);
+    const socket = getMessagingSocket();
+    socket?.on("message:new", fetchUnreadMessages);
+    socket?.on("messages:unread-changed", fetchUnreadMessages);
+    return () => {
+      clearInterval(i1);
+      clearInterval(i2);
+      socket?.off("message:new", fetchUnreadMessages);
+      socket?.off("messages:unread-changed", fetchUnreadMessages);
+    };
   }, [fetchNotifications, fetchUnreadMessages]);
 
   useEffect(() => {
@@ -228,7 +238,7 @@ export function StudentShell({ children, title }: StudentShellProps) {
                             <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${!n.isRead ? "bg-brand" : "bg-transparent"}`} />
                             <div className="min-w-0 flex-1">
                               <p className="text-sm leading-snug">{n.message}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{new Date(n.createdAt).toLocaleDateString()}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{formatNotificationDateTime(n.createdAt)}</p>
                             </div>
                           </Link>
                           <button onClick={() => deleteNotification(n.id)}

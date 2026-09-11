@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, MessageCircle, Loader2, UserCircle2, Users, Megaphone } from "lucide-react";
+import { Send, MessageCircle, Loader2, UserCircle2, Megaphone, Check, CheckCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { StudentShell } from "@/components/StudentShell";
+import { getMessagingSocket } from "@/lib/messaging-socket";
 
 export const Route = createFileRoute("/student/messages")({
   head: () => ({ meta: [{ title: "Messages | CodeCampus" }] }),
@@ -17,7 +18,12 @@ export const Route = createFileRoute("/student/messages")({
 });
 
 interface Instructor { id: string; name: string; email: string; track: string | null; profilePicture: string | null; }
-interface Message { id: string; content: string; isRead: boolean; createdAt: string; senderId: string; receiverId: string; sender: { name: string; profilePicture: string | null }; }
+interface Message {
+  id: string; content: string; isRead: boolean; deliveredAt: string | null; readAt: string | null; createdAt: string;
+  senderId: string; receiverId: string; supportStudentId?: string | null;
+  sender: { name: string; role: string; profilePicture: string | null };
+  reads: { readAt: string; user: { id: string; name: string; role: string } }[];
+}
 interface Broadcast { id: string; content: string; track: string; createdAt: string; instructor: { name: string; profilePicture: string | null }; }
 
 function StudentMessages() {
@@ -29,6 +35,9 @@ function StudentMessages() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [instructorTyping, setInstructorTyping] = useState(false);
+  const [instructorOnline, setInstructorOnline] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "announcements">("chat");
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
 
@@ -38,7 +47,12 @@ function StudentMessages() {
   }, []);
 
   const fetchThread = useCallback(async (id: string) => {
-    try { setMessages((await api.get<Message[]>(`/api/messages/thread/${id}`)) ?? []); }
+    try {
+      setMessages((await api.get<Message[]>(`/api/messages/thread/${id}`)) ?? []);
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        await api.post(`/api/messages/thread/${id}/read`, {});
+      }
+    }
     catch { /* silent */ }
   }, []);
 
@@ -46,9 +60,68 @@ function StudentMessages() {
     if (!instructor?.id) return;
     setLoadingThread(true);
     fetchThread(instructor.id).finally(() => setLoadingThread(false));
-    pollRef.current = setInterval(() => fetchThread(instructor.id!), 15_000);
+    pollRef.current = setInterval(() => fetchThread(instructor.id!), 60_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [instructor?.id, fetchThread]);
+
+  useEffect(() => {
+    if (!instructor?.id) return;
+    const socket = getMessagingSocket();
+    if (!socket) return;
+    const onNewMessage = (message: Message) => {
+      if (message.supportStudentId !== user?.id && message.senderId !== instructor.id && message.receiverId !== instructor.id) return;
+      setMessages((previous) => previous.some((item) => item.id === message.id) ? previous : [...previous, message]);
+      if (message.senderId !== user?.id && document.visibilityState === "visible") {
+        api.post(`/api/messages/thread/${instructor.id}/read`, {}).catch(() => {});
+      }
+    };
+    const onRead = ({ messageIds, readAt, reader }: { messageIds: string[]; readAt: string; reader?: { id: string; name: string; role: string } }) => {
+      const ids = new Set(messageIds);
+      setMessages((previous) => previous.map((message) => {
+        if (!ids.has(message.id)) return message;
+        const reads = reader && !message.reads.some((receipt) => receipt.user.id === reader.id)
+          ? [...message.reads, { readAt, user: reader }]
+          : message.reads;
+        return { ...message, isRead: true, deliveredAt: message.deliveredAt ?? readAt, readAt: message.readAt ?? readAt, reads };
+      }));
+    };
+    const onDelivered = ({ messageIds, deliveredAt }: { messageIds: string[]; deliveredAt: string }) => {
+      const ids = new Set(messageIds);
+      setMessages((previous) => previous.map((message) => ids.has(message.id) ? { ...message, deliveredAt } : message));
+    };
+    const onTyping = ({ userId, isTyping }: { userId: string; isTyping: boolean }) => {
+      if (userId === instructor.id) setInstructorTyping(isTyping);
+    };
+    const onPresence = ({ userId, online }: { userId: string; online: boolean }) => {
+      if (userId === instructor.id) setInstructorOnline(online);
+    };
+    const refreshAnnouncements = () => api.get<Broadcast[]>("/api/messages/broadcasts").then(setBroadcasts).catch(() => {});
+    socket.on("message:new", onNewMessage);
+    socket.on("messages:read", onRead);
+    socket.on("messages:delivered", onDelivered);
+    socket.on("typing", onTyping);
+    socket.on("presence:changed", onPresence);
+    socket.on("broadcast:new", refreshAnnouncements);
+    socket.emit("presence:check", instructor.id, setInstructorOnline);
+    return () => {
+      socket.off("message:new", onNewMessage);
+      socket.off("messages:read", onRead);
+      socket.off("messages:delivered", onDelivered);
+      socket.off("typing", onTyping);
+      socket.off("presence:changed", onPresence);
+      socket.off("broadcast:new", refreshAnnouncements);
+    };
+  }, [instructor?.id, user?.id]);
+
+  useEffect(() => {
+    const markVisibleMessagesRead = () => {
+      if (instructor?.id && document.visibilityState === "visible") {
+        api.post(`/api/messages/thread/${instructor.id}/read`, {}).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", markVisibleMessagesRead);
+    return () => document.removeEventListener("visibilitychange", markVisibleMessagesRead);
+  }, [instructor?.id]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -58,10 +131,20 @@ function StudentMessages() {
     setSending(true);
     try {
       const msg = await api.post<Message>("/api/messages", { receiverId: instructor.id, content: text.trim() });
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => prev.some((message) => message.id === msg.id) ? prev : [...prev, msg]);
       setText("");
+      getMessagingSocket()?.emit("typing", { receiverId: instructor.id, isTyping: false });
     } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to send"); }
     finally { setSending(false); }
+  };
+
+  const handleTyping = (value: string) => {
+    setText(value);
+    if (!instructor?.id) return;
+    const socket = getMessagingSocket();
+    socket?.emit("typing", { receiverId: instructor.id, isTyping: true });
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => socket?.emit("typing", { receiverId: instructor.id, isTyping: false }), 1200);
   };
 
   if (instructor === undefined) {
@@ -105,7 +188,7 @@ function StudentMessages() {
             ))}
           </div>
         ) : !instructor ? (
-          <Card><CardContent className="p-12 text-center"><UserCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="font-semibold">No instructor assigned yet</p><p className="text-sm text-muted-foreground mt-1">An instructor for your track hasn't been set up yet.</p></CardContent></Card>
+          <Card><CardContent className="p-12 text-center"><UserCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" /><p className="font-semibold">No instructor assigned yet</p><p className="text-sm text-muted-foreground mt-1">An instructor for your course hasn't been set up yet.</p></CardContent></Card>
         ) : (
           <>
             <Card>
@@ -113,7 +196,9 @@ function StudentMessages() {
                 {instructor.profilePicture ? <img src={instructor.profilePicture} alt={instructor.name} className="h-10 w-10 rounded-full object-cover shrink-0" /> : <Avatar name={instructor.name} color="#16a34a" size={40} />}
                 <div>
                   <p className="font-semibold text-sm">{instructor.name}</p>
-                  <p className="text-xs text-muted-foreground">{instructor.track} Track Instructor</p>
+                  <p className={`text-xs ${instructorTyping ? "text-brand" : "text-muted-foreground"}`}>
+                    {instructorTyping ? "typing…" : instructorOnline ? "online" : `${instructor.track} Course Instructor`}
+                  </p>
                 </div>
                 <div className="ml-auto"><span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Your instructor</span></div>
               </CardContent>
@@ -129,10 +214,27 @@ function StudentMessages() {
                   const isMe = m.senderId === user?.id;
                   return (
                     <div key={m.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                      {!isMe && (instructor.profilePicture ? <img src={instructor.profilePicture} alt={instructor.name} className="h-7 w-7 rounded-full object-cover shrink-0 mt-1" /> : <Avatar name={instructor.name} color="#16a34a" size={28} />)}
+                      {!isMe && (m.sender.profilePicture ? <img src={m.sender.profilePicture} alt={m.sender.name} className="h-7 w-7 rounded-full object-cover shrink-0 mt-1" /> : <Avatar name={m.sender.name} color="#16a34a" size={28} />)}
                       <div className={`max-w-[75%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-0.5`}>
+                        {!isMe && (
+                          <span className="text-[10px] font-medium text-muted-foreground px-1">
+                            {m.sender.name}{m.sender.role === "ADMIN" ? " · Admin" : m.sender.role === "MENTOR" ? " · Instructor" : ""}
+                          </span>
+                        )}
                         <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${isMe ? "bg-brand text-brand-foreground rounded-tr-sm" : "bg-background border rounded-tl-sm"}`}>{m.content}</div>
-                        <span className="text-[10px] text-muted-foreground px-1">{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                        <span className="text-[10px] text-muted-foreground px-1 inline-flex items-center gap-1">
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {isMe && ((m.reads?.length ?? 0) > 0 || m.readAt
+                            ? <CheckCheck className="h-3 w-3 text-brand" aria-label="Seen" />
+                            : m.deliveredAt
+                              ? <CheckCheck className="h-3 w-3" aria-label="Delivered" />
+                              : <Check className="h-3 w-3" aria-label="Sent" />)}
+                        </span>
+                        {isMe && m.reads?.length > 0 && (
+                          <span className="text-[9px] text-muted-foreground px-1">
+                            Seen by {m.reads.map((receipt) => receipt.user.name).join(", ")}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -141,7 +243,7 @@ function StudentMessages() {
               </div>
 
               <form onSubmit={handleSend} className="flex gap-2 mt-3">
-                <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a message…" className="flex-1" autoComplete="off" />
+                <Input value={text} onChange={(e) => handleTyping(e.target.value)} placeholder="Type a message…" className="flex-1" autoComplete="off" />
                 <Button type="submit" className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0" disabled={sending || !text.trim()}>
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
