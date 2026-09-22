@@ -17,6 +17,7 @@ import {
 } from "@/lib/tracking";
 import { useStore, getCurrentWeek } from "@/lib/store";
 import { useAuth } from "@/lib/authStore";
+import { SHOW_CURRENT_WEEK_INDICATORS } from "@/lib/ui-flags";
 
 function Stat({
   label, value, hint, icon: Icon, accent, to,
@@ -89,7 +90,7 @@ function AdminDashboard() {
     <AppShell>
       <PageHeader
         title={`Welcome back, ${user?.name ?? "Admin"}`}
-        subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
+        subtitle={SHOW_CURRENT_WEEK_INDICATORS ? `Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.` : "Track weekly excellence across all students."}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
             <Link to="/instructor/evaluate">
@@ -101,7 +102,7 @@ function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Stat label="Total Students" value={students.length} icon={Users} accent="Enrolled" to="/instructor/students" />
-        <Stat label="Evaluated This Week" value={`${evaluatedCount}/${students.length}`} icon={ClipboardCheck} accent={`Week ${CURRENT_WEEK}`} to="/instructor/evaluate" />
+        <Stat label="Evaluated This Week" value={`${evaluatedCount}/${students.length}`} icon={ClipboardCheck} accent={SHOW_CURRENT_WEEK_INDICATORS ? `Week ${CURRENT_WEEK}` : undefined} to="/instructor/evaluate" />
         <Stat label="Total Evaluations" value={evaluations.length} icon={BookOpen} accent="All-time" to="/instructor/leaderboard" />
       </div>
 
@@ -157,7 +158,7 @@ function AdminDashboard() {
                   <div className="font-medium text-sm truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground">{s.track}</div>
                 </div>
-                <div className="text-right"><div className="font-bold">{s.currentScore}</div><div className="text-xs text-muted-foreground">Week {CURRENT_WEEK}</div></div>
+                <div className="text-right"><div className="font-bold">{s.currentScore}</div><div hidden={!SHOW_CURRENT_WEEK_INDICATORS} className="text-xs text-muted-foreground">Week {CURRENT_WEEK}</div></div>
                 <PerfBadge total={s.currentScore ?? 0} />
               </Link>
             ))}

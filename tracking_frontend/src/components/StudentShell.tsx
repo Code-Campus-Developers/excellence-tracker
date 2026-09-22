@@ -10,6 +10,7 @@ import { Avatar } from "@/components/PerfBadge";
 import { api } from "@/lib/api";
 import { getMessagingSocket } from "@/lib/messaging-socket";
 import { useStore, getCurrentWeek } from "@/lib/store";
+import { SHOW_CURRENT_WEEK_INDICATORS } from "@/lib/ui-flags";
 import { formatNotificationDateTime } from "@/lib/date-time";
 
 const NAV = [
@@ -164,8 +165,12 @@ export function StudentShell({ children, title }: StudentShellProps) {
       {/* Bottom — cohort/week bar */}
       <div className="px-4 py-1 border-t shrink-0">
         <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
-          <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
-          <div className="text-xl leading-tight font-bold">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
+          <div className="text-[10px] leading-tight font-semibold opacity-90">{SHOW_CURRENT_WEEK_INDICATORS ? "Week" : "EXCELLENCE TRACKER"}</div>
+          {SHOW_CURRENT_WEEK_INDICATORS ? (
+            <div className="text-xl leading-tight font-bold">{getCurrentWeek(settings)} / {settings.total_weeks}</div>
+          ) : (
+            <div className="text-base leading-[1.5625rem] font-bold whitespace-nowrap">Learn. Grow. Excel.</div>
+          )}
         </div>
       </div>
     </>

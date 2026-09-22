@@ -11,6 +11,7 @@ import {
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { PerfBadge, Avatar } from "@/components/PerfBadge";
 import { useAuth } from "@/lib/authStore";
+import { SHOW_CURRENT_WEEK_INDICATORS } from "@/lib/ui-flags";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -132,7 +133,7 @@ function Dashboard() {
     <AppShell>
       <PageHeader
         title={`Welcome back, ${user?.name ?? "Instructor"}`}
-        subtitle={`Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.`}
+        subtitle={SHOW_CURRENT_WEEK_INDICATORS ? `Bootcamp Week ${CURRENT_WEEK}, track weekly excellence across all students.` : "Track weekly excellence across all students."}
         actions={
           <Button asChild className="bg-brand text-brand-foreground hover:bg-brand/90">
             <Link to="/instructor/evaluate">
@@ -155,7 +156,7 @@ function Dashboard() {
           label="Evaluated This Week"
           value={`${evaluatedCount}/${STUDENTS.length}`}
           icon={ClipboardCheck}
-          accent={`Week ${CURRENT_WEEK}`}
+          accent={SHOW_CURRENT_WEEK_INDICATORS ? `Week ${CURRENT_WEEK}` : undefined}
           to="/instructor/evaluate"
         />
         <Stat
@@ -263,7 +264,7 @@ function Dashboard() {
                 </div>
                 <div className="text-right">
                   <div className="font-bold">{s.currentScore}</div>
-                  <div className="text-xs text-muted-foreground">Week {CURRENT_WEEK}</div>
+                  <div hidden={!SHOW_CURRENT_WEEK_INDICATORS} className="text-xs text-muted-foreground">Week {CURRENT_WEEK}</div>
                 </div>
                 <PerfBadge total={s.currentScore ?? 0} />
               </Link>

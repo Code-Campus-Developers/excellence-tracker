@@ -31,10 +31,10 @@ async function canAccessConversation(me: string, role: string, other: string) {
     if (target.role !== "MENTOR") return false;
     const student = await prisma.student.findFirst({
       where: { userId: me, isArchived: false },
-      select: { track: true },
+      select: { id: true, track: true },
     });
     if (!student) return false;
-    const assigned = await getCurrentInstructorForTrack(student.track);
+    const assigned = await getCurrentInstructorForTrack(student.track, student.id);
     return assigned?.id === other;
   }
   return false;
@@ -106,12 +106,12 @@ router.get("/instructor", authenticate, async (req: AuthRequest, res: Response) 
     }
     const student = await prisma.student.findFirst({
       where: { userId: req.user!.userId },
-      select: { track: true },
+      select: { id: true, track: true },
     });
     if (!student) return res.status(404).json({ error: "Student record not found" });
 
     // Use track assignment table for the authoritative instructor
-    const assignedInstructor = await getCurrentInstructorForTrack(student.track);
+    const assignedInstructor = await getCurrentInstructorForTrack(student.track, student.id);
     if (assignedInstructor) {
       const user = await prisma.user.findUnique({
         where: { id: assignedInstructor.id },

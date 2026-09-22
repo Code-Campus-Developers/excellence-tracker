@@ -9,6 +9,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { TOTAL_WEEKS } from "@/lib/tracking";
 import { useAuth } from "@/lib/authStore";
 import { useStore, getCurrentWeek } from "@/lib/store";
+import { SHOW_CURRENT_WEEK_INDICATORS } from "@/lib/ui-flags";
 import { api } from "@/lib/api";
 import { getMessagingSocket } from "@/lib/messaging-socket";
 import { formatNotificationDateTime } from "@/lib/date-time";
@@ -230,8 +231,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="px-4 py-1 border-t">
           <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
-            <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
-            <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
+            <div className="text-[10px] leading-tight font-semibold opacity-90">{SHOW_CURRENT_WEEK_INDICATORS ? "Week" : "EXCELLENCE TRACKER"}</div>
+            {SHOW_CURRENT_WEEK_INDICATORS ? (
+              <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
+            ) : (
+              <div className="text-base leading-[1.5625rem] font-bold whitespace-nowrap">Learn. Grow. Excel.</div>
+            )}
           </div>
         </div>
       </aside>
@@ -300,8 +305,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="px-4 py-1 border-t">
           <div className="rounded-lg bg-brand text-brand-foreground px-3 py-1.5">
-            <div className="text-[10px] leading-tight font-semibold opacity-90">Week</div>
-            <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
+            <div className="text-[10px] leading-tight font-semibold opacity-90">{SHOW_CURRENT_WEEK_INDICATORS ? "Week" : "EXCELLENCE TRACKER"}</div>
+            {SHOW_CURRENT_WEEK_INDICATORS ? (
+              <div className="text-xl leading-tight font-bold">{displayWeek} / {settings.total_weeks}</div>
+            ) : (
+              <div className="text-base leading-[1.5625rem] font-bold whitespace-nowrap">Learn. Grow. Excel.</div>
+            )}
           </div>
         </div>
       </aside>

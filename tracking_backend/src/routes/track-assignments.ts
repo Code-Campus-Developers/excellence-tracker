@@ -5,26 +5,45 @@ import { sendTrackInstructorAssignedEmail } from "../lib/email";
 
 const router = Router();
 
+const COURSE_TRACKS = [
+  "HTML/CSS",
+  "JavaScript",
+  "Python",
+  "React.Js/Next.Js",
+  "Node.Js",
+  "Agentic Software Engineering",
+] as const;
+
 // ─── Helper: find currently active instructor for a track ────────────────────
-export async function getCurrentInstructorForTrack(track: string) {
+export async function getCurrentInstructorForTrack(track: string, studentId?: string) {
   const now = new Date();
 
-  // 1. Check TrackAssignment table (date-based)
-  const assignment = await prisma.trackAssignment.findFirst({
+  // Student-specific assignments take priority; targeted assignments never
+  // become the course-wide default for students who were not selected.
+  const query = {
     where: {
       track,
+      instructor: { isActive: true, role: "MENTOR" as const },
       startDate: { lte: now },
       OR: [
         { endDate: null },           // ongoing (no end date)
         { endDate: { gte: now } },   // not yet expired
       ],
     },
-    orderBy: { startDate: "desc" }, // most recent assignment wins
+    orderBy: [{ startDate: "desc" as const }, { createdAt: "desc" as const }, { id: "desc" as const }],
     include: {
       instructor: {
         select: { id: true, name: true, email: true, track: true, profilePicture: true, isActive: true },
       },
     },
+  };
+  const targeted = studentId
+    ? await prisma.trackAssignment.findFirst({
+        ...query, where: { ...query.where, studentIds: { has: studentId } },
+      })
+    : null;
+  const assignment = targeted ?? await prisma.trackAssignment.findFirst({
+    ...query, where: { ...query.where, studentIds: { isEmpty: true } },
   });
 
   if (assignment && assignment.instructor.isActive) {
@@ -38,6 +57,17 @@ export async function getCurrentInstructorForTrack(track: string) {
   });
 
   return fallback ?? null;
+}
+
+async function validateStudents(studentIds: unknown, track: string): Promise<string | null> {
+  if (!Array.isArray(studentIds) || studentIds.some((id) => typeof id !== "string" || !id.trim())) {
+    return "Students must be a list of student IDs";
+  }
+  if (studentIds.length === 0) return null;
+  const count = await prisma.student.count({
+    where: { id: { in: studentIds }, track, isArchived: false },
+  });
+  return count === new Set(studentIds).size ? null : "Select students who belong to the selected course and are not archived";
 }
 
 // ─── GET /admin/track-assignments  ──────────────────────────────────────────
@@ -62,6 +92,7 @@ router.get("/current", authenticate, authorize("ADMIN", "MENTOR"), async (_req: 
     const now = new Date();
     const all = await prisma.trackAssignment.findMany({
       where: {
+        studentIds: { isEmpty: true },
         startDate: { lte: now },
         OR: [{ endDate: null }, { endDate: { gte: now } }],
       },
@@ -87,17 +118,27 @@ router.get("/current", authenticate, authorize("ADMIN", "MENTOR"), async (_req: 
 // ─── POST /admin/track-assignments  — create ────────────────────────────────
 router.post("/", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const { instructorId, track, startDate, endDate, notes } = req.body as {
+    const { instructorId, track, courseTrack, startDate, endDate, notes, studentIds = [] } = req.body as {
       instructorId: string; track: string; startDate: string;
-      endDate?: string | null; notes?: string | null;
+      courseTrack: string; endDate?: string | null; notes?: string | null;
+      studentIds?: string[];
     };
-    if (!instructorId || !track || !startDate) {
-      return res.status(400).json({ error: "instructorId, track, and startDate are required" });
+    if (!instructorId || !track || !courseTrack || !startDate) {
+      return res.status(400).json({ error: "Instructor, course, track, and start date are required" });
     }
+    if (!(COURSE_TRACKS as readonly string[]).includes(courseTrack)) {
+      return res.status(400).json({ error: "Invalid track" });
+    }
+    const studentError = await validateStudents(studentIds, track);
+    if (studentError) return res.status(400).json({ error: studentError });
+    const instructor = await prisma.user.findFirst({ where: { id: instructorId, role: "MENTOR", isActive: true } });
+    if (!instructor) return res.status(400).json({ error: "Select an active instructor" });
     const assignment = await prisma.trackAssignment.create({
       data: {
         instructorId,
         track,
+        courseTrack,
+        studentIds: [...new Set(studentIds)],
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         notes: notes ?? null,
@@ -107,9 +148,9 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: AuthRequest, res:
       },
     });
 
-    // Email all students in this track about their new instructor
+    // Limit assignment emails to the selected students when provided.
     const students = await prisma.student.findMany({
-      where: { track, isArchived: false },
+      where: { track, isArchived: false, ...(studentIds.length > 0 && { id: { in: studentIds } }) },
       include: { user: { select: { email: true } } },
     });
     const startDateStr = new Date(startDate).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
@@ -137,12 +178,33 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: AuthRequest, res:
 // ─── PUT /admin/track-assignments/:id  — update (extend, change end date) ───
 router.put("/:id", authenticate, authorize("ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const { startDate, endDate, notes } = req.body as {
-      startDate?: string; endDate?: string | null; notes?: string | null;
+    const { instructorId, track, courseTrack, startDate, endDate, notes, studentIds } = req.body as {
+      courseTrack?: string; startDate?: string; endDate?: string | null; notes?: string | null;
+      instructorId?: string; track?: string; studentIds?: string[];
     };
+    const existing = await prisma.trackAssignment.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Assignment not found" });
+    if (courseTrack !== undefined && !(COURSE_TRACKS as readonly string[]).includes(courseTrack)) {
+      return res.status(400).json({ error: "Invalid track" });
+    }
+    if (track !== undefined && (typeof track !== "string" || !track.trim())) {
+      return res.status(400).json({ error: "Course is required" });
+    }
+    if (studentIds !== undefined || track !== undefined && track !== existing.track) {
+      const studentError = await validateStudents(studentIds === undefined ? existing.studentIds : studentIds, track ?? existing.track);
+      if (studentError) return res.status(400).json({ error: studentError });
+    }
+    if (instructorId !== undefined) {
+      const instructor = await prisma.user.findFirst({ where: { id: instructorId, role: "MENTOR", isActive: true } });
+      if (!instructor) return res.status(400).json({ error: "Select an active instructor" });
+    }
     const assignment = await prisma.trackAssignment.update({
       where: { id: req.params.id },
       data: {
+        ...(instructorId !== undefined && { instructorId }),
+        ...(track !== undefined && { track }),
+        ...(studentIds !== undefined && { studentIds: [...new Set(studentIds)] }),
+        ...(courseTrack !== undefined && { courseTrack }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(notes !== undefined && { notes }),

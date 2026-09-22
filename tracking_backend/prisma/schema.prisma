@@ -212,6 +212,8 @@ model TrackAssignment {
   id           String    @id @default(cuid())
   instructorId String    @map("instructor_id")
   track        String
+  courseTrack  String?   @map("course_track")
+  studentIds   String[]  @default([]) @map("student_ids")
   startDate    DateTime  @map("start_date")
   endDate      DateTime? @map("end_date")
   notes        String?

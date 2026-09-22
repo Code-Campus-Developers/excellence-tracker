@@ -80,7 +80,7 @@ export async function notifyInstructors(message: string, link?: string) {
 export async function notifyTrackInstructor(studentId: string, message: string, link?: string) {
   const student = await prisma.student.findUnique({ where: { id: studentId }, select: { track: true } });
   if (!student?.track) return;
-  const instructor = await getCurrentInstructorForTrack(student.track);
+  const instructor = await getCurrentInstructorForTrack(student.track, studentId);
   if (instructor) await createNotification({ userId: instructor.id, message, link });
 }
 
